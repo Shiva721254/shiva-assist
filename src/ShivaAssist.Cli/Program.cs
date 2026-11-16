@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text;
 using ShivaAssist.Cli;
 using ShivaAssist.Core.Findings;
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Reporting;
 using ShivaAssist.Core.Scanning;
 using ShivaAssist.Windows;
@@ -37,7 +38,7 @@ if (options.Version)
 }
 
 Console.OutputEncoding = Encoding.UTF8;
-var view = new ConsoleView(options.Plain || Console.IsOutputRedirected);
+var view = new ConsoleView(options.Plain || Console.IsOutputRedirected, TextCatalog.For(options.Language));
 view.Banner(product);
 
 var checks = WindowsPlatform.CreateChecks();

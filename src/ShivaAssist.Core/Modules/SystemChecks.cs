@@ -1,3 +1,4 @@
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Scanning;
 using static ShivaAssist.Core.Modules.Text;
@@ -37,7 +38,7 @@ public sealed class OsCheck(ISnapshotSource<OsSnapshot> source) : SnapshotCheck<
                 Module = Module,
                 Category = Category.Performance,
                 Severity = Severity.Information,
-                Title = $"The PC has not restarted for {N(days)} days",
+                Title = new Message("The PC has not restarted for {days} days", ("days", days)),
                 Evidence = [uptimeEvidence],
                 SuspectedCause = "Fast Startup or sleep may keep Windows from restarting fully, which can postpone updates.",
                 Recommendation = new("Restart the PC (Start → Power → Restart)."),
@@ -53,7 +54,7 @@ public sealed class OsCheck(ISnapshotSource<OsSnapshot> source) : SnapshotCheck<
         if (end is null)
         {
             // A version newer than the table: assume supported, but say the date is not known to this release.
-            return new Finding { Id = "OS-VERSION-001", Module = Module, Category = Category, Severity = Severity.Healthy, Confidence = Confidence.Medium, Title = $"{name} {snapshot.DisplayVersion} is a current Windows version", Evidence = [version] };
+            return new Finding { Id = "OS-VERSION-001", Module = Module, Category = Category, Severity = Severity.Healthy, Confidence = Confidence.Medium, Title = new Message("{windows} {version} is a current Windows version", ("windows", name), ("version", snapshot.DisplayVersion)), Evidence = [version] };
         }
 
         var lifecycle = new Evidence("Microsoft lifecycle (" + WindowsLifecycle.TableVersion + ")", $"Version {snapshot.DisplayVersion} ({snapshot.Edition}) receives updates until {Date(end.Value)}");
@@ -66,7 +67,7 @@ public sealed class OsCheck(ISnapshotSource<OsSnapshot> source) : SnapshotCheck<
                 Module = Module,
                 Category = Category.Security,
                 Severity = Severity.Warning,
-                Title = $"Windows 11 {snapshot.DisplayVersion} no longer receives security updates",
+                Title = new Message("Windows 11 {version} no longer receives security updates", ("version", snapshot.DisplayVersion)),
                 Evidence = [version, lifecycle],
                 SuspectedCause = "The feature update to a newer Windows 11 version has not been installed yet.",
                 Recommendation = new("Install the latest Windows 11 version: Settings → Windows Update → Check for updates. Make a backup first."),
@@ -80,11 +81,11 @@ public sealed class OsCheck(ISnapshotSource<OsSnapshot> source) : SnapshotCheck<
                 Module = Module,
                 Category = Category.Security,
                 Severity = Severity.Information,
-                Title = $"Windows 11 {snapshot.DisplayVersion} stops receiving updates in {N(daysLeft)} days",
+                Title = new Message("Windows 11 {version} stops receiving updates in {days} days", ("version", snapshot.DisplayVersion), ("days", daysLeft)),
                 Evidence = [version, lifecycle],
                 Recommendation = new("Plan the update to the latest Windows 11 version: Settings → Windows Update."),
             }
-            : new Finding { Id = "OS-VERSION-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = $"{name} {snapshot.DisplayVersion} is supported and receives security updates", Evidence = [version, lifecycle] };
+            : new Finding { Id = "OS-VERSION-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = new Message("{windows} {version} is supported and receives security updates", ("windows", name), ("version", snapshot.DisplayVersion)), Evidence = [version, lifecycle] };
     }
 
     private Finding Windows10Support(Evidence version, DateOnly today) => new()
@@ -142,12 +143,12 @@ public sealed class UpdateCheck(ISnapshotSource<UpdateSnapshot> source) : Snapsh
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = $"No Windows update has been installed for {N(age)} days",
+                Title = new Message("No Windows update has been installed for {days} days", ("days", age)),
                 Evidence = [evidence],
                 SuspectedCause = "Updates may be paused, failing, or blocked by too little disk space.",
                 Recommendation = new("Open Settings → Windows Update and select Check for updates."),
             },
-            > 35 => new Finding { Id = "UPDATE-RECENT-001", Module = Module, Category = Category, Severity = Severity.Information, Title = $"The last Windows update was installed {N(age)} days ago", Evidence = [evidence], Recommendation = new("Check Settings → Windows Update for new updates.") },
+            > 35 => new Finding { Id = "UPDATE-RECENT-001", Module = Module, Category = Category, Severity = Severity.Information, Title = new Message("The last Windows update was installed {days} days ago", ("days", age)), Evidence = [evidence], Recommendation = new("Check Settings → Windows Update for new updates.") },
             _ => new Finding { Id = "UPDATE-RECENT-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Windows updates were installed recently", Evidence = [evidence] },
         };
 

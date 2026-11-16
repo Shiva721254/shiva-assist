@@ -6,4 +6,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ShivaAssist.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- One file per language; adding a language means adding a file here, no code -->
+    <EmbeddedResource Include="Localization\*.json" />
+  </ItemGroup>
 </Project>

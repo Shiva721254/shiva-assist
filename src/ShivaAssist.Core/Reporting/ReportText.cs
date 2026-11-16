@@ -1,5 +1,5 @@
-using System.Globalization;
 using ShivaAssist.Core.Findings;
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Scanning;
 
 namespace ShivaAssist.Core.Reporting;
@@ -13,7 +13,7 @@ public sealed record ReportLine(string Text, Severity? Severity = null, bool Hea
 /// </summary>
 public static class ReportText
 {
-    public static string CategoryName(Category category) => category switch
+    public static Message CategoryName(Category category) => category switch
     {
         Category.Hardware => "Hardware",
         Category.WindowsSystem => "Windows system",
@@ -23,7 +23,16 @@ public static class ReportText
         Category.Performance => "Performance",
         Category.Applications => "Programs",
         Category.BootAndRecovery => "Boot and recovery",
-        _ => category.ToString(),
+        _ => new Message(category.ToString()),
+    };
+
+    public static Message SeverityName(Severity severity) => severity switch
+    {
+        Severity.Critical => "Critical",
+        Severity.Warning => "Warning",
+        Severity.Unknown => "Unknown",
+        Severity.Information => "Information",
+        _ => "OK",
     };
 
     public static string Tag(Severity severity) => severity switch
@@ -35,7 +44,7 @@ public static class ReportText
         _ => "OK      ",
     };
 
-    public static string ReasonText(UnknownReason reason) => reason switch
+    public static Message ReasonText(UnknownReason reason) => reason switch
     {
         UnknownReason.RequiresAdmin => "needs administrator rights",
         UnknownReason.Unsupported => "not available on this PC",
@@ -44,9 +53,10 @@ public static class ReportText
         _ => "an error occurred",
     };
 
-    public static IReadOnlyList<ReportLine> Render(ScanReport report, bool details)
+    public static IReadOnlyList<ReportLine> Render(ScanReport report, bool details, TextCatalog? catalog = null)
     {
         ArgumentNullException.ThrowIfNull(report);
+        var t = catalog ?? TextCatalog.English;
         var lines = new List<ReportLine>();
 
         foreach (var group in report.Findings
@@ -54,17 +64,17 @@ public static class ReportText
             .OrderBy(g => g.Min(f => ScanRunner.SeverityRank(f.Severity)))
             .ThenBy(g => g.Key))
         {
-            lines.Add(new ReportLine(CategoryName(group.Key), Heading: true));
+            lines.Add(new ReportLine(CategoryName(group.Key).Render(t), Heading: true));
             foreach (var finding in group)
             {
                 var title = finding.Severity == Severity.Unknown && finding.UnknownReason is { } reason
-                    ? $"{finding.Title} ({ReasonText(reason)})"
-                    : finding.Title;
+                    ? $"{finding.Title.Render(t)} ({ReasonText(reason).Render(t)})"
+                    : finding.Title.Render(t);
                 lines.Add(new ReportLine($"  {Tag(finding.Severity)} {title}", finding.Severity));
 
                 if (finding.Severity is not Severity.Healthy && finding.Recommendation is { } advice)
                 {
-                    lines.Add(new ReportLine($"           → {advice.Summary}"));
+                    lines.Add(new ReportLine($"           → {advice.Summary.Render(t)}"));
                 }
 
                 if (details)
@@ -72,7 +82,7 @@ public static class ReportText
                     lines.AddRange(finding.Evidence.Select(e => new ReportLine($"           · {e.Observation}  [{e.Source}]")));
                     if (finding.SuspectedCause is { } cause)
                     {
-                        lines.Add(new ReportLine($"           ? Possible cause: {cause}"));
+                        lines.Add(new ReportLine($"           ? {new Message("Possible cause: {cause}", ("cause", cause.Render(t))).Render(t)}"));
                     }
 
                     lines.Add(new ReportLine($"           # {finding.Id}"));
@@ -83,9 +93,15 @@ public static class ReportText
         }
 
         var counts = report.CountBySeverity;
-        string C(Severity s) => counts[s].ToString(CultureInfo.InvariantCulture);
         lines.Add(new ReportLine(
-            $"Summary: {C(Severity.Critical)} critical · {C(Severity.Warning)} warnings · {C(Severity.Information)} info · {C(Severity.Healthy)} OK · {C(Severity.Unknown)} unknown  ({report.DurationSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s)",
+            new Message(
+                "Summary: {critical} critical · {warning} warnings · {info} info · {ok} OK · {unknown} unknown ({seconds} s)",
+                ("critical", counts[Severity.Critical]),
+                ("warning", counts[Severity.Warning]),
+                ("info", counts[Severity.Information]),
+                ("ok", counts[Severity.Healthy]),
+                ("unknown", counts[Severity.Unknown]),
+                ("seconds", Math.Round(report.DurationSeconds, 1))).Render(t),
             Heading: true));
         return lines;
     }

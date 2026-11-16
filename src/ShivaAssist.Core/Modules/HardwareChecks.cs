@@ -1,3 +1,4 @@
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Scanning;
 using static ShivaAssist.Core.Modules.Text;
@@ -36,12 +37,12 @@ public sealed class ProcessorCheck(ISnapshotSource<ProcessorSnapshot> source) : 
                     Category = Category.Performance,
                     Severity = Severity.Warning,
                     Confidence = Confidence.Medium,
-                    Title = $"The processor was almost fully busy during the scan ({N(average)}%)",
+                    Title = new Message("The processor was almost fully busy during the scan ({load}%)", ("load", average)),
                     Evidence = [info, load],
                     SuspectedCause = "A program or background task may be using the processor heavily. This alone does not mean the hardware is faulty.",
                     Recommendation = new("Open Task Manager (Ctrl+Shift+Esc) and sort by CPU to see which program is busy."),
                 }
-                : new Finding { Id = "CPU-LOAD-001", Module = Module, Category = Category.Performance, Severity = Severity.Healthy, Title = $"Processor load is normal ({N(average)}%)", Evidence = [info, load] });
+                : new Finding { Id = "CPU-LOAD-001", Module = Module, Category = Category.Performance, Severity = Severity.Healthy, Title = new Message("Processor load is normal ({load}%)", ("load", average)), Evidence = [info, load] });
         }
 
         return findings;
@@ -105,12 +106,12 @@ public sealed class MemoryCheck(ISnapshotSource<MemorySnapshot> source) : Snapsh
                 Category = Category.Performance,
                 Severity = Severity.Warning,
                 Confidence = Confidence.Medium,
-                Title = $"Memory was almost full during the scan ({Percent(used)})",
+                Title = new Message("Memory was almost full during the scan ({used:pct})", ("used", used)),
                 Evidence = [usage],
                 SuspectedCause = "Many open programs or browser tabs, or a program that keeps using more memory.",
                 Recommendation = new("Close programs you are not using, or restart the PC."),
             }
-            : new Finding { Id = "MEMORY-USAGE-001", Module = Module, Category = Category.Performance, Severity = Severity.Healthy, Title = $"Memory use is normal ({Percent(used)})", Evidence = [usage] };
+            : new Finding { Id = "MEMORY-USAGE-001", Module = Module, Category = Category.Performance, Severity = Severity.Healthy, Title = new Message("Memory use is normal ({used:pct})", ("used", used)), Evidence = [usage] };
 
         if (snapshot.CommitLimitBytes <= 0)
         {
@@ -171,11 +172,11 @@ public sealed class BatteryCheck(ISnapshotSource<BatterySnapshot> source) : Snap
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = $"The battery holds only {Percent(health)} of its original charge",
+                Title = new Message("The battery holds only {health:pct} of its original charge", ("health", health)),
                 Evidence = [evidence],
                 Recommendation = new("Replace the battery; a Shiva technician can order the right one."),
             },
-            < 0.8 => new Finding { Id = "BATTERY-WEAR-001", Module = Module, Category = Category, Severity = Severity.Information, Title = $"The battery is worn and holds {Percent(health)} of its original charge", Evidence = [evidence] },
+            < 0.8 => new Finding { Id = "BATTERY-WEAR-001", Module = Module, Category = Category, Severity = Severity.Information, Title = new Message("The battery is worn and holds {health:pct} of its original charge", ("health", health)), Evidence = [evidence] },
             _ => new Finding { Id = "BATTERY-WEAR-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "The battery is in good condition", Evidence = [evidence] },
         }];
     }

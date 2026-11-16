@@ -1,3 +1,5 @@
+using ShivaAssist.Core.Localization;
+
 namespace ShivaAssist.Core.Findings;
 
 /// <summary>How serious a finding is. <see cref="Unknown"/> means the check could not decide; it is never "healthy".</summary>
@@ -48,7 +50,7 @@ public sealed record Evidence(string Source, string Observation);
 /// What to do about a finding. In stage 1 nothing is repaired, so <see cref="Operations"/> stays empty:
 /// the contract only allows IDs from the signed repair catalogue, which arrives in stage 3.
 /// </summary>
-public sealed record Recommendation(string Summary, bool RequiresAdmin = false)
+public sealed record Recommendation(Message Summary, bool RequiresAdmin = false)
 {
     public IReadOnlyList<string> Operations { get; init; } = [];
 }
@@ -75,12 +77,12 @@ public sealed record Finding
     public Confidence Confidence { get; init; } = Confidence.High;
 
     /// <summary>One plain-language sentence: what was measured, not what it might mean.</summary>
-    public required string Title { get; init; }
+    public required Message Title { get; init; }
 
     public IReadOnlyList<Evidence> Evidence { get; init; } = [];
 
     /// <summary>Always worded as a possibility, never as a fact.</summary>
-    public string? SuspectedCause { get; init; }
+    public Message? SuspectedCause { get; init; }
 
     public Recommendation? Recommendation { get; init; }
 
@@ -90,7 +92,7 @@ public sealed record Finding
     /// <summary>Set by the scan runner when the report is assembled.</summary>
     public DateTimeOffset? Timestamp { get; init; }
 
-    public static Finding Unknown(string id, string module, Category category, string title, UnknownReason reason, string? detail = null) => new()
+    public static Finding Unknown(string id, string module, Category category, Message title, UnknownReason reason, string? detail = null) => new()
     {
         Id = id,
         Module = module,

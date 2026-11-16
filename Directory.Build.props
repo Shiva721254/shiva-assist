@@ -8,7 +8,8 @@
     <!-- NU1900 = vulnerability feed unreachable (offline build); a real vulnerability (NU1901-NU1904) still fails the build -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Real culture data: Dutch and later languages format numbers their own way (7,0 GB) -->
+    <InvariantGlobalization>false</InvariantGlobalization>
     
     <Version>0.1.0</Version>
     <Company>Shiva Computers</Company>

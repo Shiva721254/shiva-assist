@@ -1,3 +1,4 @@
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Scanning;
 using static ShivaAssist.Core.Modules.Text;
@@ -109,7 +110,7 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = $"The Windows firewall is switched off for: {string.Join(", ", off)}",
+                Title = new Message("The Windows firewall is switched off for: {profiles}", ("profiles", string.Join(", ", off))),
                 Evidence = evidence,
                 SuspectedCause = "It may have been switched off by hand or by another security program.",
                 Recommendation = new("Turn the firewall on: Start → Windows Security → Firewall & network protection."),
@@ -142,7 +143,7 @@ public sealed class StartupCheck(ISnapshotSource<StartupSnapshot> source) : Snap
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = $"{N(count)} programs start automatically with Windows",
+                Title = new Message("{count} programs start automatically with Windows", ("count", count)),
                 Evidence = [evidence],
                 SuspectedCause = "Many startup programs make the PC slow to start and use memory in the background.",
                 Recommendation = new("Switch off programs you do not need at startup: Task Manager → Startup apps."),
@@ -153,7 +154,7 @@ public sealed class StartupCheck(ISnapshotSource<StartupSnapshot> source) : Snap
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Information,
-                Title = $"{N(count)} programs start automatically with Windows",
+                Title = new Message("{count} programs start automatically with Windows", ("count", count)),
                 Evidence = [evidence],
                 Recommendation = new("Check Task Manager → Startup apps for programs you do not need."),
             },
@@ -187,12 +188,12 @@ public sealed class StabilityCheck(ISnapshotSource<StabilitySnapshot> source) : 
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = $"The PC switched off unexpectedly {N(snapshot.UnexpectedShutdowns)} times {window}",
+                Title = new Message("The PC switched off unexpectedly {count} times in the last {days} days", ("count", snapshot.UnexpectedShutdowns), ("days", snapshot.Days)),
                 Evidence = [shutdowns],
                 SuspectedCause = "Possibly a power or battery problem, overheating, or the PC being switched off with the power button.",
                 Recommendation = new("If you did not switch it off yourself, have a Shiva technician check power supply and temperature."),
             },
-            > 0 => new Finding { Id = "SYSTEM-SHUTDOWN-001", Module = Module, Category = Category, Severity = Severity.Information, Title = $"The PC switched off unexpectedly {N(snapshot.UnexpectedShutdowns)} time(s) {window}", Evidence = [shutdowns] },
+            > 0 => new Finding { Id = "SYSTEM-SHUTDOWN-001", Module = Module, Category = Category, Severity = Severity.Information, Title = new Message("The PC switched off unexpectedly {count} time(s) in the last {days} days", ("count", snapshot.UnexpectedShutdowns), ("days", snapshot.Days)), Evidence = [shutdowns] },
             _ => new Finding { Id = "SYSTEM-SHUTDOWN-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "No unexpected shutdowns", Evidence = [shutdowns] },
         };
 
@@ -205,7 +206,7 @@ public sealed class StabilityCheck(ISnapshotSource<StabilitySnapshot> source) : 
                 Module = Module,
                 Category = Category,
                 Severity = snapshot.BlueScreens >= 3 ? Severity.Critical : Severity.Warning,
-                Title = $"Windows crashed with a blue screen {N(snapshot.BlueScreens)} time(s) {window}",
+                Title = new Message("Windows crashed with a blue screen {count} time(s) in the last {days} days", ("count", snapshot.BlueScreens), ("days", snapshot.Days)),
                 Evidence = [bugchecks],
                 SuspectedCause = "Often a faulty driver, sometimes failing memory or disk.",
                 Recommendation = new("Install all Windows updates and driver updates; if it keeps happening, contact a Shiva technician."),
@@ -222,7 +223,7 @@ public sealed class StabilityCheck(ISnapshotSource<StabilitySnapshot> source) : 
                 Category = Category.Hardware,
                 Severity = Severity.Warning,
                 Confidence = Confidence.Medium,
-                Title = $"Windows recorded {N(snapshot.HardwareErrors)} hardware error report(s) {window}",
+                Title = new Message("Windows recorded {count} hardware error report(s) in the last {days} days", ("count", snapshot.HardwareErrors), ("days", snapshot.Days)),
                 Evidence = [whea],
                 SuspectedCause = "The processor, memory or a connected device reported errors. Single corrected errors can be harmless.",
                 Recommendation = new("If the PC is also unstable, have a Shiva technician test the memory and hardware."),
@@ -245,11 +246,11 @@ public sealed class StabilityCheck(ISnapshotSource<StabilitySnapshot> source) : 
                 Module = Module,
                 Category = Category.Applications,
                 Severity = Severity.Warning,
-                Title = $"Programs crashed {N(crashes)} times {window}",
+                Title = new Message("Programs crashed {count} times in the last {days} days", ("count", crashes), ("days", snapshot.Days)),
                 Evidence = [total, .. top],
                 Recommendation = new("Update or reinstall the program that crashes most often."),
             },
-            >= 3 => new Finding { Id = "APP-CRASH-001", Module = Module, Category = Category.Applications, Severity = Severity.Information, Title = $"Programs crashed {N(crashes)} times {window}", Evidence = [total, .. top] },
+            >= 3 => new Finding { Id = "APP-CRASH-001", Module = Module, Category = Category.Applications, Severity = Severity.Information, Title = new Message("Programs crashed {count} times in the last {days} days", ("count", crashes), ("days", snapshot.Days)), Evidence = [total, .. top] },
             _ => new Finding { Id = "APP-CRASH-001", Module = Module, Category = Category.Applications, Severity = Severity.Healthy, Title = "Programs run without frequent crashes", Evidence = [total] },
         };
 

@@ -1,10 +1,11 @@
 using ShivaAssist.Core.Findings;
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Reporting;
 
 namespace ShivaAssist.Cli;
 
 /// <summary>Console presentation: colours, progress and the closing advice. All wording comes from <see cref="ReportText"/>.</summary>
-internal sealed class ConsoleView(bool plain)
+internal sealed class ConsoleView(bool plain, TextCatalog catalog)
 {
     public const string HelpUrl = "https://shivacomputers.nl/en/contact";
 
@@ -38,7 +39,7 @@ internal sealed class ConsoleView(bool plain)
         Console.WriteLine($"{report.System.OsName} {report.System.OsVersion}{(report.System.Elevated ? " · administrator" : string.Empty)}");
         Console.WriteLine();
 
-        foreach (var line in ReportText.Render(report, details))
+        foreach (var line in ReportText.Render(report, details, catalog))
         {
             if (line.Heading)
             {

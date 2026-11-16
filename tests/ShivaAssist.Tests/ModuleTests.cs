@@ -16,7 +16,7 @@ public sealed class WindowsVersionTests
     {
         var finding = Version("24H2", "Professional");
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Contains("no longer receives security updates", finding.Title, StringComparison.Ordinal);
+        Assert.Contains("no longer receives security updates", finding.Title.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class WindowsVersionTests
     {
         var finding = Version("22H2", "Professional", 19045);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.StartsWith("Windows 10", finding.Title, StringComparison.Ordinal);
+        Assert.StartsWith("Windows 10", finding.Title.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class StorageTests
     {
         var finding = Ctx.Single(Scan(120 * Gb, [new PhysicalDisk("Old HDD", "HDD", "SATA", 1000 * Gb, DiskHealth.Unhealthy)]), "STORAGE-HEALTH-001");
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("Back up", finding.Recommendation!.Summary, StringComparison.Ordinal);
+        Assert.Contains("Back up", finding.Recommendation!.Summary.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class SecurityTests
     {
         var finding = Ctx.Single(Scan([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", false)]), "SECURITY-FIREWALL-001");
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Contains("Public", finding.Title, StringComparison.Ordinal);
+        Assert.Contains("Public", finding.Title.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -197,14 +197,14 @@ public sealed class NetworkTests
     {
         var finding = Scan(LayerResult.Passed, LayerResult.Passed, LayerResult.Passed, LayerResult.Failed, LayerResult.Passed);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Contains("DNS", finding.Title, StringComparison.Ordinal);
+        Assert.Contains("DNS", finding.Title.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void NoAddressFromRouter()
     {
         var finding = Scan(LayerResult.Passed, LayerResult.Failed, LayerResult.NotTested, LayerResult.NotTested, LayerResult.NotTested);
-        Assert.Contains("valid network address", finding.Title, StringComparison.Ordinal);
+        Assert.Contains("valid network address", finding.Title.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public sealed class DeviceAndStabilityTests
 
         var problem = Ctx.Single(findings, "DEVICE-PROBLEM-001");
         Assert.Equal(Severity.Warning, problem.Severity);
-        Assert.Contains("Integrated Webcam", problem.Title, StringComparison.Ordinal);
+        Assert.Contains("Integrated Webcam", problem.Title.ToString(), StringComparison.Ordinal);
         Assert.Equal(Severity.Information, Ctx.Single(findings, "DEVICE-DISABLED-001").Severity);
         Assert.DoesNotContain(problem.Evidence, e => e.Observation.Contains("USB Stick", StringComparison.Ordinal));
     }

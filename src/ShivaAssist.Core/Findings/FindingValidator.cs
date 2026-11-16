@@ -23,7 +23,7 @@ public static partial class FindingValidator
             errors.Add("module is empty");
         }
 
-        if (string.IsNullOrWhiteSpace(finding.Title))
+        if (string.IsNullOrWhiteSpace(finding.Title?.Template))
         {
             errors.Add("title is empty");
         }

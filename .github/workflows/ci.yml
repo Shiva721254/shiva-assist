@@ -20,6 +20,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Translations complete (every English text has a Dutch translation)
+        run: python tools/check_translations.py
+
       - name: Build
         run: dotnet build ShivaAssist.slnx --configuration Release
 

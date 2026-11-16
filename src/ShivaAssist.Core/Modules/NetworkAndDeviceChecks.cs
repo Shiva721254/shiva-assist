@@ -1,3 +1,4 @@
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Scanning;
 using static ShivaAssist.Core.Modules.Text;
@@ -147,7 +148,7 @@ public sealed class DeviceCheck(ISnapshotSource<DeviceSnapshot> source) : Snapsh
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = faults.Count == 1 ? $"Windows reports a problem with {faults[0].Name}" : $"Windows reports problems with {N(faults.Count)} devices",
+                Title = faults.Count == 1 ? new Message("Windows reports a problem with {device}", ("device", faults[0].Name)) : new Message("Windows reports problems with {count} devices", ("count", faults.Count)),
                 Evidence = [.. faults.Select(d => new Evidence("Win32_PnPEntity", $"{d.Name} ({d.DeviceClass}): {Explain(d.ProblemCode)}"))],
                 SuspectedCause = "A missing, outdated or damaged driver, or a loose cable or port.",
                 Recommendation = new("Install the driver from the PC or device manufacturer's website. For USB devices, first try another port or cable."),
@@ -162,7 +163,7 @@ public sealed class DeviceCheck(ISnapshotSource<DeviceSnapshot> source) : Snapsh
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Information,
-                Title = $"{N(disabled.Count)} device(s) are switched off in Device Manager",
+                Title = new Message("{count} device(s) are switched off in Device Manager", ("count", disabled.Count)),
                 Evidence = [.. disabled.Select(d => new Evidence("Win32_PnPEntity", $"{d.Name} ({d.DeviceClass})"))],
                 Recommendation = new("If one of these should work (for example the webcam or Wi-Fi), switch it on in Device Manager."),
             });

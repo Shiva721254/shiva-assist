@@ -17,6 +17,9 @@ internal sealed record CliOptions
 
     public string? ReportPath { get; init; }
 
+    /// <summary>Language code (en, nl); English when not given.</summary>
+    public string? Language { get; init; }
+
     public static CliOptions Parse(IReadOnlyList<string> args)
     {
         var options = new CliOptions { Pause = args.Count == 0 && !Console.IsInputRedirected };
@@ -31,6 +34,7 @@ internal sealed record CliOptions
                 "--no-report" => options with { NoReport = true },
                 "--pause" => options with { Pause = true },
                 "--report" when i + 1 < args.Count => options with { ReportPath = args[++i] },
+                "--lang" when i + 1 < args.Count => options with { Language = args[++i] },
                 _ => throw new ArgumentException($"Unknown option: {args[i]}"),
             };
         }
@@ -47,6 +51,7 @@ internal sealed record CliOptions
               --report FILE  Save the JSON report to FILE
                              (default: Documents\Shiva Assist\Reports\scan-<date>.json)
               --no-report    Do not save a report
+              --lang CODE    Language of the results: en (default) or nl
               --plain        No colours (for logs)
               --pause        Wait for a key at the end
               --version      Show the version

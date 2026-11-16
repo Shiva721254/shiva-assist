@@ -1,3 +1,4 @@
+using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Scanning;
 using static ShivaAssist.Core.Modules.Text;
@@ -60,7 +61,6 @@ public sealed class StorageCheck(ISnapshotSource<StorageSnapshot> source) : Snap
     {
         var free = FreeFraction(system);
         var evidence = VolumeEvidence(system);
-        const string Cause = "Downloads, temporary files, old updates or the Recycle Bin often take up the space.";
 
         // Absolute space matters most: Windows updates need several GB whatever the drive size.
         if (system.FreeBytes < 4 * OneGb)
@@ -71,9 +71,9 @@ public sealed class StorageCheck(ISnapshotSource<StorageSnapshot> source) : Snap
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Critical,
-                Title = $"The Windows drive is almost full ({Gb(system.FreeBytes)} free)",
+                Title = new Message("The Windows drive is almost full ({free:gb} free)", ("free", system.FreeBytes)),
                 Evidence = [evidence],
-                SuspectedCause = Cause + " With this little space, updates can fail and Windows becomes slow or unstable.",
+                SuspectedCause = "Downloads, temporary files, old updates or the Recycle Bin often take up the space. With this little space, updates can fail and Windows becomes slow or unstable.",
                 Recommendation = new("Free up space now: empty the Recycle Bin, run Disk Cleanup, and remove programs or files you do not need."),
             };
         }
@@ -86,9 +86,9 @@ public sealed class StorageCheck(ISnapshotSource<StorageSnapshot> source) : Snap
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
-                Title = $"The Windows drive is getting full ({Gb(system.FreeBytes)} free)",
+                Title = new Message("The Windows drive is getting full ({free:gb} free)", ("free", system.FreeBytes)),
                 Evidence = [evidence],
-                SuspectedCause = Cause,
+                SuspectedCause = "Downloads, temporary files, old updates or the Recycle Bin often take up the space.",
                 Recommendation = new("Free up space: Settings → System → Storage → Cleanup recommendations."),
             };
         }
