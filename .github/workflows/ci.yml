@@ -49,6 +49,8 @@ jobs:
           if ($report.durationSeconds -gt 180) { Fail "Scan took $($report.durationSeconds) s (limit 180 s, AC-8)" }
           $summary = ($report.findings | ForEach-Object { "$($_.severity.PadRight(11)) $($_.id)  $($_.title)" }) -join '%0A'
           Write-Output "::notice title=Scan on windows-latest ($($report.durationSeconds) s)::$summary"
+          # Exit code 2 only means the scan found warnings; the step itself succeeded.
+          exit 0
 
       - name: SHA-256 for the release manifest on assist.shivacomputers.nl
         shell: pwsh
