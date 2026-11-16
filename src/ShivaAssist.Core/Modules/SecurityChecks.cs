@@ -23,14 +23,18 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
     public override IReadOnlyList<Finding> Evaluate(SecuritySnapshot snapshot, ScanContext context)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        return [Antivirus(snapshot.Antivirus), Firewall(snapshot.Firewall)];
+        return [Antivirus(snapshot.Antivirus, snapshot.Defender), Firewall(snapshot.Firewall)];
     }
 
-    private Finding Antivirus(IReadOnlyList<AntivirusProduct>? products)
+    private Finding Antivirus(IReadOnlyList<AntivirusProduct>? products, DefenderStatus? defender)
     {
-        if (products is null)
+        // Security Center is the primary source. When it lists nothing (or is absent, as on Windows Server),
+        // Defender's own status decides; without either, the honest answer is Unknown, never "no protection".
+        if (products is null || products.Count == 0)
         {
-            return Finding.Unknown("SECURITY-AV-001", Module, Category, "Antivirus status could not be read", UnknownReason.Unsupported, "Windows Security Center is not available");
+            return defender is null
+                ? Finding.Unknown("SECURITY-AV-001", Module, Category, "Antivirus status could not be read", UnknownReason.Unsupported, products is null ? "Windows Security Center is not available" : "No antivirus registered with Windows Security Center")
+                : FromDefender(defender);
         }
 
         var evidence = products.Select(p => new Evidence("SecurityCenter2", $"{p.Name}: {(p.Enabled ? "on" : "off")}, definitions {(p.UpToDate ? "up to date" : "out of date")}")).ToList();
@@ -65,6 +69,28 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
         }
 
         return new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Antivirus protection is on and up to date", Evidence = evidence };
+    }
+
+    private Finding FromDefender(DefenderStatus defender)
+    {
+        var evidence = new Evidence("MSFT_MpComputerStatus", $"Microsoft Defender: antivirus {(defender.AntivirusEnabled ? "on" : "off")}, real-time protection {(defender.RealTimeProtection ? "on" : "off")}, definitions {N(defender.SignatureAgeDays)} days old");
+        if (!defender.AntivirusEnabled || !defender.RealTimeProtection)
+        {
+            return new Finding
+            {
+                Id = "SECURITY-AV-001",
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Critical,
+                Title = defender.AntivirusEnabled ? "Real-time virus protection is switched off" : "No antivirus protection is switched on",
+                Evidence = [evidence],
+                Recommendation = new("Turn on real-time protection: Start → Windows Security → Virus & threat protection → Manage settings."),
+            };
+        }
+
+        return defender.SignatureAgeDays > 7
+            ? new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Warning, Title = "Microsoft Defender is on, but its virus definitions are out of date", Evidence = [evidence], Recommendation = new("Check for updates in Windows Security → Virus & threat protection updates.") }
+            : new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Microsoft Defender protection is on and up to date", Evidence = [evidence] };
     }
 
     private Finding Firewall(IReadOnlyList<FirewallProfile>? profiles)

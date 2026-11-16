@@ -46,6 +46,14 @@ public sealed class WindowsVersionTests
     }
 
     [Fact]
+    public void WindowsServerIsNotJudgedByTheWindows11Table()
+    {
+        var finding = Version("24H2", "ServerDatacenter");
+        Assert.Equal(Severity.Unknown, finding.Severity);
+        Assert.Equal(UnknownReason.Unsupported, finding.UnknownReason);
+    }
+
+    [Fact]
     public void LongUptimeSuggestsARestart()
     {
         var findings = new OsCheck(new Fixed<OsSnapshot>(null!)).Evaluate(new("Windows 10 Pro", "Professional", "25H2", 26200, 1, TimeSpan.FromDays(21)), Ctx.User);
@@ -158,6 +166,18 @@ public sealed class SecurityTests
         Assert.Equal(Severity.Warning, finding.Severity);
         Assert.Contains("Public", finding.Title, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void EmptySecurityCenterFallsBackToDefender()
+    {
+        Assert.Equal(Severity.Healthy, Ctx.Single(new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([], AllOn, new DefenderStatus(true, true, 1)), Ctx.User), "SECURITY-AV-001").Severity);
+        Assert.Equal(Severity.Critical, Ctx.Single(new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([], AllOn, new DefenderStatus(true, false, 1)), Ctx.User), "SECURITY-AV-001").Severity);
+        Assert.Equal(Severity.Warning, Ctx.Single(new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([], AllOn, new DefenderStatus(true, true, 20)), Ctx.User), "SECURITY-AV-001").Severity);
+    }
+
+    [Fact]
+    public void NoEvidenceOfAntivirusIsUnknownNotCritical() =>
+        Assert.Equal(Severity.Unknown, Ctx.Single(Scan([], AllOn), "SECURITY-AV-001").Severity);
 
     [Fact]
     public void NoSecurityCenterIsUnknown() => Assert.Equal(Severity.Unknown, Ctx.Single(Scan(null, AllOn), "SECURITY-AV-001").Severity);

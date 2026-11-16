@@ -24,7 +24,9 @@ public sealed class OsCheck(ISnapshotSource<OsSnapshot> source) : SnapshotCheck<
         var name = windows11 ? snapshot.ProductName.Replace("Windows 10", "Windows 11", StringComparison.Ordinal) : snapshot.ProductName;
         var version = new Evidence("registry: Windows NT\\CurrentVersion", $"{name} {snapshot.DisplayVersion}, build {N(snapshot.Build)}.{N(snapshot.Revision)}");
         var today = DateOnly.FromDateTime(context.Now.UtcDateTime);
-        var os = windows11 ? Windows11Support(snapshot, name, version, today) : Windows10Support(version, today);
+        var os = snapshot.Edition.StartsWith("Server", StringComparison.OrdinalIgnoreCase)
+            ? Finding.Unknown("OS-VERSION-001", Module, Category, "Windows Server is not covered by the Windows lifecycle check", UnknownReason.Unsupported, $"{snapshot.ProductName} ({snapshot.Edition}) {snapshot.DisplayVersion}")
+            : windows11 ? Windows11Support(snapshot, name, version, today) : Windows10Support(version, today);
 
         var days = (int)snapshot.Uptime.TotalDays;
         var uptimeEvidence = new Evidence("system uptime", $"Running for {N(days)} days since the last restart");

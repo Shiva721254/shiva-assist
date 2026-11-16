@@ -23,6 +23,15 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
         [pscustomobject]@{ profiles = @($fw) } | ConvertTo-Json -Compress -Depth 3
         """;
 
+    private const string DefenderScript = """
+        $s = Get-CimInstance -Namespace root/Microsoft/Windows/Defender -ClassName MSFT_MpComputerStatus
+        [pscustomobject]@{
+            av = [bool]$s.AntivirusEnabled
+            rtp = [bool]$s.RealTimeProtectionEnabled
+            age = [int]$s.AntivirusSignatureAge
+        } | ConvertTo-Json -Compress
+        """;
+
     public async Task<SecuritySnapshot> ReadAsync(ScanContext context, CancellationToken cancellationToken)
     {
         var antivirus = await TryAsync(AntivirusScript, json => (IReadOnlyList<AntivirusProduct>)[.. Items(json, "products").Select(p =>
@@ -34,7 +43,20 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
         var firewall = await TryAsync(FirewallScript, json => (IReadOnlyList<FirewallProfile>)[.. Items(json, "profiles")
             .Select(p => new FirewallProfile(Str(p, "name"), Bool(p, "enabled")))], cancellationToken);
 
-        return new SecuritySnapshot(antivirus, firewall);
+        DefenderStatus? defender = null;
+        if (antivirus is null || antivirus.Count == 0)
+        {
+            try
+            {
+                defender = await TryAsync(DefenderScript, json => new DefenderStatus(Bool(json, "av"), Bool(json, "rtp"), (int)Long(json, "age")), cancellationToken);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                defender = null;
+            }
+        }
+
+        return new SecuritySnapshot(antivirus, firewall, defender);
     }
 
     /// <summary>One half failing (e.g. no Security Center on Windows Server) must not hide the other half.</summary>
