@@ -1,0 +1,17 @@
+# Changelog
+
+## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation
+
+First read-only release (Milestone 1 of the Shiva Assist architecture, phase 1 of the problem research).
+
+- Finding contract `shiva.assist.finding/1.0` and report `shiva.assist.report/1.0`, with validation.
+- Scan runner: checks run in parallel, each with a hard time limit; failures become Unknown with a reason
+  (`requires-admin`, `unsupported`, `timeout`, `access-denied`, `error`).
+- 13 modules: Windows version and lifecycle (Windows 11 per version and edition), updates, Windows integrity (DISM),
+  security (antivirus, firewall), network layers, storage space and disk health, memory (incl. commit pressure),
+  processor load, startup programs, devices and drivers, battery wear, stability (shutdowns, blue screens,
+  hardware errors, program crashes), scan privileges.
+- Console app `ShivaAssist.exe`: colour-coded results by category, plain-language advice, `--details` for evidence,
+  JSON report in `Documents\Shiva Assist\Reports`.
+- 63 tests, including the scenarios from *20 Windows problems in the Netherlands*.
+- No external packages in the product; Windows data is read with built-in tools only.

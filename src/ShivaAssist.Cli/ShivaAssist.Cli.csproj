@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Console host for stage 1 (Milestone 1). Stage 2 replaces it with the WPF dashboard on the same core. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>ShivaAssist</AssemblyName>
+    <RootNamespace>ShivaAssist.Cli</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Release builds: one self-contained ShivaAssist.exe, no .NET installation needed on the customer's PC -->
+    <RuntimeIdentifier Condition="'$(Configuration)' == 'Release'">win-x64</RuntimeIdentifier>
+    <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ShivaAssist.Windows\ShivaAssist.Windows.csproj" />
+  </ItemGroup>
+</Project>

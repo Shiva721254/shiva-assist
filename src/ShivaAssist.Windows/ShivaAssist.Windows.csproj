@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows data sources: registry, PowerShell CIM, DISM, wevtutil, .NET networking. Read-only, no NuGet packages. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>ShivaAssist.Windows</RootNamespace>
+    <!-- Lets CI and dev containers compile (not run) this project on Linux -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ShivaAssist.Core\ShivaAssist.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShivaAssist.Tests" />
+  </ItemGroup>
+</Project>

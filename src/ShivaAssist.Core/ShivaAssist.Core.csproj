@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platform-neutral: finding contract, scan runner, report and every diagnostic rule. Tested on any OS. -->
+  <PropertyGroup>
+    <RootNamespace>ShivaAssist.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShivaAssist.Tests" />
+  </ItemGroup>
+</Project>
