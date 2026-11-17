@@ -1,0 +1,36 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Shiva Assist" Manufacturer="Shiva Computers" Version="$(var.ReleaseVersion)"
+           UpgradeCode="$(var.UpgradeCode)" Scope="perMachine" InstallerVersion="500">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Shiva Assist is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="ARPURLINFOABOUT" Value="https://shivacomputers.nl" />
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="CompanyFolder" Name="Shiva Computers">
+        <Directory Id="INSTALLFOLDER" Name="Shiva Assist">
+          <Component Id="Application" Guid="*">
+            <File Id="ApplicationFile" Source="$(var.PayloadDir)\ShivaAssist.exe" KeyPath="yes">
+              <Shortcut Id="StartMenu" Directory="ApplicationProgramsFolder" Name="Shiva Assist"
+                        WorkingDirectory="INSTALLFOLDER" Arguments="--technician" Advertise="yes" />
+            </File>
+            <RemoveFolder Id="RemoveProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+          </Component>
+          <Component Id="Agent" Guid="*">
+            <File Source="$(var.PayloadDir)\ShivaAssistAgent.exe" KeyPath="yes" />
+          </Component>
+          <Component Id="Cli" Guid="*">
+            <File Source="$(var.PayloadDir)\ShivaAssistCli.exe" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Shiva Assist" />
+    </StandardDirectory>
+    <Feature Id="Complete" Title="Shiva Assist" Level="1">
+      <ComponentRef Id="Application" />
+      <ComponentRef Id="Agent" />
+      <ComponentRef Id="Cli" />
+    </Feature>
+  </Package>
+</Wix>

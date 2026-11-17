@@ -256,3 +256,16 @@ setting the repo back to private when public CI monitoring is no longer needed.
 Concise, direct communication; professional tone; explain concept first, then specifics, with examples.
 The owner pushes from VS Code and tests on the live CI artifacts; give exact click-by-click steps for Windows,
 VirtualBox and GitHub. English is the default product language, Dutch selectable.
+
+## Web installer increment (17 November 2026)
+
+`ShivaAssist.Setup` is a small net48 WPF web bootstrapper. See tools/installer/README.md for
+public signing/hosting gates, manifest schema, certificate pin renewal and the VM lab procedure.
+CI builds unsigned MSI packages for x64 and ARM64 using pinned WiX, and uploads a distinctly
+named local-package lab bootstrapper. The public binary rejects unconfigured pins and never
+accepts a local package/trust bypass. No live website deployment or certificate was available.
+Public releases must sign payloads -> build MSI -> sign MSI -> build pinned setup -> sign setup
+-> generate manifest -> upload files -> replace manifest last. Do not publish lab setup to customers.
+New tests cover native architecture, MSI versions, source allowlists, manifest constraints, hash,
+size mismatch and manifest limits/redirect rejection. Windows CI additionally exercises real install,
+shortcut, repair/reinstall, major upgrade, uninstall and retained customer data on its disposable runner.

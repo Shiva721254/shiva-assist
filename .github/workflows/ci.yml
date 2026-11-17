@@ -54,6 +54,34 @@ jobs:
             Remove-Item "publish/$rid/*.pdb" -ErrorAction SilentlyContinue
           }
 
+      - name: Build Windows Installer packages
+        shell: pwsh
+        run: ./tools/installer/Build-Packages.ps1
+
+      - name: Bootstrapper self-test and window smoke test
+        shell: pwsh
+        run: |
+          $setup = "$PWD/src/ShivaAssist.Setup/bin/Release/net48/ShivaAssistSetup.exe"
+          foreach ($argument in '--self-test', '--ui-smoke') {
+            $test = Start-Process $setup -ArgumentList $argument -Wait -PassThru
+            if ($test.ExitCode) { throw "Setup $argument failed: $($test.ExitCode)" }
+          }
+          dotnet build src/ShivaAssist.Setup -c Release -p:SetupLab=true
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Install, repair, upgrade and uninstall (disposable runner only)
+        shell: pwsh
+        run: ./tools/installer/Test-Install.ps1
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: shiva-assist-installer-lab
+          path: |
+            src/ShivaAssist.Setup/bin/Release/net48/ShivaAssistSetupLab.exe
+            installer-output/*.msi
+            installer-output/*.sha256
+            tools/installer/README.md
+
       - name: Smoke test on the runner (read-only scan, report must validate)
         shell: pwsh
         run: |

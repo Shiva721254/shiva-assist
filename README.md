@@ -191,3 +191,7 @@ Planned modules from the *Shiva Utilities* strategy (storage manager, network to
 5–8. Offline recovery, reinstallation, licensing, advanced features (see the architecture document)
 
 © Shiva Computers. All rights reserved.
+
+## Small web installer
+
+The new bootstrapper and signed release workflow are documented in [tools/installer/README.md](tools/installer/README.md). CI provides an unsigned **shiva-assist-installer-lab** for VM testing. Public distribution requires a configured trusted signing certificate and hosted release files; it is not yet live on the website.

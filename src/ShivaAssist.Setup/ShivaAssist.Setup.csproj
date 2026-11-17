@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Small bootstrapper: uses Windows' .NET Framework, never bundles the .NET 10 runtime. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>ShivaAssistSetup</AssemblyName>
+    <RootNamespace>ShivaAssist.Setup</RootNamespace>
+    <ApplicationManifest>setup.manifest</ApplicationManifest>
+    <GenerateBindingRedirectsOutputType>false</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SetupLab)' == 'true'">
+    <AssemblyName>ShivaAssistSetupLab</AssemblyName>
+    <DefineConstants>$(DefineConstants);SETUP_LAB</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
+    <AssemblyMetadata Include="PublisherCertificateSha256" Value="$(PublisherCertificateSha256)" />
+    <EmbeddedResource Include="../ShivaAssist.Core/Localization/nl.json" LogicalName="ShivaAssist.Setup.nl.json" />
+  </ItemGroup>
+</Project>
