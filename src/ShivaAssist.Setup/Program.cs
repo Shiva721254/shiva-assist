@@ -71,7 +71,7 @@ internal static class Program
 
     public static bool Expected(Exception exception) => exception is IOException || exception is UnauthorizedAccessException
         || exception is InvalidOperationException || exception is ArgumentException || exception is System.ComponentModel.Win32Exception
-        || exception is HttpRequestException || exception is System.Security.SecurityException || exception is OperationCanceledException
+        || exception is HttpRequestException || exception is System.Security.SecurityException || exception is System.Security.Cryptography.CryptographicException || exception is OperationCanceledException
         || exception is System.Runtime.InteropServices.ExternalException || exception is KeyNotFoundException || exception is InvalidCastException;
 
     private static Dictionary<string, object> LoadDutch()
@@ -100,7 +100,7 @@ internal sealed class SetupWindow : Window
     public SetupWindow()
     {
         Title = "Shiva Assist Setup";
-        Width = 570; Height = 410; MinWidth = 500; MinHeight = 390;
+        Width = 570; Height = 520; MinWidth = 500; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         FontFamily = new FontFamily("Segoe UI"); FontSize = 14;
         Background = new SolidColorBrush(Color.FromRgb(251, 247, 238));
@@ -122,7 +122,7 @@ internal sealed class SetupWindow : Window
         panel.Children.Add(status); panel.Children.Add(progress); panel.Children.Add(open);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         buttons.Children.Add(install); buttons.Children.Add(cancel); panel.Children.Add(buttons);
-        Content = panel;
+        Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         install.Click += async (_, _) => await InstallAsync();
         cancel.Click += (_, _) => { if (running) cancellation?.Cancel(); else Close(); };
         Closing += (_, e) => { if (running) { e.Cancel = true; if (!installing) cancellation?.Cancel(); } };
