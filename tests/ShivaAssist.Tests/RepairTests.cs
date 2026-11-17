@@ -93,12 +93,13 @@ public sealed class RepairTests
     }
 
     [Theory]
-    [InlineData(3, 200, RepairVerdict.Fixed)]        // critical → healthy
-    [InlineData(3, 12, RepairVerdict.Unresolved)]    // critical → still a warning
-    [InlineData(3, 3, RepairVerdict.Unresolved)]     // nothing changed
-    public void VerdictComparesBeforeAndAfter(long beforeGb, long afterGb, RepairVerdict expected)
+    [InlineData(3, 200, 0, RepairVerdict.Fixed)]     // critical → healthy
+    [InlineData(3, 12, 0, RepairVerdict.Improved)]   // critical → still a warning, but better
+    [InlineData(12, 14, 2, RepairVerdict.Improved)]  // still a warning, but space was freed
+    [InlineData(3, 3, 0, RepairVerdict.Unresolved)]  // nothing changed
+    public void VerdictComparesBeforeAndAfter(long beforeGb, long afterGb, long freedGb, RepairVerdict expected)
     {
-        var done = new RepairResult { JobId = "j", OperationId = RepairCatalogue.CleanTempFiles, Completed = true };
+        var done = new RepairResult { JobId = "j", OperationId = RepairCatalogue.CleanTempFiles, Completed = true, BytesFreed = freedGb * Gb };
         Assert.Equal(expected, RepairVerification.Judge(Space(beforeGb * Gb), Space(afterGb * Gb), done));
     }
 

@@ -86,7 +86,8 @@ internal static class PowerShell
             ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded],
             cancellationToken);
 
-        var json = output.Trim();
+        // Some cmdlets print progress text ("Deleted 12 files") despite redirection; the JSON is always the last line.
+        var json = output.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith('{') || l.StartsWith('[')) ?? string.Empty;
         if (json.Length == 0)
         {
             throw new InvalidOperationException($"PowerShell returned no data (exit {exit}).");

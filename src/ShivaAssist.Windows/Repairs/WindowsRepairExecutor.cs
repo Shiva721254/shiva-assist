@@ -49,7 +49,8 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
         };
 
         return operation.Id.StartsWith("DISK.", StringComparison.Ordinal)
-            ? result with { BytesFreed = Math.Max(0, SystemDriveFree() - freeBefore) }
+            ? result with { BytesFreed = Math.Max(result.BytesFreed, SystemDriveFree() - freeBefore) } // Windows may use space meanwhile
+
             : result;
     }
 
@@ -159,7 +160,7 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             } finally {
                 $running | Start-Service -ErrorAction SilentlyContinue
             }
-            try { Delete-DeliveryOptimizationCache -Force -ErrorAction Stop } catch { }
+            try { Delete-DeliveryOptimizationCache -Force -ErrorAction Stop | Out-Null } catch { }
             $dumps = @(Get-ChildItem "$env:SystemRoot\Minidump", "$env:SystemRoot\LiveKernelReports" -Filter *.dmp -Recurse -Force -ErrorAction SilentlyContinue)
             $dumps += @(Get-Item "$env:SystemRoot\MEMORY.DMP" -Force -ErrorAction SilentlyContinue)
             $dumps | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -230,6 +231,7 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
 
         var cutoff = DateTime.UtcNow - TempAge;
         int deleted = 0, skipped = 0;
+        long bytes = 0;
         var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System };
         foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
         {
@@ -240,8 +242,10 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
 
             try
             {
+                var length = file.Length;
                 file.Delete();
                 deleted++;
+                bytes += length;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -271,6 +275,7 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             OperationId = job.OperationId,
             Completed = true,
             Detail = string.Create(CultureInfo.InvariantCulture, $"Deleted {deleted} temporary files older than 7 days; skipped {skipped} in use"),
+            BytesFreed = bytes,
         };
     }
 

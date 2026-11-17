@@ -34,6 +34,9 @@ public enum RepairVerdict
     Unresolved,
     Inconclusive,
 
+    /// <summary>Measurably better (for example space freed), but the finding is still a warning or critical.</summary>
+    Improved,
+
     /// <summary>Done; the result is confirmed after a restart or once Windows has finished in the background.</summary>
     Pending,
 }
@@ -81,9 +84,12 @@ public static class RepairVerification
 
         // Fixed = healthy now, or clearly better and no longer a warning or critical finding.
         var noLongerAProblem = after.Severity is not (Severity.Warning or Severity.Critical);
-        return after.Severity == Severity.Healthy || (noLongerAProblem && Rank(after.Severity) > Rank(before.Severity))
-            ? RepairVerdict.Fixed
-            : RepairVerdict.Unresolved;
+        if (after.Severity == Severity.Healthy || (noLongerAProblem && Rank(after.Severity) > Rank(before.Severity)))
+        {
+            return RepairVerdict.Fixed;
+        }
+
+        return result.BytesFreed > 0 || Rank(after.Severity) > Rank(before.Severity) ? RepairVerdict.Improved : RepairVerdict.Unresolved;
     }
 
     private static int Rank(Severity severity) => severity switch

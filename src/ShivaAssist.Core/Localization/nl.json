@@ -246,6 +246,8 @@
     "Restart the PC to finish updates": "Pc opnieuw opstarten om updates af te ronden",
     "Restarts the PC in 2 minutes so Windows can finish installing updates. Save your work and close your programs first.": "Start de pc over 2 minuten opnieuw op, zodat Windows de updates kan afronden. Sla eerst uw werk op en sluit uw programma's.",
     "Reset Windows Update": "Windows Update herstellen",
-    "Stops the update services, sets aside the Windows Update download folder and its signature store (they are renamed, not deleted), and starts the services again. Windows then rebuilds them and checks for updates. A restore point is made first.": "Stopt de updateservices, zet de downloadmap van Windows Update en de handtekeningopslag opzij (ze worden hernoemd, niet verwijderd) en start de services weer. Windows bouwt ze daarna opnieuw op en zoekt naar updates. Eerst wordt een herstelpunt gemaakt."
+    "Stops the update services, sets aside the Windows Update download folder and its signature store (they are renamed, not deleted), and starts the services again. Windows then rebuilds them and checks for updates. A restore point is made first.": "Stopt de updateservices, zet de downloadmap van Windows Update en de handtekeningopslag opzij (ze worden hernoemd, niet verwijderd) en start de services weer. Windows bouwt ze daarna opnieuw op en zoekt naar updates. Eerst wordt een herstelpunt gemaakt.",
+    "Improved": "Verbeterd",
+    "Improved · {freed:gb} freed. More space is needed: try the next cleanup.": "Verbeterd · {freed:gb} vrijgemaakt. Er is meer ruimte nodig: probeer de volgende opschoning."
   }
 }

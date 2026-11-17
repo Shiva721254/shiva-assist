@@ -450,6 +450,7 @@ public sealed class MainViewModel : Observable
         {
             RepairVerdict.Fixed => T("Fixed"),
             RepairVerdict.Unresolved => T("Repair done, but the problem is still there"),
+            RepairVerdict.Improved => T("Improved"),
             RepairVerdict.Pending => T("Done. Windows confirms the result after a restart or within a few hours."),
             _ => T("Result unclear"),
         };
@@ -460,12 +461,17 @@ public sealed class MainViewModel : Observable
                 : new Message("The repair did not complete: {reason}", ("reason", catalog.Translate(result.Detail))).Render(catalog);
         }
 
+        if (result.Completed && result.Verdict == RepairVerdict.Improved && result.BytesFreed > 0)
+        {
+            return new Message("Improved · {freed:gb} freed. More space is needed: try the next cleanup.", ("freed", result.BytesFreed)).Render(catalog);
+        }
+
         return result.BytesFreed > 0
             ? new Message("{verdict} · {freed:gb} freed", ("verdict", verdict), ("freed", result.BytesFreed)).Render(catalog)
             : verdict;
     }
 
-    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict is RepairVerdict.Fixed or RepairVerdict.Pending
+    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict is RepairVerdict.Fixed or RepairVerdict.Improved or RepairVerdict.Pending
         ? Palette.For(Severity.Healthy)
         : Palette.For(Severity.Warning);
 
