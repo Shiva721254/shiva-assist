@@ -4,6 +4,59 @@
         Title="{Binding Product}" Width="1060" Height="780" MinWidth="760" MinHeight="560"
         WindowStartupLocation="CenterScreen" Background="{StaticResource Page}"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}">
+  <Window.Resources>
+    <!-- One finding card: layer 1 always, layers 2-3 under Details. Used on the overview and on every module page. -->
+    <DataTemplate x:Key="FindingCard">
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,10">
+        <DockPanel>
+          <Border DockPanel.Dock="Left" Width="5" Background="{Binding Accent}" CornerRadius="12,0,0,12" />
+          <StackPanel Margin="16,12,16,12">
+            <DockPanel>
+              <Border DockPanel.Dock="Left" Background="{Binding Soft}" CornerRadius="10" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Top">
+                <TextBlock Text="{Binding Badge}" Foreground="{Binding Accent}" FontSize="12" FontWeight="SemiBold" />
+              </Border>
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+            </DockPanel>
+            <TextBlock Text="{Binding Advice, StringFormat='→ {0}'}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
+                       TextWrapping="Wrap" Margin="0,8,0,0" />
+            <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,10,0,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Style="{StaticResource QuietButton}" Content="{Binding Label}" ToolTip="{Binding Tooltip}"
+                          Command="{Binding Command}" Margin="0,0,8,6" Padding="12,5" FontSize="13" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding Outcome}" Visibility="{Binding HasOutcome, Converter={StaticResource Visible}}"
+                       Foreground="{Binding OutcomeColour}" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap" />
+            <Expander IsExpanded="{Binding Expanded}" Margin="0,8,0,0" Foreground="{StaticResource Green}"
+                      Header="{Binding DataContext.TextDetails, RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Margin="20,6,0,0">
+                <TextBlock Text="{Binding Cause}" Visibility="{Binding HasCause, Converter={StaticResource Visible}}"
+                           TextWrapping="Wrap" Foreground="{StaticResource Ink}" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding DataContext.TextEvidence, RelativeSource={RelativeSource AncestorType=Window}}"
+                           FontSize="12" Foreground="{StaticResource Muted}" FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding Evidence}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding StringFormat='· {0}'}" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontFamily="Consolas" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,6,0,0" FontFamily="Consolas" />
+              </StackPanel>
+            </Expander>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+    </DataTemplate>
+  </Window.Resources>
+
   <DockPanel>
 
     <!-- Header: product, promise, language -->
@@ -43,7 +96,57 @@
       </DockPanel>
     </Border>
 
-    <Grid Margin="28,22">
+    <!-- Menu: one entry per module (blueprint: twelve modules); a dot shows the worst result, "Soon" marks later phases -->
+    <Border DockPanel.Dock="Left" Width="230" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding Modules}" Margin="10,14" KeyboardNavigation.TabNavigation="Continue">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+                      Cursor="Hand" Margin="0,0,0,2" AutomationProperties.Name="{Binding Name}">
+                <Button.Template>
+                  <ControlTemplate TargetType="Button">
+                    <Border x:Name="Row" Background="Transparent" CornerRadius="10" Padding="12,9">
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" x:Name="Icon" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16"
+                                   Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Ellipse DockPanel.Dock="Right" Width="8" Height="8" Fill="{Binding Dot}" VerticalAlignment="Center"
+                                 Visibility="{Binding HasDot, Converter={StaticResource Visible}}" />
+                        <Border DockPanel.Dock="Right" Background="{StaticResource Page}" CornerRadius="8" Padding="6,1" VerticalAlignment="Center"
+                                Visibility="{Binding IsSoon, Converter={StaticResource Visible}}">
+                          <TextBlock Text="{Binding Status}" FontSize="11" Foreground="{StaticResource Muted}" />
+                        </Border>
+                        <TextBlock x:Name="Label" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Row" Property="Background" Value="{StaticResource Page}" />
+                      </Trigger>
+                      <DataTrigger Binding="{Binding Selected}" Value="True">
+                        <Setter TargetName="Row" Property="Background" Value="{StaticResource GreenSoft}" />
+                        <Setter TargetName="Label" Property="Foreground" Value="{StaticResource GreenDark}" />
+                        <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                        <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource GreenDark}" />
+                      </DataTrigger>
+                      <Trigger Property="IsKeyboardFocused" Value="True">
+                        <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource Ink}" />
+                        <Setter TargetName="Row" Property="BorderThickness" Value="1" />
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Button.Template>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <Grid>
+
+    <!-- Overview page: start, scanning and results -->
+    <Grid Margin="28,22" Visibility="{Binding IsOverviewPage, Converter={StaticResource Visible}}">
 
       <!-- 1. Ready: welcome, the big round button, and the areas the check-up covers -->
       <ScrollViewer Visibility="{Binding IsReady, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto">
@@ -110,8 +213,8 @@
           </StackPanel>
         </DockPanel>
 
-        <!-- Category tiles: worst severity colours the bar; click to filter -->
-        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Tiles}" Margin="0,0,0,12">
+        <!-- Module tiles: worst severity colours the bar; click to open the module page -->
+        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ModuleTiles}" Margin="0,0,0,12">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <WrapPanel />
@@ -119,7 +222,7 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <Button Command="{Binding DataContext.SelectTileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+              <Button Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
                       Margin="0,0,10,10" Cursor="Hand" AutomationProperties.Name="{Binding Name}">
                 <Button.Template>
                   <ControlTemplate TargetType="Button">
@@ -127,16 +230,15 @@
                       <StackPanel>
                         <Border Height="5" Background="{Binding Accent}" CornerRadius="12,12,0,0" />
                         <StackPanel Margin="14,10,14,12">
-                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="{StaticResource Green}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                          </DockPanel>
                           <TextBlock Text="{Binding Status}" Foreground="{Binding Accent}" FontSize="13" Margin="0,2,0,0" />
                         </StackPanel>
                       </StackPanel>
                     </Border>
                     <ControlTemplate.Triggers>
-                      <DataTrigger Binding="{Binding Selected}" Value="True">
-                        <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Green}" />
-                        <Setter TargetName="Tile" Property="BorderThickness" Value="2" />
-                      </DataTrigger>
                       <Trigger Property="IsMouseOver" Value="True">
                         <Setter TargetName="Tile" Property="Background" Value="{StaticResource GreenSoft}" />
                       </Trigger>
@@ -153,67 +255,55 @@
 
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
           <CheckBox Content="{Binding TextShowHealthy}" IsChecked="{Binding ShowHealthy}" VerticalAlignment="Center" />
-          <Button Style="{StaticResource QuietButton}" Content="{Binding TextAllCategories}" Command="{Binding SelectTileCommand}"
-                  HorizontalAlignment="Right" Padding="10,4" FontSize="12" />
         </DockPanel>
 
         <!-- Findings: layer 1 always, layers 2-3 under Details -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding Findings}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,10">
-                  <DockPanel>
-                    <Border DockPanel.Dock="Left" Width="5" Background="{Binding Accent}" CornerRadius="12,0,0,12" />
-                    <StackPanel Margin="16,12,16,12">
-                      <DockPanel>
-                        <Border DockPanel.Dock="Left" Background="{Binding Soft}" CornerRadius="10" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Top">
-                          <TextBlock Text="{Binding Badge}" Foreground="{Binding Accent}" FontSize="12" FontWeight="SemiBold" />
-                        </Border>
-                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
-                      </DockPanel>
-                      <TextBlock Text="{Binding Advice, StringFormat='→ {0}'}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
-                                 TextWrapping="Wrap" Margin="0,8,0,0" />
-                      <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,10,0,0">
-                        <ItemsControl.ItemsPanel>
-                          <ItemsPanelTemplate>
-                            <WrapPanel />
-                          </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate>
-                            <Button Style="{StaticResource QuietButton}" Content="{Binding Label}" ToolTip="{Binding Tooltip}"
-                                    Command="{Binding Command}" Margin="0,0,8,6" Padding="12,5" FontSize="13" />
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-                      <TextBlock Text="{Binding Outcome}" Visibility="{Binding HasOutcome, Converter={StaticResource Visible}}"
-                                 Foreground="{Binding OutcomeColour}" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap" />
-                      <Expander IsExpanded="{Binding Expanded}" Margin="0,8,0,0" Foreground="{StaticResource Green}"
-                                Header="{Binding DataContext.TextDetails, RelativeSource={RelativeSource AncestorType=Window}}">
-                        <StackPanel Margin="20,6,0,0">
-                          <TextBlock Text="{Binding Cause}" Visibility="{Binding HasCause, Converter={StaticResource Visible}}"
-                                     TextWrapping="Wrap" Foreground="{StaticResource Ink}" Margin="0,0,0,8" />
-                          <TextBlock Text="{Binding DataContext.TextEvidence, RelativeSource={RelativeSource AncestorType=Window}}"
-                                     FontSize="12" Foreground="{StaticResource Muted}" FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding Evidence}">
-                            <ItemsControl.ItemTemplate>
-                              <DataTemplate>
-                                <TextBlock Text="{Binding StringFormat='· {0}'}" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontFamily="Consolas" />
-                              </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                          </ItemsControl>
-                          <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,6,0,0" FontFamily="Consolas" />
-                        </StackPanel>
-                      </Expander>
-                    </StackPanel>
-                  </DockPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource FindingCard}" />
         </ScrollViewer>
       </DockPanel>
+
+    </Grid>
+
+    <!-- Module page: what the module covers and its findings -->
+    <DockPanel Margin="28,22" Visibility="{Binding IsModulePage, Converter={StaticResource Visible}}">
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+        <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="{Binding TextStart}" Command="{Binding StartScanCommand}"
+                VerticalAlignment="Top" Padding="16,7" FontSize="13" />
+        <Grid DockPanel.Dock="Left" Width="46" Height="46" Margin="0,0,14,0" VerticalAlignment="Top">
+          <Ellipse Fill="{StaticResource GreenSoft}" />
+          <TextBlock Text="{Binding SelectedModule.Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20"
+                     Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel>
+          <TextBlock Text="{Binding SelectedModule.Name}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+          <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,16,0" />
+        </StackPanel>
+      </DockPanel>
+      <Border DockPanel.Dock="Top" Visibility="{Binding ModuleNeedsScan, Converter={StaticResource Visible}}"
+              Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
+        <TextBlock Text="{Binding TextModuleNeedsScan}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
+      </Border>
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding ModuleHasResults, Converter={StaticResource Visible}}">
+        <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource FindingCard}" />
+      </ScrollViewer>
+    </DockPanel>
+
+    <!-- "Soon" page for modules of a later phase -->
+    <StackPanel Margin="28,22" MaxWidth="560" VerticalAlignment="Center" HorizontalAlignment="Center"
+                Visibility="{Binding IsSoonPage, Converter={StaticResource Visible}}">
+      <Grid Width="96" Height="96" HorizontalAlignment="Center">
+        <Ellipse Fill="{StaticResource GreenSoft}" />
+        <TextBlock Text="{Binding SelectedModule.Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="38"
+                   Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Grid>
+      <TextBlock Text="{Binding SelectedModule.Name}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                 HorizontalAlignment="Center" Margin="0,16,0,6" />
+      <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" TextAlignment="Center" LineHeight="21" />
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="18,12" Margin="0,18,0,0">
+        <TextBlock Text="{Binding TextSoon}" TextWrapping="Wrap" TextAlignment="Center" />
+      </Border>
+    </StackPanel>
 
     </Grid>
   </DockPanel>

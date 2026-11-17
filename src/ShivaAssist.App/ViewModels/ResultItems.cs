@@ -133,3 +133,53 @@ public sealed class ScanArea(Category category, Func<TextCatalog> catalog) : Obs
 
     public void Refresh() => RefreshAll();
 }
+
+/// <summary>One entry in the menu and, except for the overview, one tile on the overview page.</summary>
+public sealed class NavItem(AppModule module, Func<TextCatalog> catalog) : Observable
+{
+    private IReadOnlyList<Finding> findings = [];
+    private bool scanned;
+    private bool selected;
+
+    public AppModule Module { get; } = module;
+
+    public bool IsOverview => Module.Key == AppModules.OverviewKey;
+
+    public bool IsSoon => !Module.Available;
+
+    public string Name => Module.Name.Render(catalog());
+
+    public string Description => Module.Description.Render(catalog());
+
+    public string Glyph => Module.Glyph;
+
+    private Severity Worst => findings.MinBy(f => Core.Scanning.ScanRunner.SeverityRank(f.Severity))?.Severity ?? Severity.Healthy;
+
+    private int Attention => findings.Count(f => f.Severity is Severity.Critical or Severity.Warning);
+
+    public string Status => IsSoon ? new Message("Soon").Render(catalog())
+        : !scanned ? new Message("Not checked yet").Render(catalog())
+        : Attention > 0 ? new Message("{count} to check", ("count", Attention)).Render(catalog())
+        : ReportText.SeverityName(Worst is Severity.Information ? Severity.Healthy : Worst).Render(catalog());
+
+    public bool HasDot => scanned && !IsSoon && !IsOverview && findings.Count > 0;
+
+    public Brush Dot => Palette.For(Worst is Severity.Information ? Severity.Healthy : Worst);
+
+    public Brush Accent => IsSoon || !scanned ? Palette.Muted : Dot;
+
+    public bool Selected
+    {
+        get => selected;
+        set => Set(ref selected, value);
+    }
+
+    public void Update(IReadOnlyList<Finding> moduleFindings)
+    {
+        findings = moduleFindings;
+        scanned = true;
+        RefreshAll();
+    }
+
+    public void Refresh() => RefreshAll();
+}

@@ -10,6 +10,8 @@
 - Stage 3b repairs: reset the DNS cache, request a new network address, update Microsoft Defender, restart to
   finish updates, reset Windows Update (Medium, restore point), remove the update download cache and crash dumps.
   Repairs whose effect shows only later end with the verdict "pending".
+- New interface: a menu with the twelve modules of the product blueprint. Each module has its own page with its
+  findings and repairs; modules of later phases show what is coming. The overview shows a tile per module.
 - Test VM fault injection: `tools/test-vm/Inject-Faults.ps1`.
 
 ## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation

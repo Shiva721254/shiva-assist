@@ -9,6 +9,7 @@ public static class Palette
     public static readonly SolidColorBrush Ink = Freeze(0x2F, 0x3B, 0x33);
     public static readonly SolidColorBrush Green = Freeze(0x4F, 0x7A, 0x5A);
     public static readonly SolidColorBrush GreenSoft = Freeze(0xE6, 0xEE, 0xE3);
+    public static readonly SolidColorBrush Muted = Freeze(0x6E, 0x6A, 0x5E);
 
     public static SolidColorBrush For(Severity severity) => severity switch
     {

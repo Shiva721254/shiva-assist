@@ -39,6 +39,7 @@ public sealed class MainViewModel : Observable
     private int progressMax = 1;
     private bool showHealthy;
     private CategoryTile? selectedTile;
+    private NavItem selectedModule;
     private ScanReport? report;
     private string? status;
     private bool repairing;
@@ -53,6 +54,20 @@ public sealed class MainViewModel : Observable
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
         IsElevated = WindowsPlatform.IsElevated();
+        foreach (var module in AppModules.All)
+        {
+            var item = new NavItem(module, () => catalog);
+            Modules.Add(item);
+            if (!item.IsOverview)
+            {
+                ModuleTiles.Add(item);
+            }
+        }
+
+        selectedModule = Modules[0];
+        selectedModule.Selected = true;
+        NavigateCommand = new RelayCommand(item => Navigate(item as NavItem));
+
         foreach (var category in WindowsPlatform.CreateChecks().Select(c => c.Category).Distinct().Order())
         {
             var area = new ScanArea(category, () => catalog);
@@ -91,6 +106,11 @@ public sealed class MainViewModel : Observable
             foreach (var area in ScanAreas)
             {
                 area.Refresh();
+            }
+
+            foreach (var module in Modules)
+            {
+                module.Refresh();
             }
 
             foreach (var item in AllFindings)
@@ -152,6 +172,30 @@ public sealed class MainViewModel : Observable
     }
 
     public ObservableCollection<CategoryTile> Tiles { get; } = [];
+
+    /// <summary>The menu: overview first, then every module (blueprint: twelve modules).</summary>
+    public ObservableCollection<NavItem> Modules { get; } = [];
+
+    /// <summary>Overview tiles: every module except the overview itself.</summary>
+    public ObservableCollection<NavItem> ModuleTiles { get; } = [];
+
+    public RelayCommand NavigateCommand { get; }
+
+    public NavItem SelectedModule => selectedModule;
+
+    public bool IsOverviewPage => selectedModule.IsOverview;
+
+    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon;
+
+    public bool IsSoonPage => selectedModule.IsSoon;
+
+    public bool ModuleNeedsScan => IsModulePage && State != ScreenState.Results;
+
+    public bool ModuleHasResults => IsModulePage && State == ScreenState.Results;
+
+    public string TextModuleNeedsScan => T("Start the check-up to see the results for this area.");
+
+    public string TextSoon => T("This part of Shiva Assist is being built and comes in a later version. Until then, a Shiva Computers technician can help: use the button at the bottom right.");
 
     /// <summary>The areas the customer can include in the check-up; all are on by default.</summary>
     public ObservableCollection<ScanArea> ScanAreas { get; } = [];
@@ -273,6 +317,7 @@ public sealed class MainViewModel : Observable
             return;
         }
 
+        Navigate(Modules[0]);
         ProgressMax = checks.Count;
         Progress = 0;
         Status = null;
@@ -307,6 +352,11 @@ public sealed class MainViewModel : Observable
             Tiles.Add(new CategoryTile(group.Key, [.. group], () => catalog));
         }
 
+        foreach (var module in Modules.Where(m => !m.IsOverview))
+        {
+            module.Update([.. report.Findings.Where(f => AppModules.KeyFor(f) == module.Module.Key)]);
+        }
+
         selectedTile = null;
         State = ScreenState.Results;
         ApplyFilter();
@@ -324,11 +374,28 @@ public sealed class MainViewModel : Observable
         ApplyFilter();
     }
 
+    private void Navigate(NavItem? item)
+    {
+        if (item is null || item == selectedModule)
+        {
+            return;
+        }
+
+        selectedModule.Selected = false;
+        selectedModule = item;
+        item.Selected = true;
+        ApplyFilter();
+        RefreshAll();
+    }
+
+    /// <summary>Overview: problems (and, on request, what is OK). Module page: everything the module found.</summary>
     private void ApplyFilter()
     {
         Findings.Clear();
-        foreach (var item in AllFindings.Where(f =>
-            (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category)))
+        var key = selectedModule.Module.Key;
+        foreach (var item in AllFindings.Where(f => IsModulePage
+            ? AppModules.KeyFor(f.Finding) == key
+            : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category)))
         {
             Findings.Add(item);
         }
