@@ -174,7 +174,6 @@
     "Also show what is OK": "Ook tonen wat in orde is",
     "All categories": "Alle categorieën",
     "Details": "Details",
-    "Save report…": "Rapport opslaan…",
     "Need help? Contact Shiva Computers": "Hulp nodig? Neem contact op met Shiva Computers",
     "1 thing needs your attention": "1 punt vraagt uw aandacht",
     "Evidence (technical, in English)": "Bewijs (technisch, in het Engels)",
@@ -275,6 +274,18 @@
     "Emergency recovery": "Noodherstel",
     "When Windows no longer starts: rescue your files and repair the start-up with Shiva Rescue.": "Als Windows niet meer start: red uw bestanden en herstel het opstarten met Shiva Rescue.",
     "Remote help": "Hulp op afstand",
-    "A Shiva Computers technician helps on this PC, only with your permission and only for one job.": "Een technicus van Shiva Computers helpt op deze pc, alleen met uw toestemming en alleen voor één klus."
+    "A Shiva Computers technician helps on this PC, only with your permission and only for one job.": "Een technicus van Shiva Computers helpt op deze pc, alleen met uw toestemming en alleen voor één klus.",
+    "PC check-up report": "Rapport van de pc-controle",
+    "Checked on {when} · {system}": "Gecontroleerd op {when} · {system}",
+    "Warnings": "Waarschuwingen",
+    "OK": "OK",
+    "Needs your attention": "Vraagt uw aandacht",
+    "Good to know": "Goed om te weten",
+    "What is OK": "Wat in orde is",
+    "Need help? Shiva Computers can repair it for you: shivacomputers.nl": "Hulp nodig? Shiva Computers kan het voor u repareren: shivacomputers.nl",
+    "Shiva Assist by Shiva Computers · page {page} of {total}": "Shiva Assist door Shiva Computers · pagina {page} van {total}",
+    "PDF report": "PDF-rapport",
+    "Technical report": "Technisch rapport",
+    "Save as PDF…": "Opslaan als PDF…"
   }
 }

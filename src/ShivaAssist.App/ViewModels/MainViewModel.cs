@@ -270,7 +270,7 @@ public sealed class MainViewModel : Observable
 
     public string TextDetails => T("Details");
 
-    public string TextSave => T("Save report…");
+    public string TextSave => T("Save as PDF…");
 
     public string TextHelp => T("Need help? Contact Shiva Computers");
 
@@ -413,18 +413,28 @@ public sealed class MainViewModel : Observable
         var dialog = new SaveFileDialog
         {
             InitialDirectory = folder,
-            FileName = $"scan-{report.StartedAt.ToLocalTime():yyyyMMdd-HHmmss}.json",
-            Filter = "Shiva Assist report (*.json)|*.json",
+            FileName = $"Shiva Assist {report.StartedAt.ToLocalTime():yyyy-MM-dd HHmm}",
+            Filter = T("PDF report") + " (*.pdf)|*.pdf|" + T("Technical report") + " (*.json)|*.json",
+            DefaultExt = ".pdf",
         };
 
         if (dialog.ShowDialog() == true)
         {
             try
             {
-                File.WriteAllText(dialog.FileName, ReportJson.Serialize(report));
+                if (dialog.FilterIndex == 2 || dialog.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                {
+                    File.WriteAllText(dialog.FileName, ReportJson.Serialize(report));
+                }
+                else
+                {
+                    File.WriteAllBytes(dialog.FileName, PdfReport.Render(report, catalog));
+                    Process.Start(new ProcessStartInfo(dialog.FileName) { UseShellExecute = true });
+                }
+
                 Status = new Message("Report saved: {file}", ("file", dialog.FileName)).Render(catalog);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
             {
                 Status = new Message("The report could not be saved: {reason}", ("reason", ex.Message)).Render(catalog);
             }

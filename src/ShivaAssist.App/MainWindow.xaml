@@ -12,8 +12,8 @@
           <Border DockPanel.Dock="Left" Width="5" Background="{Binding Accent}" CornerRadius="12,0,0,12" />
           <StackPanel Margin="16,12,16,12">
             <DockPanel>
-              <Border DockPanel.Dock="Left" Background="{Binding Soft}" CornerRadius="10" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Top">
-                <TextBlock Text="{Binding Badge}" Foreground="{Binding Accent}" FontSize="12" FontWeight="SemiBold" />
+              <Border DockPanel.Dock="Left" Background="{Binding Accent}" CornerRadius="10" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Top">
+                <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
               </Border>
               <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
             </DockPanel>
@@ -60,28 +60,28 @@
   <DockPanel>
 
     <!-- Header: product, promise, language -->
-    <Border DockPanel.Dock="Top" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="28,14">
+    <Border DockPanel.Dock="Top" Background="{StaticResource Green}" Padding="28,14">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
           <Border Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}" Background="{StaticResource Amber}" CornerRadius="12" Padding="10,4" Margin="0,0,10,0">
             <TextBlock Text="{Binding TextTechnicianMode}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
           </Border>
-          <Border Visibility="{Binding ShowReadOnlyBadge, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="10,4" Margin="0,0,16,0">
-            <TextBlock Text="{Binding TextReadOnlyBadge}" Foreground="{StaticResource GreenDark}" FontSize="12" />
+          <Border Visibility="{Binding ShowReadOnlyBadge, Converter={StaticResource Visible}}" Background="{StaticResource GreenDark}" CornerRadius="12" Padding="10,4" Margin="0,0,16,0">
+            <TextBlock Text="{Binding TextReadOnlyBadge}" Foreground="White" FontSize="12" />
           </Border>
-          <TextBlock Text="{Binding TextLanguage}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <TextBlock Text="{Binding TextLanguage}" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0" />
           <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" DisplayMemberPath="Name"
                     MinWidth="120" AutomationProperties.Name="{Binding TextLanguage}" />
         </StackPanel>
         <StackPanel>
           <StackPanel Orientation="Horizontal">
             <Grid Width="34" Height="34" Margin="0,0,12,0" VerticalAlignment="Center">
-              <Ellipse Fill="{StaticResource Green}" />
-              <Path Data="M 10,17 L 15,22 L 24,12" Stroke="White" StrokeThickness="2.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+              <Ellipse Fill="White" />
+              <Path Data="M 10,17 L 15,22 L 24,12" Stroke="{StaticResource Green}" StrokeThickness="2.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
             </Grid>
             <StackPanel>
-              <TextBlock Text="Shiva Assist" Foreground="{StaticResource GreenDark}" FontSize="21" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding TextTagline}" Foreground="{StaticResource Muted}" FontSize="12.5" />
+              <TextBlock Text="Shiva Assist" Foreground="White" FontSize="21" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding TextTagline}" Foreground="#E3F5E9" FontSize="12.5" />
             </StackPanel>
           </StackPanel>
         </StackPanel>
@@ -121,13 +121,13 @@
                     </Border>
                     <ControlTemplate.Triggers>
                       <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Row" Property="Background" Value="{StaticResource Page}" />
+                        <Setter TargetName="Row" Property="Background" Value="{StaticResource GreenSoft}" />
                       </Trigger>
                       <DataTrigger Binding="{Binding Selected}" Value="True">
-                        <Setter TargetName="Row" Property="Background" Value="{StaticResource GreenSoft}" />
-                        <Setter TargetName="Label" Property="Foreground" Value="{StaticResource GreenDark}" />
+                        <Setter TargetName="Row" Property="Background" Value="{StaticResource Green}" />
+                        <Setter TargetName="Label" Property="Foreground" Value="White" />
                         <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
-                        <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource GreenDark}" />
+                        <Setter TargetName="Icon" Property="Foreground" Value="White" />
                       </DataTrigger>
                       <Trigger Property="IsKeyboardFocused" Value="True">
                         <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource Ink}" />
@@ -228,7 +228,7 @@
                   <ControlTemplate TargetType="Button">
                     <Border x:Name="Tile" Width="176" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="0">
                       <StackPanel>
-                        <Border Height="5" Background="{Binding Accent}" CornerRadius="12,12,0,0" />
+                        <Border Height="8" Background="{Binding Accent}" CornerRadius="12,12,0,0" />
                         <StackPanel Margin="14,10,14,12">
                           <DockPanel>
                             <TextBlock DockPanel.Dock="Left" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="{StaticResource Green}" VerticalAlignment="Center" Margin="0,0,8,0" />

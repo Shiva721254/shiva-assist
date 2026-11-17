@@ -12,6 +12,9 @@
   Repairs whose effect shows only later end with the verdict "pending".
 - New interface: a menu with the twelve modules of the product blueprint. Each module has its own page with its
   findings and repairs; modules of later phases show what is coming. The overview shows a tile per module.
+- Brighter look: solid green header and menu selection, solid severity badges.
+- The report is saved as a customer-friendly PDF (problems first, then good to know, then what is OK); the JSON
+  report is still available as "technical report".
 - Test VM fault injection: `tools/test-vm/Inject-Faults.ps1`.
 
 ## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation
