@@ -119,6 +119,10 @@ multi-page; "Save as PDF…" in the app (JSON stays available as "technical repo
 
 ## 6. Status (17 Nov 2026)
 
+Navigation now gives Overview a persistent scan setup screen and adds a separate Scan results menu entry.
+Finishing a scan opens Scan results automatically. Scan again returns to Overview with area selections retained.
+The latest results remain accessible from the sidebar until another scan replaces them.
+
 Done: stage 1 diagnostics (13 checks), stage 3a/3b repairs, technician mode, English/Dutch, warm start screen,
 area selection, module menu (roadmap step 1), bright colours + PDF report, History and undo (step 2).
 VM test results: Recycle Bin, temp, component cleanup and startup switch-off verified; update-cache cleanup fixed

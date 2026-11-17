@@ -145,7 +145,7 @@
 
     <Grid>
 
-    <!-- Overview page: start, scanning and results -->
+    <!-- Overview page: persistent scan setup and active scan progress. -->
     <Grid Margin="28,22" Visibility="{Binding IsOverviewPage, Converter={StaticResource Visible}}">
 
       <!-- 1. Ready: welcome, the big round button, and the areas the check-up covers -->
@@ -198,13 +198,19 @@
         <TextBlock Text="{Binding TextProgress}" Foreground="{StaticResource Muted}" />
       </StackPanel>
 
-      <!-- 3. Results -->
+    </Grid>
+
+    <Grid Margin="28,22" Visibility="{Binding IsResultsPage, Converter={StaticResource Visible}}">
+      <StackPanel Visibility="{Binding ResultsEmpty, Converter={StaticResource Visible}}" VerticalAlignment="Center">
+        <TextBlock Text="{Binding TextResultsEmpty}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,16" />
+        <Button Content="{Binding TextStart}" Command="{Binding ConfigureScanCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" />
+      </StackPanel>
       <DockPanel Visibility="{Binding HasResults, Converter={StaticResource Visible}}">
 
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
             <Button Style="{StaticResource QuietButton}" Content="{Binding TextSave}" Command="{Binding SaveReportCommand}" Margin="0,0,8,0" />
-            <Button Style="{StaticResource PrimaryButton}" Content="{Binding TextStart}" Command="{Binding StartScanCommand}" Padding="16,7" FontSize="13" />
+            <Button Style="{StaticResource PrimaryButton}" Content="{Binding TextScanAgain}" Command="{Binding ConfigureScanCommand}" Padding="16,7" FontSize="13" />
           </StackPanel>
           <StackPanel>
             <TextBlock Text="{Binding TextHeadline}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />

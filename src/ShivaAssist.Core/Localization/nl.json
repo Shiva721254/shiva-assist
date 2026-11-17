@@ -4,6 +4,9 @@
     "name": "Nederlands"
   },
   "texts": {
+    "Scan results": "Scanresultaten",
+    "The findings from your most recent check-up.": "De bevindingen van uw meest recente controle.",
+    "Start a check-up from Overview to see your results here.": "Start een controle vanuit Overzicht om hier uw resultaten te bekijken.",
     "Check program updates": "Programma-updates controleren",
     "Available version": "Beschikbare versie",
     "Checks the WinGet community source over the internet. Only programs recognised by Windows Package Manager can appear here.": "Controleert de WinGet-communitybron via internet. Alleen programma's die Windows Package Manager herkent, kunnen hier verschijnen.",

@@ -60,7 +60,7 @@ public sealed class MainViewModel : Observable
         {
             var item = new NavItem(module, () => catalog);
             Modules.Add(item);
-            if (!item.IsOverview)
+            if (!item.IsOverview && module.Key != AppModules.ResultsKey)
             {
                 ModuleTiles.Add(item);
             }
@@ -85,6 +85,7 @@ public sealed class MainViewModel : Observable
         }
 
         StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning);
+        ConfigureScanCommand = new RelayCommand(_ => Navigate(Modules.First(module => module.IsOverview)));
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
         HelpCommand = new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal)));
         RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode), _ => !IsElevated && State != ScreenState.Scanning);
@@ -157,7 +158,7 @@ public sealed class MainViewModel : Observable
         }
     }
 
-    public bool IsReady => State == ScreenState.Ready;
+    public bool IsReady => State != ScreenState.Scanning;
 
     public bool IsScanning => State == ScreenState.Scanning;
 
@@ -195,7 +196,17 @@ public sealed class MainViewModel : Observable
 
     public bool IsOverviewPage => selectedModule.IsOverview;
 
-    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon && !IsHistoryPage && !IsSoftwarePage;
+    public bool IsResultsPage => selectedModule.Module.Key == AppModules.ResultsKey;
+
+    public bool ResultsEmpty => IsResultsPage && !HasResults;
+
+    public string TextResultsEmpty => T("Start a check-up from Overview to see your results here.");
+
+    public string TextScanAgain => T("Scan again");
+
+    public RelayCommand ConfigureScanCommand { get; }
+
+    public bool IsModulePage => !selectedModule.IsOverview && !IsResultsPage && !selectedModule.IsSoon && !IsHistoryPage && !IsSoftwarePage;
 
     public bool IsSoftwarePage => selectedModule.Module.Key == "software";
 
@@ -281,7 +292,7 @@ public sealed class MainViewModel : Observable
         ? T("In about a minute, Shiva Assist looks at how this PC is doing (storage, updates, security, internet and more). The check itself changes nothing. For each problem it finds, you can start a repair; every repair is explained and asked first.")
         : T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
 
-    public string TextStart => State == ScreenState.Results ? T("Scan again") : T("Start the check-up");
+    public string TextStart => T("Start the check-up");
 
     public string TextDuration => T("It takes about a minute.");
 
@@ -363,6 +374,7 @@ public sealed class MainViewModel : Observable
 
         report = await Task.Run(() => runner.RunAsync(WindowsPlatform.DescribeEnvironment(product)));
         ShowResults();
+        Navigate(Modules.First(module => module.Module.Key == AppModules.ResultsKey));
     }
 
     private void ShowResults()
@@ -381,7 +393,7 @@ public sealed class MainViewModel : Observable
             Tiles.Add(new CategoryTile(group.Key, [.. group], () => catalog));
         }
 
-        foreach (var module in Modules.Where(m => !m.IsOverview))
+        foreach (var module in Modules.Where(m => !m.IsOverview && m.Module.Key != AppModules.ResultsKey))
         {
             module.Update([.. report.Findings.Where(f => AppModules.KeyFor(f) == module.Module.Key)]);
         }

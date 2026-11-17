@@ -37,6 +37,6 @@ public sealed class AppModuleTests
         Assert.Equal(AppModules.All.Count, AppModules.All.Select(m => m.Key).Distinct().Count());
         Assert.Equal(AppModules.OverviewKey, AppModules.All[0].Key);
         Assert.All(AppModules.All.Where(m => !m.Available), m => Assert.Empty(m.IdPrefixes));
-        Assert.Equal(13, AppModules.All.Count); // overview + the twelve blueprint modules
+        Assert.Equal(14, AppModules.All.Count); // overview, results and the twelve blueprint modules
     }
 }

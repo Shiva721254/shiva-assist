@@ -26,6 +26,7 @@ public sealed record AppModule
 public static class AppModules
 {
     public const string OverviewKey = "overview";
+    public const string ResultsKey = "results";
     public const string HistoryKey = "history";
 
     public static IReadOnlyList<AppModule> All { get; } =
@@ -36,6 +37,13 @@ public static class AppModules
             Name = "Overview",
             Description = "The results of the check-up for all areas together.",
             Glyph = "\uE80F",
+        },
+        new()
+        {
+            Key = ResultsKey,
+            Name = "Scan results",
+            Description = "The findings from your most recent check-up.",
+            Glyph = "\uE9D9",
         },
         new()
         {
