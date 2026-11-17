@@ -119,6 +119,18 @@ multi-page; "Save as PDF…" in the app (JSON stays available as "technical repo
 
 ## 6. Status (17 Nov 2026)
 
+Owner requested administrator permission at initial startup for nontechnical customers. App.OnStartup now
+relaunches with Windows UAC before opening the dashboard when needed, preserving command-line arguments.
+Declining UAC closes the app with a clear message. Already-elevated launches continue directly. This also
+supports dotnet DLL launches and avoids requiring an administrator developer terminal. CLI privileges stay
+optional. Individual repair approvals still apply, and the Windows runtime behaviour needs a VM check.
+
+The Results page now offers Review repairs with the count of catalogue operations. A checkbox dialog starts
+with nothing selected. Each selected operation still uses the existing individual explanation, approval,
+execution, verification and audit flow. It rechecks applicability between operations and runs restart operations
+last. Scan/update actions and other repairs are blocked during the queue. Results with Unknown checks no longer
+claim the PC looks healthy. A zero-repair explanation and administrator restart button appear on Results.
+
 Navigation now gives Overview a persistent scan setup screen and adds a separate Scan results menu entry.
 Finishing a scan opens Scan results automatically. Scan again returns to Overview with area selections retained.
 The latest results remain accessible from the sidebar until another scan replaces them.

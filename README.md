@@ -47,7 +47,10 @@ ShivaAssistCli.exe --lang nl    # results in Dutch
 ShivaAssistCli.exe --help
 ```
 
-Right-click → **Run as administrator** for the complete scan (the system file check needs it). Reports are saved as JSON in `Documents\Shiva Assist\Reports`. They contain no computer name, user name, file paths or serial numbers.
+The dashboard asks for Windows administrator permission when it starts, before opening the scan setup.
+Approve the UAC prompt to continue. The console version can still run with ordinary rights; start it as
+administrator for the complete scan. Reports are saved as JSON in `Documents\Shiva Assist\Reports`.
+They contain no computer name, user name, file paths or serial numbers.
 
 Exit codes: `0` nothing needs attention · `2` warnings or critical findings · `1` invalid option.
 

@@ -43,6 +43,7 @@ public sealed class MainViewModel : Observable
     private ScanReport? report;
     private string? status;
     private bool repairing;
+    private bool reviewingRepairs;
     private readonly Dictionary<string, RepairResult> outcomes = new(StringComparer.Ordinal);
     private readonly RepairContext? repairContext;
 
@@ -50,11 +51,11 @@ public sealed class MainViewModel : Observable
     {
         this.product = product;
         TechnicianMode = technicianMode;
-        repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || State == ScreenState.Scanning) : null;
+        repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || reviewingRepairs || State == ScreenState.Scanning) : null;
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
         Software = new SoftwareViewModel(() => catalog, technicianMode,
-            () => repairing || State == ScreenState.Scanning, value => repairing = value);
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning, value => repairing = value);
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
         {
@@ -84,11 +85,14 @@ public sealed class MainViewModel : Observable
             ScanAreas.Add(area);
         }
 
-        StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning);
+        StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning && !repairing && !reviewingRepairs);
+        ReviewRepairsCommand = new RelayCommand(async _ => await ReviewRepairsAsync(),
+            _ => TechnicianMode && HasResults && AvailableRepairCount > 0 && !repairing && !reviewingRepairs);
         ConfigureScanCommand = new RelayCommand(_ => Navigate(Modules.First(module => module.IsOverview)));
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
         HelpCommand = new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal)));
-        RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode), _ => !IsElevated && State != ScreenState.Scanning);
+        RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode),
+            _ => !IsElevated && State != ScreenState.Scanning && !repairing && !reviewingRepairs);
         SelectTileCommand = new RelayCommand(tile => SelectTile(tile as CategoryTile));
     }
 
@@ -206,6 +210,18 @@ public sealed class MainViewModel : Observable
 
     public RelayCommand ConfigureScanCommand { get; }
 
+    public RelayCommand ReviewRepairsCommand { get; }
+
+    public bool ShowRepairReview => TechnicianMode && HasResults;
+
+    public int AvailableRepairCount => AllFindings.SelectMany(item => item.Repairs).Count();
+
+    public string TextReviewRepairs => new Message("Review repairs ({count})", ("count", AvailableRepairCount)).Render(catalog);
+
+    public string TextRepairCoverage => AvailableRepairCount == 0
+        ? T("No supported automatic repairs are available for these findings. Open Details for advice. Unknown checks may need administrator permission or further investigation.")
+        : T("Review the available repairs below. Each selected repair explains the changes and asks for your approval.");
+
     public bool IsModulePage => !selectedModule.IsOverview && !IsResultsPage && !selectedModule.IsSoon && !IsHistoryPage && !IsSoftwarePage;
 
     public bool IsSoftwarePage => selectedModule.Module.Key == "software";
@@ -316,6 +332,8 @@ public sealed class MainViewModel : Observable
 
     public string TextHeadline => report is null ? string.Empty : (CountOf(Severity.Critical) + CountOf(Severity.Warning)) switch
     {
+        0 when CountOf(Severity.Unknown) > 0 => T("Some checks could not be completed"),
+        0 when CountOf(Severity.Information) > 0 => T("No warnings found; review the information below"),
         0 => T("Good news: your PC looks healthy"),
         1 => T("1 thing needs your attention"),
         var n => new Message("{count} things need your attention", ("count", n)).Render(catalog),
@@ -488,6 +506,41 @@ public sealed class MainViewModel : Observable
     }
 
     // ---- Repairs (stage 3a): explain → ask → repair → verify → log ----
+
+    private async Task ReviewRepairsAsync()
+    {
+        if (repairing || reviewingRepairs || !TechnicianMode)
+        {
+            return;
+        }
+
+        var available = AllFindings.SelectMany(item => item.Repairs).ToArray();
+        var picker = new RepairPicker(available, catalog) { Owner = Application.Current.MainWindow };
+        if (picker.ShowDialog() != true)
+        {
+            return;
+        }
+
+        reviewingRepairs = true;
+        try
+        {
+            foreach (var selected in picker.Selected.OrderBy(repair => repair.Operation.RestartRequired))
+            {
+                // Earlier repairs can resolve a finding, so only offer operations still applicable now.
+                var current = AllFindings.FirstOrDefault(item => item.Id == selected.Item.Id);
+                var repair = current?.Repairs.FirstOrDefault(button => button.Operation.Id == selected.Operation.Id);
+                if (repair is not null)
+                {
+                    await RepairAsync(repair);
+                }
+            }
+        }
+        finally
+        {
+            reviewingRepairs = false;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
 
     private async Task RepairAsync(RepairButton button)
     {
