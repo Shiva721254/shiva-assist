@@ -37,6 +37,10 @@ jobs:
           dotnet run --project tools/test-vm/UninstallerChecks -c Release -- "$PWD/fixture-publish/ShivaUninstallFixture.exe"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
+      - name: WPF workspace navigation and bindings (read-only)
+        shell: pwsh
+        run: dotnet run --project tools/test-vm/WorkspaceChecks -c Release -- --technician
+
       - name: Publish for x64 and ARM64 (self-contained, single file)
         shell: pwsh
         run: |

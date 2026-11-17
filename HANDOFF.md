@@ -119,6 +119,28 @@ multi-page; "Save as PDF…" in the app (JSON stays available as "technical repo
 
 ## 6. Status (17 Nov 2026)
 
+Five workspaces now have card-based right-side sections (`WorkspaceViewModel` partial). Overview shortcuts,
+health filters with per-section problem/unknown counts, grouped findings, focused repair filters, separate
+software panels and history/undo/help are functional. Section keys persist per workspace for the current app
+session. Software uses CollectionView grouping, conservative `ApplicationGroups` suggestions, counts/filters
+and category glyphs. Unknown application names stay Other. Grouping never decides whether to remove an app.
+
+`StartupMeasurements` parses named fields from Diagnostics-Performance 100/101 events (bounded real milliseconds,
+provider/date validation, latest report per executable). `StartupDashboardSource` reads up to 200 events from
+14 days and combines them with enabled/disabled Run and Startup-folder registrations. Matches require a unique
+executable filename derived from the registered command without executing it or persisting the path; shortcuts
+and ambiguous associations stay unmeasured. Timing failure preserves the registration list with an explicit
+unknown status. The UI displays historical report dates, duration bars, enabled/off/event-only states and
+technician-only per-row turn-off actions using the existing catalogue/approval/audit/undo flow. It does not
+sleep processes/services or claim predicted boot-time savings. Main report findings need a new scan after a
+startup change. Disabled entries remain visible in this manager but are excluded from diagnostic enabled counts.
+
+The startup executor now checks all selected references against a fresh enabled inventory and verifies the
+post-change markers. Windows fixture integration checks exercise a uniquely named, never-executed HKCU Run
+entry, disable/undo and stale-reference refusal. `tools/test-vm/WorkspaceChecks` opens all five WPF workspaces,
+walks their same-workspace sections, exercises app grouping, tests a small window and fails on binding errors.
+Core validation includes category boundaries, invalid/missing measurements and ambiguous event matching.
+
 Integrated uninstaller added under Updates and apps. Software inventory keeps registry identity and declared
 InstallLocation; executable commands are read afresh only for the selected registration and never persisted.
 `UninstallPolicy` accepts MSI GUID maintenance strings or unambiguous absolute EXE commands. The Windows layer
@@ -209,8 +231,8 @@ used `-m:1 -p:SelfContained=false -p:RuntimeIdentifier=win-x64`. Run Windows CI 
    **Cleaner with preview**: before deleting, show categories, sizes and counts; let the user untick items;
    browser **cache only** by default (cookies/passwords untouched unless explicitly chosen, with sign-out warning);
    large files/folders view (read-only).
-4. Startup times (Diagnostics-Performance events 100/101 → boot duration and apps that slowed boot, shown as
-   impact bars), hardware sensors (temperatures where Windows exposes them; otherwise Unknown), SMART/NVMe detail
+4. Startup timing viewer is implemented (see section 6). Remaining: hardware sensors (temperatures where Windows
+   exposes them; otherwise Unknown), SMART/NVMe detail
    (`MSFT_StorageReliabilityCounter`: wear, temperature, power-on hours, errors).
 5. Remote help (MeshCentral, self-hosted, consent per job with expiry and revocation) and emergency recovery
    (link to Shiva Rescue).

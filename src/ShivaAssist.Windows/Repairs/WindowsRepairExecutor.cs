@@ -331,6 +331,13 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
     /// </summary>
     private RepairResult DisableStartupPrograms(RepairJob job)
     {
+        var enabled = StartupSource.ReadEntries(includeDisabled: false).Entries.Select(e => e.Reference).ToHashSet(StringComparer.Ordinal);
+        if (job.Items.Count == 0 || job.Items.Distinct(StringComparer.Ordinal).Count() != job.Items.Count
+            || job.Items.Any(reference => !enabled.Contains(reference)))
+        {
+            throw new InvalidOperationException("The selected startup entry changed. Refresh the startup list before trying again.");
+        }
+
         var rollback = new List<string>();
         int disabled = 0;
         foreach (var reference in job.Items)
@@ -353,11 +360,22 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             disabled++;
         }
 
+        var verified = false;
+        try
+        {
+            var remaining = StartupSource.ReadEntries(includeDisabled: false).Entries.Select(e => e.Reference).ToHashSet(StringComparer.Ordinal);
+            verified = job.Items.All(reference => !remaining.Contains(reference));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Keep the recorded rollback even if a subsequent registry read fails.
+        }
         return new RepairResult
         {
             JobId = job.JobId,
             OperationId = job.OperationId,
             Completed = disabled > 0,
+            Verdict = verified ? RepairVerdict.Fixed : RepairVerdict.Inconclusive,
             Detail = string.Create(CultureInfo.InvariantCulture, $"Switched off {disabled} startup program(s)"),
             Rollback = rollback,
         };

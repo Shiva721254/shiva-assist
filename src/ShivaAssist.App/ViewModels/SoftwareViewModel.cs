@@ -35,12 +35,15 @@ public sealed partial class SoftwareViewModel : Observable
         this.technicianMode = technicianMode;
         this.repairBusy = repairBusy;
         this.setRepairBusy = setRepairBusy;
+        SelectGroupCommand = new RelayCommand(group => SelectGroup(group as ApplicationGroupFilter));
+        System.Windows.Data.CollectionViewSource.GetDefaultView(Items).GroupDescriptions?.Add(
+            new System.Windows.Data.PropertyGroupDescription(nameof(SoftwareItem.Group)));
         UninstallCommand = new RelayCommand(async _ => await UninstallAsync(), _ => technicianMode && selectedProgram is not null && CanManagePrograms);
         ScanLeftoversCommand = new RelayCommand(async _ => await ScanLeftoversAsync(), _ => technicianMode && selectedSession is not null && CanManagePrograms);
         CleanLeftoversCommand = new RelayCommand(async _ => await CleanLeftoversAsync(), _ => technicianMode && Leftovers.Any(item => item.Selected) && CanManagePrograms);
         OpenWindowsUpdateCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate"), _ => !repairBusy());
         OpenDriverUpdatesCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate-optionalupdates"), _ => !repairBusy());
-        OpenUninstallerCommand = new RelayCommand(_ => { UninstallerExpanded = true; }, _ => !repairBusy());
+        OpenUninstallerCommand = new RelayCommand(_ => { ActivePanel = "uninstaller"; UninstallerExpanded = true; }, _ => !repairBusy());
         WindowsUninstallCommand = new RelayCommand(_ => OpenSettings("ms-settings:appsfeatures"), _ => !repairBusy());
         RefreshCommand = new RelayCommand(async _ => await LoadAsync(), _ => !loading && !repairBusy());
         CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(), _ => !checkingUpdates && !repairBusy());
@@ -54,7 +57,7 @@ public sealed partial class SoftwareViewModel : Observable
     public string TextWindowsUpdate => T("Windows Update");
     public string TextDriverUpdates => T("Driver updates");
     public string TextUninstaller => T("Uninstaller");
-    public string TextWindowsTools => T("Windows and driver updates open Windows Settings. Uninstaller opens the removal tools below. These actions are separate from Fix it all.");
+    public string TextWindowsTools => T("Review updates in Windows Settings. For drivers not offered there, use your PC or device manufacturer's official support tools. Return here afterwards and run a new PC scan to refresh its findings.");
 
     private void OpenSettings(string uri)
     {
@@ -255,12 +258,17 @@ public sealed partial class SoftwareViewModel : Observable
         SelectedProgram = null;
         var query = search.Trim();
         var culture = CultureInfo.GetCultureInfo(catalog().Language.Code);
-        foreach (var program in programs.Where(program => program.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || program.Publisher.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        var matching = programs.Where(program => program.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || program.Publisher.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        BuildGroups(matching);
+        foreach (var program in matching.Where(program => activeGroup is null || ApplicationGroups.Suggest(program.Name) == activeGroup))
         {
             Items.Add(new SoftwareItem(program.Name, program.Publisher, program.Version,
                 program.SizeBytes is long bytes ? (bytes / 1048576d).ToString("N1", culture) + " MB" : "—",
-                program.InstalledOn?.ToString("d", culture) ?? "—", program));
+                program.InstalledOn?.ToString("d", culture) ?? "—", program)
+            {
+                Group = ApplicationGroups.Name(ApplicationGroups.Suggest(program.Name)).Render(catalog()),
+            });
         }
 
         OnPropertyChanged(nameof(Status));
@@ -269,4 +277,8 @@ public sealed partial class SoftwareViewModel : Observable
     private string T(string text) => catalog().Translate(text);
 }
 
-public sealed record SoftwareItem(string Name, string Publisher, string Version, string Size, string Date, InstalledProgram Program);
+public sealed record SoftwareItem(string Name, string Publisher, string Version, string Size, string Date, InstalledProgram Program)
+{
+    public required string Group { get; init; }
+    public string Glyph => ApplicationGroups.Glyph(ApplicationGroups.Suggest(Name));
+}

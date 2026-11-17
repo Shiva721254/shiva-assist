@@ -96,6 +96,7 @@ try
     });
     Check(restored.Completed && File.ReadAllText(log) == "must survive undo", "Persistent receipt undo");
     Check(!SoftwareSource.Read(CancellationToken.None).Programs.Any(p => p.Registration == reference), "Undo did not reinstall program");
+    await CheckStartupControlsAsync();
     Console.WriteLine("Windows uninstaller integration checks passed.");
 }
 finally
@@ -174,4 +175,56 @@ static void MustBlock(Action action, string description)
         return;
     }
     throw new InvalidOperationException("Expected cleanup to be blocked: " + description);
+}
+
+static async Task CheckStartupControlsAsync()
+{
+    const string runPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    const string approvedPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+    var name = "ShivaAssistStartupFixture_" + Guid.NewGuid().ToString("N");
+    using var run = Registry.CurrentUser.CreateSubKey(runPath);
+    using var approved = Registry.CurrentUser.CreateSubKey(approvedPath);
+    // Registration only: this executable is never run, and both values are removed in finally.
+    run.SetValue(name, "\"C:\\ShivaFixtureNotExecuted.exe\"");
+    var reference = "HKCU-Run|" + name;
+    try
+    {
+        Check(StartupSource.ReadEntries(includeDisabled: true).Entries.Single(e => e.Reference == reference).Enabled,
+            "Startup fixture initially enabled");
+        var executor = new WindowsRepairExecutor(isElevated: true);
+        var result = await executor.ExecuteAsync(new RepairJob
+        {
+            JobId = Guid.NewGuid().ToString("N"), OperationId = RepairCatalogue.DisableStartupPrograms,
+            ApprovedAt = DateTimeOffset.UtcNow, Items = [reference],
+        }, CancellationToken.None);
+        Check(result.Verdict == RepairVerdict.Fixed && result.Rollback.Count == 1, "Startup change verified with rollback");
+        Check(!StartupSource.ReadEntries(includeDisabled: true).Entries.Single(e => e.Reference == reference).Enabled,
+            "Disabled startup remains visible");
+        Check(!StartupSource.ReadEntries(includeDisabled: false).Entries.Any(e => e.Reference == reference),
+            "Disabled startup excluded from active check");
+        await executor.ExecuteAsync(new RepairJob
+        {
+            JobId = Guid.NewGuid().ToString("N"), OperationId = RepairCatalogue.RestoreStartupPrograms,
+            ApprovedAt = DateTimeOffset.UtcNow, Items = result.Rollback,
+        }, CancellationToken.None);
+        Check(StartupSource.ReadEntries(includeDisabled: true).Entries.Single(e => e.Reference == reference).Enabled,
+            "Startup undo restores enabled state");
+        run.DeleteValue(name);
+        var rejected = false;
+        try
+        {
+            await executor.ExecuteAsync(new RepairJob
+            {
+                JobId = Guid.NewGuid().ToString("N"), OperationId = RepairCatalogue.DisableStartupPrograms,
+                ApprovedAt = DateTimeOffset.UtcNow, Items = [reference],
+            }, CancellationToken.None);
+        }
+        catch (InvalidOperationException) { rejected = true; }
+        Check(rejected && approved.GetValue(name) is null, "Stale startup reference rejected without writing a marker");
+    }
+    finally
+    {
+        run.DeleteValue(name, throwOnMissingValue: false);
+        approved.DeleteValue(name, throwOnMissingValue: false);
+    }
 }

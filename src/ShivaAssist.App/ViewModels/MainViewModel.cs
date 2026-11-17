@@ -28,7 +28,7 @@ public enum ScreenState
 /// The dashboard (architecture 5.1): start a read-only scan, see categories at a glance, read each finding
 /// with its advice, and save the report. Every visible text goes through the translation catalog.
 /// </summary>
-public sealed class MainViewModel : Observable
+public sealed partial class MainViewModel : Observable
 {
     public const string HelpUrl = "https://shivacomputers.nl/{lang}/contact";
 
@@ -56,6 +56,9 @@ public sealed class MainViewModel : Observable
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
         Software = new SoftwareViewModel(() => catalog, technicianMode,
             () => repairing || reviewingRepairs || State == ScreenState.Scanning, value => repairing = value);
+        Startup = new StartupViewModel(() => catalog, technicianMode,
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning,
+            value => { repairing = value; RefreshAll(); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); });
         PropertyChanged += (_, _) => Software.RefreshBusyState();
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
@@ -72,6 +75,10 @@ public sealed class MainViewModel : Observable
             if (IsSoftwarePage)
             {
                 await Software.EnsureLoadedAsync();
+            }
+            if (IsStartupSection)
+            {
+                await Startup.EnsureLoadedAsync();
             }
         });
 
@@ -91,6 +98,8 @@ public sealed class MainViewModel : Observable
         RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode),
             _ => !IsElevated && State != ScreenState.Scanning && !repairing && !reviewingRepairs);
         SelectTileCommand = new RelayCommand(tile => SelectTile(tile as CategoryTile));
+        SectionCommand = new RelayCommand(async section => await SelectSectionAsync(section as WorkspaceSection));
+        RebuildSections();
     }
 
     public string Product => product;
@@ -131,6 +140,9 @@ public sealed class MainViewModel : Observable
 
             RefreshAll();
             Software.RefreshLanguage();
+            Startup.RefreshLanguage();
+            RebuildSections();
+            ApplyFilter();
         }
     }
 
@@ -198,7 +210,7 @@ public sealed class MainViewModel : Observable
 
     public bool IsResultsPage => selectedModule.Module.Key == AppModules.ResultsKey;
 
-    public bool ResultsEmpty => IsResultsPage && !HasResults;
+    public bool ResultsEmpty => IsResultsPage && !HasResults && !IsStartupSection;
 
     public string TextResultsEmpty => T("Start a check-up from Overview to see your results here.");
 
@@ -235,9 +247,11 @@ public sealed class MainViewModel : Observable
     /// <summary>Every repair and undo from the audit log, newest first.</summary>
     public ObservableCollection<HistoryItem> History { get; } = [];
 
-    public bool HistoryEmpty => IsHistoryPage && History.Count == 0;
+    public bool HistoryEmpty => IsHistoryPage && !IsHelpSection && History.Count == 0;
 
-    public string TextHistoryEmpty => T("No repairs yet. Every repair you run appears here with its result, so you can always see what was changed.");
+    public string TextHistoryEmpty => IsUndoSection
+        ? T("No repairs currently have an available undo. All repair records remain in Repair history.")
+        : T("No repairs yet. Every repair you run appears here with its result, so you can always see what was changed.");
 
     public string TextUndo => T("Undo");
 
@@ -420,6 +434,7 @@ public sealed class MainViewModel : Observable
 
         selectedTile = null;
         State = ScreenState.Results;
+        RebuildSections();
         ApplyFilter();
         RefreshAll();
     }
@@ -445,6 +460,7 @@ public sealed class MainViewModel : Observable
         selectedModule.Selected = false;
         selectedModule = item;
         item.Selected = true;
+        RebuildSections();
         if (IsHistoryPage)
         {
             LoadHistory();
@@ -458,12 +474,19 @@ public sealed class MainViewModel : Observable
     private void ApplyFilter()
     {
         Findings.Clear();
-        foreach (var item in AllFindings.Where(f => IsModulePage
+        foreach (var item in AllFindings.Where(f => MatchesSection(f.Finding) && (IsModulePage
             ? f.Repairs.Count > 0
-            : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category)))
+            : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category))))
         {
             Findings.Add(item);
         }
+        FindingGroups.Clear();
+        foreach (var group in Findings.GroupBy(f => f.Category).OrderBy(g => g.Key))
+        {
+            FindingGroups.Add(new(ReportText.CategoryName(group.Key).Render(catalog), group.ToArray()));
+        }
+        OnPropertyChanged(nameof(SectionHasNoFindings));
+        OnPropertyChanged(nameof(RepairsEmpty));
     }
 
     private void SaveReport()
@@ -666,6 +689,10 @@ public sealed class MainViewModel : Observable
         var culture = System.Globalization.CultureInfo.GetCultureInfo(catalog.Language.Code);
         foreach (var entry in entries)
         {
+            if (IsUndoSection && !RepairHistory.CanUndo(entry, entries))
+            {
+                continue;
+            }
             var operation = RepairCatalogue.Find(entry.OperationId);
             var name = operation?.Name.Render(catalog) ?? entry.OperationId;
             var outcome = operation?.IsUndo == true

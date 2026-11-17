@@ -78,6 +78,34 @@ Repairs that need administrator rights run in **`ShivaAssistAgent.exe`**: one Wi
 
 ## Software manager
 
+### Workspaces and application groups
+
+The five main navigation items now have focused cards on the right. Overview has shortcuts to the check-up,
+startup apps, installed apps and help. PC health separates hardware/storage, performance, Windows/security,
+network and startup apps. Repairs has focused cleanup/Windows/network sections. Updates and apps separates
+the grouped inventory, uninstaller, program updates, Windows Update and optional driver updates. History has
+all repairs, available undo actions and help. Section selection is retained when returning to a workspace.
+Health cards show problem/unknown counts after a scan; findings are grouped below their category headings.
+
+Installed apps have suggested Internet, Office, Media, Games, Development, Security, Utilities and Other groups,
+category counts, filters, grouped rows and category icons. These are conservative name-based display suggestions;
+unrecognised programs remain Other. Categories are not safety verdicts and never authorise uninstall or updates.
+
+**PC health → Startup apps** reads Run keys/Startup folders and recent Windows Diagnostics-Performance events.
+Rows show enabled/disabled state, the latest reported application duration and its timestamp where available,
+and comparison bars. Windows-only event rows have no switch-off action. Measurements are associated with a
+registration only when its executable filename matches uniquely; shortcuts and ambiguous matches remain
+unmeasured. Missing/disabled logs, missing timings and malformed events never become estimated milliseconds or
+health scores. The last 14 days are queried with a 200-event cap; reports are historical, not live profiling or
+predicted savings, and durations must not be added together. Scheduled-task/Store/service startup is not an
+exhaustive part of the registration list. No background service is disabled or put to sleep.
+
+Technicians can turn off an enabled registered startup entry after approval. The executor revalidates the
+registration and checks the resulting marker; the existing audit/History undo restores the previous state.
+Refresh the main PC check-up afterwards to update its aggregate findings. **Refresh startup apps** updates the
+timing/registration view independently. Windows CI also opens the WPF workspaces to check navigation, grouping
+and binding errors; manual appearance and keyboard checks remain useful on the customer's display.
+
 Open **Updates and apps** to search the programs registered in Windows. Expand **Check program updates** to query
 the WinGet community source. App Installer must be available. If source agreements need review, run
 `winget list --source winget` in a normal Windows terminal and review the prompt, then check again.
