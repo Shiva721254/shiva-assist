@@ -61,7 +61,7 @@ public sealed class LocalizationTests
         Assert.Equal("A sentence nobody translated", new Message("A sentence nobody translated").Render(Dutch));
 
     [Fact]
-    public void TextReportCanBeDutch()
+    public async Task TextReportCanBeDutch()
     {
         var report = new ScanReport
         {
@@ -69,7 +69,7 @@ public sealed class LocalizationTests
             StartedAt = Ctx.Now,
             DurationSeconds = 1.5,
             System = new ScannedSystem("Windows 11", "25H2", false),
-            Findings = [.. new PrivilegeCheck().RunAsync(Ctx.User, default).Result],
+            Findings = [.. await new PrivilegeCheck().RunAsync(Ctx.User, default)],
         };
         var lines = ReportText.Render(report, details: false, Dutch);
         Assert.Contains(lines, l => l.Text.Contains("zonder beheerdersrechten", StringComparison.Ordinal));
