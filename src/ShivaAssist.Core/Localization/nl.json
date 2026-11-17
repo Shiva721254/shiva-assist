@@ -230,6 +230,9 @@
     "In about a minute, Shiva Assist looks at how this PC is doing (storage, updates, security, internet and more). The check itself changes nothing. For each problem it finds, you can start a repair; every repair is explained and asked first.": "In ongeveer een minuut bekijkt Shiva Assist hoe deze pc ervoor staat (opslag, updates, beveiliging, internet en meer). De controle zelf verandert niets. Voor elk gevonden probleem kunt u een reparatie starten; elke reparatie wordt eerst uitgelegd en gevraagd.",
     "A restore point is made before the repair starts. If System Protection is off, it is switched on first.": "Voordat de reparatie begint, wordt een herstelpunt gemaakt. Als Systeembeveiliging uit staat, wordt die eerst ingeschakeld.",
     "No restore point could be made, so the repair was stopped. Nothing was changed.": "Er kon geen herstelpunt worden gemaakt, daarom is de reparatie gestopt. Er is niets veranderd.",
-    "Connect the charger first: this repair must not run on battery.": "Sluit eerst de lader aan: deze reparatie mag niet op de accu draaien."
+    "Connect the charger first: this repair must not run on battery.": "Sluit eerst de lader aan: deze reparatie mag niet op de accu draaien.",
+    "What the check-up covers": "Wat er wordt gecontroleerd",
+    "Select all": "Alles selecteren",
+    "Select at least one area to check.": "Kies ten minste één onderdeel om te controleren."
   }
 }

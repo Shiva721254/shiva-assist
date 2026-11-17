@@ -53,6 +53,12 @@ public sealed class MainViewModel : Observable
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
         IsElevated = WindowsPlatform.IsElevated();
+        foreach (var category in WindowsPlatform.CreateChecks().Select(c => c.Category).Distinct().Order())
+        {
+            var area = new ScanArea(category, () => catalog);
+            area.PropertyChanged += (_, _) => OnPropertyChanged(nameof(AllAreasSelected));
+            ScanAreas.Add(area);
+        }
 
         StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning);
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
@@ -80,6 +86,11 @@ public sealed class MainViewModel : Observable
             foreach (var tile in Tiles)
             {
                 tile.Refresh();
+            }
+
+            foreach (var area in ScanAreas)
+            {
+                area.Refresh();
             }
 
             foreach (var item in AllFindings)
@@ -141,6 +152,25 @@ public sealed class MainViewModel : Observable
     }
 
     public ObservableCollection<CategoryTile> Tiles { get; } = [];
+
+    /// <summary>The areas the customer can include in the check-up; all are on by default.</summary>
+    public ObservableCollection<ScanArea> ScanAreas { get; } = [];
+
+    public bool AllAreasSelected
+    {
+        get => ScanAreas.All(a => a.IsChecked);
+        set
+        {
+            foreach (var area in ScanAreas)
+            {
+                area.IsChecked = value;
+            }
+        }
+    }
+
+    public string TextAreasTitle => T("What the check-up covers");
+
+    public string TextSelectAll => T("Select all");
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
 
@@ -235,7 +265,14 @@ public sealed class MainViewModel : Observable
 
     private async Task ScanAsync()
     {
-        var checks = WindowsPlatform.CreateChecks();
+        var areas = ScanAreas.Where(a => a.IsChecked).Select(a => a.Category).ToHashSet();
+        var checks = WindowsPlatform.CreateChecks().Where(c => areas.Contains(c.Category)).ToList();
+        if (checks.Count == 0)
+        {
+            Status = T("Select at least one area to check.");
+            return;
+        }
+
         ProgressMax = checks.Count;
         Progress = 0;
         Status = null;

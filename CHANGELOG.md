@@ -6,6 +6,8 @@
   stopping. The confirmation window says so.
 - A repair that does not complete shows the reason on the finding card.
 - Technician mode no longer calls the app read-only.
+- New warm look: matte green on cream, a large round check-up button, and a choice of which areas to check.
+- Test VM fault injection: `tools/test-vm/Inject-Faults.ps1`.
 
 ## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation
 

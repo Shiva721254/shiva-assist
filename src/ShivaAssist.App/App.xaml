@@ -3,16 +3,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
   <Application.Resources>
-    <SolidColorBrush x:Key="Navy" Color="#10233E" />
-    <SolidColorBrush x:Key="Blue" Color="#1465DF" />
-    <SolidColorBrush x:Key="LightBlue" Color="#EFF6FF" />
-    <SolidColorBrush x:Key="Page" Color="#F8FBFF" />
-    <SolidColorBrush x:Key="Line" Color="#DCE5F2" />
-    <SolidColorBrush x:Key="Muted" Color="#55657A" />
+    <!-- Warm palette: matte green on cream. Keep in sync with ViewModels/Palette.cs. -->
+    <SolidColorBrush x:Key="Ink" Color="#2F3B33" />
+    <SolidColorBrush x:Key="Green" Color="#4F7A5A" />
+    <SolidColorBrush x:Key="GreenDark" Color="#3E6248" />
+    <SolidColorBrush x:Key="GreenSoft" Color="#E6EEE3" />
+    <SolidColorBrush x:Key="Page" Color="#F6F1E7" />
+    <SolidColorBrush x:Key="Surface" Color="#FFFCF6" />
+    <SolidColorBrush x:Key="Line" Color="#E4DCCB" />
+    <SolidColorBrush x:Key="Muted" Color="#6E6A5E" />
+    <SolidColorBrush x:Key="Amber" Color="#B0741C" />
     <BooleanToVisibilityConverter x:Key="Visible" />
 
     <Style x:Key="PrimaryButton" TargetType="Button">
-      <Setter Property="Background" Value="{StaticResource Blue}" />
+      <Setter Property="Background" Value="{StaticResource Green}" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -21,15 +25,15 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Box" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+            <Border x:Name="Box" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Box" Property="Background" Value="#0F52B8" />
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenDark}" />
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="Box" Property="BorderBrush" Value="#10233E" />
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Ink}" />
                 <Setter TargetName="Box" Property="BorderThickness" Value="2" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
@@ -42,23 +46,100 @@
     </Style>
 
     <Style x:Key="QuietButton" TargetType="Button">
-      <Setter Property="Background" Value="White" />
-      <Setter Property="Foreground" Value="{StaticResource Blue}" />
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="Foreground" Value="{StaticResource Green}" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Padding" Value="14,7" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+            <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Box" Property="Background" Value="{StaticResource LightBlue}" />
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenSoft}" />
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Blue}" />
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Green}" />
+                <Setter TargetName="Box" Property="BorderThickness" Value="2" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- The big round check-up button on the start screen -->
+    <Style x:Key="ScanButton" TargetType="Button">
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontSize" Value="19" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Grid Width="220" Height="220">
+              <Ellipse Fill="{StaticResource GreenSoft}" />
+              <Ellipse x:Name="Ring" Margin="12" Stroke="#C9D8C4" StrokeThickness="3" />
+              <Ellipse x:Name="Face" Margin="26" Fill="{StaticResource Green}">
+                <Ellipse.Effect>
+                  <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.22" Color="#3E6248" />
+                </Ellipse.Effect>
+              </Ellipse>
+              <ContentPresenter Margin="44" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ContentPresenter.Resources>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="TextWrapping" Value="Wrap" />
+                    <Setter Property="TextAlignment" Value="Center" />
+                  </Style>
+                </ContentPresenter.Resources>
+              </ContentPresenter>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Face" Property="Fill" Value="{StaticResource GreenDark}" />
+                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource Green}" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource Ink}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Face" Property="Opacity" Value="0.5" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Rounded green check box for the check-up areas -->
+    <Style x:Key="AreaCheck" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
+              <Border x:Name="Box" Width="20" Height="20" CornerRadius="5" BorderThickness="1.5"
+                      BorderBrush="#B9C7B3" Background="{StaticResource Surface}" VerticalAlignment="Center">
+                <Path x:Name="Tick" Data="M 4,10 L 8,14 L 16,5" Stroke="White" StrokeThickness="2.2"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed" />
+              </Border>
+              <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource Green}" />
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Green}" />
+                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource GreenDark}" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Ink}" />
                 <Setter TargetName="Box" Property="BorderThickness" Value="2" />
               </Trigger>
             </ControlTemplate.Triggers>

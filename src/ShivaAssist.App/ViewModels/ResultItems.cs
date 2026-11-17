@@ -53,7 +53,7 @@ public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog, Repa
 
     public bool HasOutcome => Outcome is not null;
 
-    public Brush OutcomeColour => repairs?.OutcomeColour(Finding.Id) ?? Palette.Navy;
+    public Brush OutcomeColour => repairs?.OutcomeColour(Finding.Id) ?? Palette.Ink;
 
     public Brush Accent => Palette.For(Finding.Severity);
 
@@ -114,4 +114,22 @@ public sealed class RepairButton(RepairOperation operation, FindingItem item, Re
     public string Tooltip => Operation.Description.Render(catalog());
 
     public RelayCommand Command => new(async _ => await context.RunAsync(this), _ => !context.Busy);
+}
+
+/// <summary>One area on the start screen that the customer can include in or leave out of the check-up.</summary>
+public sealed class ScanArea(Category category, Func<TextCatalog> catalog) : Observable
+{
+    private bool isChecked = true;
+
+    public Category Category { get; } = category;
+
+    public string Name => ReportText.CategoryName(Category).Render(catalog());
+
+    public bool IsChecked
+    {
+        get => isChecked;
+        set => Set(ref isChecked, value);
+    }
+
+    public void Refresh() => RefreshAll();
 }
