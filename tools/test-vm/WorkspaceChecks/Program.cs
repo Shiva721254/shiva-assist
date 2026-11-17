@@ -25,12 +25,12 @@ internal static class Program
         PresentationTraceSources.DataBindingSource.Listeners.Add(listener);
         var app = new ShivaAssist.App.App();
         app.InitializeComponent();
-        app.StartupUri = null;
-        var window = new MainWindow();
-        window.Loaded += async (_, _) =>
+        app.StartupUri = new Uri("/ShivaAssist;component/MainWindow.xaml", UriKind.Relative);
+        app.Startup += (_, _) => app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(async () =>
         {
             try
             {
+                var window = (MainWindow)app.MainWindow;
                 var vm = (MainViewModel)window.DataContext;
                 if (vm.Modules.Count != 5)
                 {
@@ -94,8 +94,8 @@ internal static class Program
                 Console.Error.WriteLine(ex);
                 app.Shutdown(1);
             }
-        };
-        return app.Run(window);
+        }));
+        return app.Run();
     }
 
     private static async Task WaitForAsync(Func<bool> ready)
