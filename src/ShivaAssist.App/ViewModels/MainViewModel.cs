@@ -155,13 +155,13 @@ public sealed class MainViewModel : Observable
 
     public string TextLanguage => T("Language");
 
-    public string TextIntroTitle => T("Is something wrong with your PC?");
+    public string TextIntroTitle => T("Let's give your PC a quick check-up");
 
-    public string TextIntro => T("Shiva Assist checks your Windows PC for common problems and explains what it finds in plain language. The scan only reads information: nothing on your PC is changed.");
+    public string TextIntro => T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
 
-    public string TextStart => State == ScreenState.Results ? T("Scan again") : T("Start the scan");
+    public string TextStart => State == ScreenState.Results ? T("Scan again") : T("Start the check-up");
 
-    public string TextDuration => T("The scan takes about a minute.");
+    public string TextDuration => T("It takes about a minute.");
 
     public string TextAdminHint => T("Some checks need administrator rights.");
 
@@ -183,7 +183,7 @@ public sealed class MainViewModel : Observable
 
     public string TextHeadline => report is null ? string.Empty : (CountOf(Severity.Critical) + CountOf(Severity.Warning)) switch
     {
-        0 => T("Your PC looks healthy"),
+        0 => T("Good news: your PC looks healthy"),
         1 => T("1 thing needs your attention"),
         var n => new Message("{count} things need your attention", ("count", n)).Render(catalog),
     };

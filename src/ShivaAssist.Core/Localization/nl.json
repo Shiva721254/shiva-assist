@@ -167,11 +167,7 @@
     "The report could not be saved: {reason}": "Het rapport kon niet worden opgeslagen: {reason}",
     "Read-only PC health check by Shiva Computers": "Pc-controle door Shiva Computers die alleen leest",
     "Language": "Taal",
-    "Is something wrong with your PC?": "Is er iets mis met uw pc?",
-    "Shiva Assist checks your Windows PC for common problems and explains what it finds in plain language. The scan only reads information: nothing on your PC is changed.": "Shiva Assist controleert uw Windows-pc op veelvoorkomende problemen en legt in gewone taal uit wat het vindt. De scan leest alleen informatie: er wordt niets aan uw pc veranderd.",
     "Scan again": "Opnieuw scannen",
-    "Start the scan": "Start de scan",
-    "The scan takes about a minute.": "De scan duurt ongeveer een minuut.",
     "Some checks need administrator rights.": "Voor sommige controles zijn beheerdersrechten nodig.",
     "Restart as administrator": "Opnieuw starten als administrator",
     "Checking your PC…": "Uw pc wordt gecontroleerd…",
@@ -180,7 +176,6 @@
     "Details": "Details",
     "Save report…": "Rapport opslaan…",
     "Need help? Contact Shiva Computers": "Hulp nodig? Neem contact op met Shiva Computers",
-    "Your PC looks healthy": "Uw pc ziet er gezond uit",
     "1 thing needs your attention": "1 punt vraagt uw aandacht",
     "Evidence (technical, in English)": "Bewijs (technisch, in het Engels)",
     "Read-only · changes nothing": "Alleen lezen · verandert niets",
@@ -199,6 +194,11 @@
     "Check of crashes and shutdowns": "Controle van crashes en uitschakelingen",
     "Check of the internet connection": "Controle van de internetverbinding",
     "Check of devices and drivers": "Controle van apparaten en stuurprogramma's",
-    "Check of administrator rights": "Controle van beheerdersrechten"
+    "Check of administrator rights": "Controle van beheerdersrechten",
+    "Let's give your PC a quick check-up": "Laten we uw pc even nakijken",
+    "In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.": "In ongeveer een minuut bekijkt Shiva Assist hoe uw pc ervoor staat (opslag, updates, beveiliging, internet en meer) en legt in gewone taal uit wat het vindt, met duidelijke volgende stappen. Het leest alleen informatie: er wordt niets aan uw pc veranderd.",
+    "Start the check-up": "Start de controle",
+    "Good news: your PC looks healthy": "Goed nieuws: uw pc ziet er gezond uit",
+    "It takes about a minute.": "Het duurt ongeveer een minuut."
   }
 }
