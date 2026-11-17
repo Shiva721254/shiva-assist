@@ -1,6 +1,6 @@
 # Shiva Assist: developer handoff
 
-Last updated: 17 November 2026 (after roadmap step 2, CI run #16 green).
+Last updated: 17 November 2026 (Software manager inventory added after roadmap step 2).
 This file is the starting point for anyone (person or AI assistant) who continues development. Read it fully
 before changing code; the rules in "Non-negotiable rules" protect customers' PCs.
 
@@ -126,6 +126,18 @@ VM test results: Recycle Bin, temp, component cleanup and startup switch-off ver
 component store; the system-file repair stopped safely because System Protection was off (now handled).
 
 ## 7. Next steps (agreed roadmap, see `claude/shiva-assist-module-roadmap.md` in the project)
+
+Software manager inventory is implemented. The Software menu now opens an asynchronous registry inventory
+with search, sortable columns, English/Dutch labels, refresh, and partial-access feedback. `SoftwareSource`
+reads both HKLM/HKCU registry views. `SoftwareInventory` normalizes display metadata and parses registry dates.
+Exact duplicate display rows are collapsed while different versions remain visible. Store and portable apps may
+be absent and publisher-provided sizes may be missing or inaccurate. The screen explains these limits.
+No uninstall strings or executable commands are collected. Update checks and consented software repairs below
+remain the next increment. Windows UI/registry behaviour still needs a VM run.
+
+Validation for this increment: 118 platform-neutral tests passed, Dutch translation check passed, and the Core,
+Windows and WPF projects compile with zero warnings/errors on Linux with Windows targeting. The WPF build
+used `-m:1 -p:SelfContained=false -p:RuntimeIdentifier=win-x64`. Run Windows CI for packaging and smoke tests.
 
 3. **Software manager** (module `software`, currently "Soon"): inventory of installed programs (registry Uninstall
    keys, HKLM + HKLM\WOW6432Node + HKCU; name, publisher, version, size, install date), available updates via

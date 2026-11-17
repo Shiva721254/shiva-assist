@@ -34,3 +34,10 @@ First read-only release (Milestone 1 of the Shiva Assist architecture, phase 1 o
   JSON report in `Documents\Shiva Assist\Reports`.
 - 63 tests, including the scenarios from *20 Windows problems in the Netherlands*.
 - No external packages in the product; Windows data is read with built-in tools only.
+# Software manager inventory
+
+- Open Software to browse registered programs, with publisher, version, estimated size and installation date.
+- Search by name or publisher, sort columns and refresh without running the full check-up.
+- Read per-user and machine entries in both registry views, with feedback for unreadable entries and missing metadata.
+- English and Dutch labels, plus normalization and install-date tests.
+

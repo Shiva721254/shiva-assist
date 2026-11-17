@@ -289,6 +289,64 @@
       </ScrollViewer>
     </DockPanel>
 
+    <DockPanel Margin="28,22" Visibility="{Binding IsSoftwarePage, Converter={StaticResource Visible}}">
+      <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+        <TextBlock Text="{Binding SelectedModule.Name}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+        <TextBlock Text="{Binding Software.TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,12" />
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Content="{Binding Software.TextRefresh}" Command="{Binding Software.RefreshCommand}"
+                  Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" />
+          <StackPanel>
+            <TextBlock Text="{Binding Software.TextSearch}" Margin="0,0,0,4" />
+            <TextBox Text="{Binding Software.Search, UpdateSourceTrigger=PropertyChanged}" Padding="8" />
+          </StackPanel>
+        </DockPanel>
+        <TextBlock Text="{Binding Software.Status}" Foreground="{StaticResource Muted}" Margin="0,10,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      </StackPanel>
+      <DataGrid ItemsSource="{Binding Software.Items}" AutoGenerateColumns="False" IsReadOnly="True"
+                CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"
+                EnableRowVirtualization="True" GridLinesVisibility="Horizontal" Background="{StaticResource Surface}"
+                BorderBrush="{StaticResource Line}" RowHeaderWidth="0">
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding Name}" Width="2*" MinWidth="150">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextName, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Publisher}" Width="*" MinWidth="100">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextPublisher, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Version}" Width="*" MinWidth="80">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Size}" Width="Auto">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextSize, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Date}" Width="Auto">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextDate, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+    </DockPanel>
+
     <!-- History and undo: every repair from the audit log, with undo where the old state was recorded -->
     <DockPanel Margin="28,22" Visibility="{Binding IsHistoryPage, Converter={StaticResource Visible}}">
       <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">

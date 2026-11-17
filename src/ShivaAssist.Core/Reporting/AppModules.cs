@@ -105,9 +105,8 @@ public static class AppModules
         {
             Key = "software",
             Name = "Software",
-            Description = "Installed programs, available updates through Windows Package Manager, and safe uninstalling.",
+            Description = "Browse the programs registered in Windows and see their publisher, version, estimated size and install date.",
             Glyph = "\uE71D",
-            Available = false,
         },
         new()
         {

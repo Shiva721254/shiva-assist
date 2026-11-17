@@ -53,6 +53,7 @@ public sealed class MainViewModel : Observable
         repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || State == ScreenState.Scanning) : null;
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
+        Software = new SoftwareViewModel(() => catalog);
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
         {
@@ -66,7 +67,14 @@ public sealed class MainViewModel : Observable
 
         selectedModule = Modules[0];
         selectedModule.Selected = true;
-        NavigateCommand = new RelayCommand(item => Navigate(item as NavItem));
+        NavigateCommand = new RelayCommand(async item =>
+        {
+            Navigate(item as NavItem);
+            if (IsSoftwarePage)
+            {
+                await Software.EnsureLoadedAsync();
+            }
+        });
 
         foreach (var category in WindowsPlatform.CreateChecks().Select(c => c.Category).Distinct().Order())
         {
@@ -119,6 +127,7 @@ public sealed class MainViewModel : Observable
             }
 
             RefreshAll();
+            Software.RefreshLanguage();
         }
     }
 
@@ -185,7 +194,11 @@ public sealed class MainViewModel : Observable
 
     public bool IsOverviewPage => selectedModule.IsOverview;
 
-    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon && !IsHistoryPage;
+    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon && !IsHistoryPage && !IsSoftwarePage;
+
+    public bool IsSoftwarePage => selectedModule.Module.Key == "software";
+
+    public SoftwareViewModel Software { get; }
 
     public bool IsHistoryPage => selectedModule.Module.Key == AppModules.HistoryKey;
 
