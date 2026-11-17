@@ -37,6 +37,8 @@ jobs:
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             dotnet publish src/ShivaAssist.Cli --configuration Release --runtime $rid --output "publish/$rid"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            dotnet publish src/ShivaAssist.Agent --configuration Release --runtime $rid --output "publish/$rid"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
             Remove-Item "publish/$rid/*.pdb" -ErrorAction SilentlyContinue
           }
 
@@ -80,6 +82,7 @@ jobs:
           path: |
             publish/win-x64/ShivaAssist.exe
             publish/win-x64/ShivaAssistCli.exe
+            publish/win-x64/ShivaAssistAgent.exe
             publish/win-x64/*.sha256
             scan.json
 
@@ -89,6 +92,7 @@ jobs:
           path: |
             publish/win-arm64/ShivaAssist.exe
             publish/win-arm64/ShivaAssistCli.exe
+            publish/win-arm64/ShivaAssistAgent.exe
             publish/win-arm64/*.sha256
 
       - uses: actions/upload-artifact@v5

@@ -76,25 +76,48 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
 
 /// <summary>
 /// Programs that start with Windows: the Run keys and Startup folders, minus entries switched off in
-/// Task Manager (StartupApproved). Only names are kept, never paths (they contain the user name).
+/// Task Manager (StartupApproved). Paths are never kept (they contain the user name); only the display name
+/// and the registry value or shortcut name needed to switch an entry off.
 /// </summary>
 public sealed class StartupSource : ISnapshotSource<StartupSnapshot>
 {
     private const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string Run32Key = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
     private const string Approved = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\";
 
     public Task<StartupSnapshot> ReadAsync(ScanContext context, CancellationToken cancellationToken)
     {
-        var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddRunKey(Registry.CurrentUser, RunKey, "Run", names);
-        AddRunKey(Registry.LocalMachine, RunKey, "Run", names);
-        AddRunKey(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run", "Run32", names);
-        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), Registry.CurrentUser, names);
-        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), Registry.LocalMachine, names);
-        return Task.FromResult(new StartupSnapshot([.. names]));
+        var entries = new List<StartupEntry>();
+        AddRunKey(Registry.CurrentUser, RunKey, "HKCU-Run", entries);
+        AddRunKey(Registry.LocalMachine, RunKey, "HKLM-Run", entries);
+        AddRunKey(Registry.LocalMachine, Run32Key, "HKLM-Run32", entries);
+        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "UserFolder", entries);
+        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "CommonFolder", entries);
+        return Task.FromResult(new StartupSnapshot([.. entries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)]));
     }
 
-    private static void AddRunKey(RegistryKey hive, string path, string approvedKey, SortedSet<string> names)
+    /// <summary>Where Task Manager keeps the on/off marker for an entry (<c>Location|Key</c>); null for anything else.</summary>
+    public static (RegistryKey Hive, string SubKey, string ValueName)? ApprovedLocation(string reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        var parts = reference.Split('|');
+        if (parts.Length != 2 || parts[1].Length == 0 || parts[1].Contains('\\', StringComparison.Ordinal) || parts[1].Contains('/', StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return parts[0] switch
+        {
+            "HKCU-Run" => (Registry.CurrentUser, Approved + "Run", parts[1]),
+            "HKLM-Run" => (Registry.LocalMachine, Approved + "Run", parts[1]),
+            "HKLM-Run32" => (Registry.LocalMachine, Approved + "Run32", parts[1]),
+            "UserFolder" => (Registry.CurrentUser, Approved + "StartupFolder", parts[1]),
+            "CommonFolder" => (Registry.LocalMachine, Approved + "StartupFolder", parts[1]),
+            _ => null,
+        };
+    }
+
+    private static void AddRunKey(RegistryKey hive, string path, string location, List<StartupEntry> entries)
     {
         using var key = hive.OpenSubKey(path);
         if (key is null)
@@ -104,34 +127,40 @@ public sealed class StartupSource : ISnapshotSource<StartupSnapshot>
 
         foreach (var name in key.GetValueNames().Where(n => n.Length > 0))
         {
-            if (IsEnabled(hive, approvedKey, name))
+            if (IsEnabled(location + "|" + name))
             {
-                names.Add(name);
+                entries.Add(new StartupEntry(name, location, name));
             }
         }
     }
 
-    private static void AddFolder(string folder, RegistryKey hive, SortedSet<string> names)
+    private static void AddFolder(string folder, string location, List<StartupEntry> entries)
     {
         if (folder.Length == 0 || !Directory.Exists(folder))
         {
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(folder).Where(f => !string.Equals(Path.GetFileName(f), "desktop.ini", StringComparison.OrdinalIgnoreCase)))
+        foreach (var file in Directory.EnumerateFiles(folder).Select(Path.GetFileName).OfType<string>()
+            .Where(f => !string.Equals(f, "desktop.ini", StringComparison.OrdinalIgnoreCase)))
         {
-            if (IsEnabled(hive, "StartupFolder", Path.GetFileName(file)))
+            if (IsEnabled(location + "|" + file))
             {
-                names.Add(Path.GetFileNameWithoutExtension(file));
+                entries.Add(new StartupEntry(Path.GetFileNameWithoutExtension(file), location, file));
             }
         }
     }
 
     /// <summary>StartupApproved stores 12 bytes per entry; an odd first byte (0x03, 0x01…) means switched off.</summary>
-    private static bool IsEnabled(RegistryKey hive, string approvedKey, string name)
+    private static bool IsEnabled(string reference)
     {
-        using var key = hive.OpenSubKey(Approved + approvedKey);
-        return key?.GetValue(name) is not byte[] { Length: > 0 } data || data[0] % 2 == 0;
+        if (ApprovedLocation(reference) is not { } at)
+        {
+            return true;
+        }
+
+        using var key = at.Hive.OpenSubKey(at.SubKey);
+        return key?.GetValue(at.ValueName) is not byte[] { Length: > 0 } data || data[0] % 2 == 0;
     }
 }
 

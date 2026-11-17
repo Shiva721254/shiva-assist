@@ -25,10 +25,10 @@ def templates(root):
         for line in s.splitlines():
             t=line.strip()
 
-            if 'Title = ' in t or 'SuspectedCause = ' in t or 'Recommendation = new(' in t:
+            if 'Title = ' in t or 'SuspectedCause = ' in t or 'Recommendation = new(' in t or re.match(r'(Name|Description) = "',t):
                 seg=t
                 # only literals belonging to Title/Cause/Recommendation on one-line findings
-                for key in ['Title = ','SuspectedCause = ','Recommendation = new(']:
+                for key in ['Title = ','SuspectedCause = ','Recommendation = new(','Name = ','Description = ']:
                     for m in re.finditer(re.escape(key)+r'([^,]*?\? )?'+LIT+r'(\s*:\s*'+LIT+')?',t):
                         out.append(m.group(2))
                         if m.group(4): out.append(m.group(4))

@@ -1,0 +1,114 @@
+using ShivaAssist.Core.Findings;
+using ShivaAssist.Core.Localization;
+
+namespace ShivaAssist.Core.Repairs;
+
+/// <summary>Risk class of a repair (architecture: repair risk L/M/H). Medium and High require a restore point.</summary>
+public enum RiskClass
+{
+    Low,
+    Medium,
+    High,
+}
+
+/// <summary>
+/// One allowed repair. Nothing outside <see cref="RepairCatalogue"/> can run: the elevated helper refuses any
+/// operation ID it does not know.
+/// </summary>
+public sealed record RepairOperation
+{
+    public required string Id { get; init; }
+
+    public required Message Name { get; init; }
+
+    /// <summary>What exactly happens, shown before the customer agrees.</summary>
+    public required Message Description { get; init; }
+
+    public required RiskClass Risk { get; init; }
+
+    public bool RequiresAdmin { get; init; }
+
+    public bool RestartRequired { get; init; }
+
+    public required (int Min, int Max) Minutes { get; init; }
+
+    /// <summary>The finding whose check is repeated afterwards to verify the repair.</summary>
+    public required string VerifiesFinding { get; init; }
+
+    /// <summary>Asks the user to pick items first (e.g. which startup programs to switch off).</summary>
+    public bool NeedsSelection { get; init; }
+
+    public bool NeedsRestorePoint => Risk >= RiskClass.Medium;
+}
+
+/// <summary>The signed repair catalogue of stage 3a. IDs follow the contract: <c>AREA.TOPIC.ACTION</c>.</summary>
+public static class RepairCatalogue
+{
+    public const string EmptyRecycleBin = "DISK.RECYCLEBIN.EMPTY";
+    public const string CleanTempFiles = "DISK.TEMP.CLEAN";
+    public const string CleanComponentStore = "DISK.COMPONENTS.CLEANUP";
+    public const string DisableStartupPrograms = "STARTUP.PROGRAMS.DISABLE";
+
+    public static IReadOnlyList<RepairOperation> All { get; } =
+    [
+        new()
+        {
+            Id = EmptyRecycleBin,
+            Name = "Empty the Recycle Bin",
+            Description = "Permanently deletes the files in the Recycle Bin. Files that are not in the Recycle Bin are not touched.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 2),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = CleanTempFiles,
+            Name = "Delete old temporary files",
+            Description = "Deletes temporary files that programs left behind more than 7 days ago. Files that are in use are skipped. Your documents, photos and downloads are not touched.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 5),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = CleanComponentStore,
+            Name = "Remove old Windows update files",
+            Description = "Lets Windows remove superseded versions of its own system files with its built-in cleanup (DISM /StartComponentCleanup). Installed updates keep working.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (5, 20),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = DisableStartupPrograms,
+            Name = "Switch off startup programs",
+            Description = "Stops the programs you select from starting with Windows, the same way Task Manager does. The programs stay installed and can be switched on again at any time.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "PERF-STARTUP-001",
+            NeedsSelection = true,
+        },
+    ];
+
+    public static RepairOperation? Find(string id) => All.FirstOrDefault(o => o.Id == id);
+
+    public static bool Contains(string id) => Find(id) is not null;
+
+    /// <summary>Repairs offered for a finding. Only problems get repairs; healthy or unknown findings never do.</summary>
+    public static IReadOnlyList<RepairOperation> For(Finding finding)
+    {
+        ArgumentNullException.ThrowIfNull(finding);
+        if (finding.Severity is not (Severity.Critical or Severity.Warning or Severity.Information))
+        {
+            return [];
+        }
+
+        return finding.Id switch
+        {
+            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanComponentStore)!],
+            "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
+            _ => [],
+        };
+    }
+}

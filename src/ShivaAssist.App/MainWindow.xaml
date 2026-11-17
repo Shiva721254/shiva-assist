@@ -10,6 +10,9 @@
     <Border DockPanel.Dock="Top" Background="{StaticResource Navy}" Padding="28,16">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Border Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}" Background="#B25E00" CornerRadius="12" Padding="10,4" Margin="0,0,10,0">
+            <TextBlock Text="{Binding TextTechnicianMode}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+          </Border>
           <Border Background="#1E3A5F" CornerRadius="12" Padding="10,4" Margin="0,0,16,0">
             <TextBlock Text="{Binding TextReadOnlyBadge}" Foreground="#CFE0FF" FontSize="12" />
           </Border>
@@ -137,6 +140,21 @@
                       </DockPanel>
                       <TextBlock Text="{Binding Advice, StringFormat='→ {0}'}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
                                  TextWrapping="Wrap" Margin="0,8,0,0" />
+                      <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,10,0,0">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Button Style="{StaticResource QuietButton}" Content="{Binding Label}" ToolTip="{Binding Tooltip}"
+                                    Command="{Binding Command}" Margin="0,0,8,6" Padding="12,5" FontSize="13" />
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="{Binding Outcome}" Visibility="{Binding HasOutcome, Converter={StaticResource Visible}}"
+                                 Foreground="{Binding OutcomeColour}" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap" />
                       <Expander IsExpanded="{Binding Expanded}" Margin="0,8,0,0" Foreground="{StaticResource Blue}"
                                 Header="{Binding DataContext.TextDetails, RelativeSource={RelativeSource AncestorType=Window}}">
                         <StackPanel Margin="20,6,0,0">

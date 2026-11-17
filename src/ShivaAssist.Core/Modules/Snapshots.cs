@@ -50,7 +50,26 @@ public sealed record DefenderStatus(bool AntivirusEnabled, bool RealTimeProtecti
 
 public sealed record SecuritySnapshot(IReadOnlyList<AntivirusProduct>? Antivirus, IReadOnlyList<FirewallProfile>? Firewall, DefenderStatus? Defender = null);
 
-public sealed record StartupSnapshot(IReadOnlyList<string> EnabledEntries);
+/// <summary>
+/// One program that starts with Windows. <see cref="Location"/> is where it is registered
+/// (<c>HKCU-Run</c>, <c>HKLM-Run</c>, <c>HKLM-Run32</c>, <c>UserFolder</c>, <c>CommonFolder</c>) and <see cref="Key"/> the
+/// registry value or shortcut file name; together they identify it for switching it off.
+/// </summary>
+public sealed record StartupEntry(string Name, string Location, string Key)
+{
+    /// <summary>Compact form for repair jobs: <c>Location|Key</c>.</summary>
+    public string Reference => Location + "|" + Key;
+}
+
+public sealed record StartupSnapshot(IReadOnlyList<StartupEntry> Entries)
+{
+    public StartupSnapshot(IReadOnlyList<string> names)
+        : this(names.Select(n => new StartupEntry(n, "HKCU-Run", n)).ToList())
+    {
+    }
+
+    public IReadOnlyList<string> EnabledEntries => [.. Entries.Select(e => e.Name).Distinct(StringComparer.OrdinalIgnoreCase)];
+}
 
 /// <summary>Counts of reliability events in the look-back window.</summary>
 public sealed record StabilitySnapshot(

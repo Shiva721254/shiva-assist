@@ -3,12 +3,17 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using Microsoft.Win32;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Localization;
+using ShivaAssist.Core.Modules;
 using ShivaAssist.Core.Reporting;
+using ShivaAssist.Core.Repairs;
 using ShivaAssist.Core.Scanning;
 using ShivaAssist.Windows;
+using ShivaAssist.Windows.Repairs;
+using ShivaAssist.Windows.Sources;
 
 namespace ShivaAssist.App.ViewModels;
 
@@ -36,10 +41,15 @@ public sealed class MainViewModel : Observable
     private CategoryTile? selectedTile;
     private ScanReport? report;
     private string? status;
+    private bool repairing;
+    private readonly Dictionary<string, RepairResult> outcomes = new(StringComparer.Ordinal);
+    private readonly RepairContext? repairContext;
 
-    public MainViewModel(string product)
+    public MainViewModel(string product, bool technicianMode = false)
     {
         this.product = product;
+        TechnicianMode = technicianMode;
+        repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || State == ScreenState.Scanning) : null;
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
         IsElevated = WindowsPlatform.IsElevated();
@@ -84,6 +94,11 @@ public sealed class MainViewModel : Observable
     public bool IsElevated { get; }
 
     public bool ShowAdminHint => !IsElevated;
+
+    /// <summary>Repairs are offered only in technician mode (start with --technician) during stage 3.</summary>
+    public bool TechnicianMode { get; }
+
+    public string TextTechnicianMode => T("Technician mode · repairs enabled");
 
     public ScreenState State
     {
@@ -243,7 +258,7 @@ public sealed class MainViewModel : Observable
         }
 
         AllFindings.Clear();
-        AllFindings.AddRange(report.Findings.Select(f => new FindingItem(f, () => catalog)));
+        AllFindings.AddRange(report.Findings.Select(f => new FindingItem(f, () => catalog, repairContext)));
 
         Tiles.Clear();
         foreach (var group in report.Findings.GroupBy(f => f.Category).OrderBy(g => g.Key))
@@ -307,6 +322,107 @@ public sealed class MainViewModel : Observable
             }
         }
     }
+
+    // ---- Repairs (stage 3a): explain → ask → repair → verify → log ----
+
+    private async Task RepairAsync(RepairButton button)
+    {
+        try
+        {
+            await RepairCoreAsync(button);
+        }
+#pragma warning disable CA1031 // A failed repair must end in a message, never in a crashed window.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            repairing = false;
+            Status = new Message("The repair did not complete: {reason}", ("reason", ex.Message)).Render(catalog);
+        }
+    }
+
+    private async Task RepairCoreAsync(RepairButton button)
+    {
+        var operation = button.Operation;
+        var before = button.Item.Finding;
+        var items = await ChooseItemsAsync(operation);
+        if (items is null)
+        {
+            return;
+        }
+
+        var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
+        var question = string.Join(Environment.NewLine + Environment.NewLine,
+            operation.Description.Render(catalog),
+            new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
+            T("Do you want to run this repair now?"));
+        if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        repairing = true;
+        Status = new Message("Running: {repair}…", ("repair", operation.Name.Render(catalog))).Render(catalog);
+        var job = new RepairJob { JobId = Guid.NewGuid().ToString("N"), OperationId = operation.Id, ApprovedAt = DateTimeOffset.UtcNow, Items = items };
+        var (result, after) = await Task.Run(() => new RepairRunner(IsElevated).RunAsync(operation, job, before, CancellationToken.None));
+        repairing = false;
+
+        outcomes[before.Id] = result;
+        if (after is not null && report is not null)
+        {
+            report = report with { Findings = [.. report.Findings.Select(f => f.Id == after.Id ? ScanRunner.WithRepairs(after) : f)] };
+        }
+
+        Status = OutcomeText(before.Id);
+        ShowResults();
+    }
+
+    /// <summary>Items the repair needs: the temp folder, or the startup programs the technician selects.</summary>
+    private async Task<IReadOnlyList<string>?> ChooseItemsAsync(RepairOperation operation)
+    {
+        if (operation.Id == RepairCatalogue.CleanTempFiles)
+        {
+            return [Path.GetTempPath().TrimEnd('\\')];
+        }
+
+        if (!operation.NeedsSelection)
+        {
+            return [];
+        }
+
+        var snapshot = await new StartupSource().ReadAsync(new ScanContext(IsElevated, DateTimeOffset.UtcNow), CancellationToken.None);
+        var picker = new StartupPicker(snapshot.Entries, T("Switch off startup programs"), T("Select the programs that should no longer start with Windows. They stay installed."), T("Switch off"), T("Cancel"))
+        {
+            Owner = Application.Current.MainWindow,
+        };
+        return picker.ShowDialog() == true && picker.Selected.Count > 0 ? picker.Selected : null;
+    }
+
+    private string? OutcomeText(string findingId)
+    {
+        if (!outcomes.TryGetValue(findingId, out var result))
+        {
+            return null;
+        }
+
+        var verdict = result.Verdict switch
+        {
+            RepairVerdict.Fixed => T("Fixed"),
+            RepairVerdict.Unresolved => T("Repair done, but the problem is still there"),
+            _ => T("Result unclear"),
+        };
+        if (!result.Completed)
+        {
+            verdict = T("The repair did not complete");
+        }
+
+        return result.BytesFreed > 0
+            ? new Message("{verdict} · {freed:gb} freed", ("verdict", verdict), ("freed", result.BytesFreed)).Render(catalog)
+            : verdict;
+    }
+
+    private Brush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict == RepairVerdict.Fixed
+        ? Palette.For(Severity.Healthy)
+        : Palette.For(Severity.Warning);
 
     private static void RestartAsAdmin()
     {

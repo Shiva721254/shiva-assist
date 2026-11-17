@@ -7,7 +7,7 @@ Product page and downloads: **https://assist.shivacomputers.nl**
 
 | | |
 |---|---|
-| Status | Stage 2 in progress: dashboard window (English and Dutch) on the stage 1 read-only core |
+| Status | Stage 3a: first repairs in technician mode, on the stage 2 dashboard (English and Dutch) |
 | Runs on | Windows 10 and 11, x64 and ARM64. No installation, no .NET needed (self-contained) |
 | Built with | C# / .NET 10, no external packages in the product |
 | Specification | *Shiva Assist PRA v2.0* (architecture), *Shiva Utilities Product Strategy v2.0*, *20 Windows problems in the Netherlands* (research) |
@@ -59,6 +59,19 @@ Exit codes: `0` nothing needs attention · `2` warnings or critical findings · 
 - No fear words, no invented problems: every finding other than Unknown carries evidence. A single busy moment is not reported as a fault.
 - The only network traffic is Windows' own connectivity test (`www.msftconnecttest.com`), the same request Windows itself makes.
 
+## Repairs (stage 3a, technician mode)
+
+Start `ShivaAssist.exe --technician` to see repair buttons on findings that have one. Every repair is a transaction: **explain → ask → repair → check again → log**, and ends as *Fixed*, *Unresolved* or *Inconclusive*. Plan: `claude/shiva-assist-repair-plan.md` in the project.
+
+| Repair | ID | Risk | For |
+|---|---|---|---|
+| Empty the Recycle Bin | `DISK.RECYCLEBIN.EMPTY` | Low | `STORAGE-SPACE-001` |
+| Delete temporary files older than 7 days (user's `AppData\Local\Temp` only, skips files in use, never follows links) | `DISK.TEMP.CLEAN` | Low | `STORAGE-SPACE-001` |
+| Remove old Windows update files (`DISM /StartComponentCleanup`, admin) | `DISK.COMPONENTS.CLEANUP` | Low | `STORAGE-SPACE-001` |
+| Switch off selected startup programs (Task Manager's own marker, reversible; previous value kept in the log) | `STARTUP.PROGRAMS.DISABLE` | Low | `PERF-STARTUP-001` |
+
+Repairs that need administrator rights run in **`ShivaAssistAgent.exe`**: one Windows permission prompt per job, it accepts only catalogue operations and validates every input again, then exits. Every repair is logged in `%LOCALAPPDATA%\Shiva Assist\repair-log.jsonl` (no personal data).
+
 ## Languages
 
 English is the default; Dutch (`nl`) is included. Every user-facing text is an English template (`new Message("…{free:gb}…", ("free", bytes))`); `src/ShivaAssist.Core/Localization/<code>.json` maps it to the translation and names its language. **Adding a language = adding one file**, no code. `python tools/check_translations.py` (also run in CI) fails when a text has no translation or a placeholder is missing. Technical evidence stays in English on purpose: it quotes Windows and is meant for technicians.
@@ -81,6 +94,7 @@ dotnet publish src/ShivaAssist.App -c Release -r win-x64 -o publish   # → publ
 | `ShivaAssist.Windows` | Read-only data sources: registry, CIM, DISM, event logs, networking |
 | `ShivaAssist.App` | Dashboard window (WPF, `ShivaAssist.exe`) |
 | `ShivaAssist.Cli` | Console version (`ShivaAssistCli.exe`) |
+| `ShivaAssist.Agent` | Elevated repair helper (`ShivaAssistAgent.exe`) |
 | `ShivaAssist.Tests` | Rules, runner, contract and the research scenarios (runs on Windows and Linux) |
 
 Each module is a `SnapshotCheck<T>`: a Windows source collects a snapshot, and a pure `Evaluate` function decides. New modules follow the same pattern; register them in `WindowsPlatform.CreateChecks()`.
@@ -101,7 +115,7 @@ Planned modules from the *Shiva Utilities* strategy (storage manager, network to
 
 1. **Diagnostic foundation** (this release): read-only scan, JSON report, console
 2. **Dashboard** (in progress): WPF window, categories, Dutch and English, report export
-3. Repair engine: signed repair catalogue, approval per repair, rollback and verification
+3. **Repair engine** (3a done): catalogue, approval per repair, elevated helper, verification, audit log; 3b/3c add network, Defender, DISM/SFC, Update reset, restore points
 4. Website and API: download, update check, consented report upload
 5–8. Offline recovery, reinstallation, licensing, advanced features (see the architecture document)
 

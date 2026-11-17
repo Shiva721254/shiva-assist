@@ -48,9 +48,9 @@ public static partial class FindingValidator
             }
         }
 
-        if (finding.Recommendation is { Operations.Count: > 0 })
+        if (finding.Recommendation is { } advice && advice.Operations.FirstOrDefault(id => !Repairs.RepairCatalogue.Contains(id)) is { } unknown)
         {
-            errors.Add("operations must stay empty until the signed repair catalogue exists (stage 3)");
+            errors.Add($"operation '{unknown}' is not in the repair catalogue");
         }
 
         return errors;

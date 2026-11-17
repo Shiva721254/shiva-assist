@@ -2,11 +2,12 @@ using System.Windows.Media;
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Localization;
 using ShivaAssist.Core.Reporting;
+using ShivaAssist.Core.Repairs;
 
 namespace ShivaAssist.App.ViewModels;
 
 /// <summary>One finding as a card: layer 1 (title, advice) always, layer 2 and 3 (cause, evidence, ID) on request.</summary>
-public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog) : Observable
+public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog, RepairContext? repairs = null) : Observable
 {
     private bool expanded;
 
@@ -41,6 +42,19 @@ public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog) : Ob
         set => Set(ref expanded, value);
     }
 
+    /// <summary>Repair buttons; only in technician mode and only for repairs from the catalogue.</summary>
+    public IReadOnlyList<RepairButton> Repairs => repairs is null
+        ? []
+        : [.. RepairCatalogue.For(Finding).Select(o => new RepairButton(o, this, repairs, catalog))];
+
+    public bool HasRepairs => Repairs.Count > 0;
+
+    public string? Outcome => repairs?.Outcome(Finding.Id);
+
+    public bool HasOutcome => Outcome is not null;
+
+    public Brush OutcomeColour => repairs?.OutcomeColour(Finding.Id) ?? Palette.Navy;
+
     public Brush Accent => Palette.For(Finding.Severity);
 
     public Brush Soft => Palette.Background(Finding.Severity);
@@ -74,4 +88,30 @@ public sealed class CategoryTile(Category category, IReadOnlyList<Finding> findi
     }
 
     public void Refresh() => RefreshAll();
+}
+
+/// <summary>What finding cards need from the dashboard to offer repairs.</summary>
+public sealed class RepairContext(Func<RepairButton, Task> run, Func<string, string?> outcome, Func<string, Brush> outcomeColour, Func<bool> busy)
+{
+    public Task RunAsync(RepairButton button) => run(button);
+
+    public string? Outcome(string findingId) => outcome(findingId);
+
+    public Brush OutcomeColour(string findingId) => outcomeColour(findingId);
+
+    public bool Busy => busy();
+}
+
+/// <summary>One repair offered on a finding card.</summary>
+public sealed class RepairButton(RepairOperation operation, FindingItem item, RepairContext context, Func<TextCatalog> catalog)
+{
+    public RepairOperation Operation { get; } = operation;
+
+    public FindingItem Item { get; } = item;
+
+    public string Label => Operation.Name.Render(catalog());
+
+    public string Tooltip => Operation.Description.Render(catalog());
+
+    public RelayCommand Command => new(async _ => await context.RunAsync(this), _ => !context.Busy);
 }

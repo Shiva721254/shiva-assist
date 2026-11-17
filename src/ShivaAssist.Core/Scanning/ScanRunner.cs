@@ -27,6 +27,7 @@ public sealed class ScanRunner(IReadOnlyList<ICheck> checks, TimeProvider? time 
 
         var findings = results
             .SelectMany(f => f)
+            .Select(WithRepairs)
             .Select(f => f with { Timestamp = started })
             .OrderBy(f => SeverityRank(f.Severity))
             .ThenBy(f => f.Id, StringComparer.Ordinal)
@@ -40,6 +41,16 @@ public sealed class ScanRunner(IReadOnlyList<ICheck> checks, TimeProvider? time 
             System = new ScannedSystem(environment.OsName, environment.OsVersion, environment.IsElevated),
             Findings = findings,
         };
+    }
+
+    /// <summary>Lists the catalogue repairs for a finding in its recommendation (contract field <c>operations</c>).</summary>
+    public static Finding WithRepairs(Finding finding)
+    {
+        ArgumentNullException.ThrowIfNull(finding);
+        var operations = Repairs.RepairCatalogue.For(finding).Select(o => o.Id).ToList();
+        return operations.Count == 0 || finding.Recommendation is not { } advice
+            ? finding
+            : finding with { Recommendation = advice with { Operations = operations } };
     }
 
     /// <summary>Order in reports: what needs attention first.</summary>
