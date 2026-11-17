@@ -36,6 +36,8 @@ First read-only release (Milestone 1 of the Shiva Assist architecture, phase 1 o
 - No external packages in the product; Windows data is read with built-in tools only.
 # Software manager inventory
 
+- Check WinGet program updates and approve one selected update in technician mode. Revalidate before installing,
+  verify the resulting installed version and record the result in History. Source/package terms remain interactive.
 - Open Software to browse registered programs, with publisher, version, estimated size and installation date.
 - Search by name or publisher, sort columns and refresh without running the full check-up.
 - Read per-user and machine entries in both registry views, with feedback for unreadable entries and missing metadata.

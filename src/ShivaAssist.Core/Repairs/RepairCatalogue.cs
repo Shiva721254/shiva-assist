@@ -66,9 +66,20 @@ public static class RepairCatalogue
     public const string RestartNow = "UPDATE.RESTART.NOW";
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
     public const string RestoreStartupPrograms = "STARTUP.PROGRAMS.RESTORE";
+    public const string UpdateSoftware = "SOFTWARE.PACKAGE.UPDATE";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
+        new()
+        {
+            Id = UpdateSoftware,
+            Name = "Update selected program",
+            Description = "Updates one selected program through Windows Package Manager. Save your work and close that program first. Its installer may ask for permission or licence acceptance.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 20),
+            VerifiesFinding = "SOFTWARE-UPDATE-001",
+            NeedsSelection = true,
+        },
         new()
         {
             Id = EmptyRecycleBin,

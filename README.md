@@ -73,6 +73,18 @@ Start `ShivaAssist.exe --technician` to see repair buttons on findings that have
 
 Repairs that need administrator rights run in **`ShivaAssistAgent.exe`**: one Windows permission prompt per job, it accepts only catalogue operations and validates every input again, then exits. Every repair is logged in `%LOCALAPPDATA%\Shiva Assist\repair-log.jsonl` (no personal data).
 
+## Software manager
+
+Open **Software** to search the programs registered in Windows. Expand **Check program updates** to query
+the WinGet community source. App Installer must be available. If source agreements need review, run
+`winget list --source winget` in a normal Windows terminal and review the prompt, then check again.
+
+In technician mode, select an update and choose **Update selected program**. Approval includes the program
+name and old/new versions. Save your work and close that program before agreeing. The publisher's installer
+may show Windows permission and licence prompts. Shiva Assist verifies the installed version and writes
+the outcome in History. Missing or ambiguous WinGet results are reported as unverified. Store and portable
+programs may be absent from the registry inventory. This update check makes an explicit internet request.
+
 ## Languages
 
 English is the default; Dutch (`nl`) is included. Every user-facing text is an English template (`new Message("…{free:gb}…", ("free", bytes))`); `src/ShivaAssist.Core/Localization/<code>.json` maps it to the translation and names its language. **Adding a language = adding one file**, no code. `python tools/check_translations.py` (also run in CI) fails when a text has no translation or a placeholder is missing. Technical evidence stays in English on purpose: it quotes Windows and is meant for technicians.

@@ -302,6 +302,32 @@
           </StackPanel>
         </DockPanel>
         <TextBlock Text="{Binding Software.Status}" Foreground="{StaticResource Muted}" Margin="0,10,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+        <Expander Header="{Binding Software.TextCheckUpdates}" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="{Binding Software.TextUpdateScope}" TextWrapping="Wrap" Margin="0,8" />
+            <StackPanel Orientation="Horizontal">
+              <Button Content="{Binding Software.TextCheckUpdates}" Command="{Binding Software.CheckUpdatesCommand}" Style="{StaticResource PrimaryButton}" />
+              <Button Content="{Binding Software.TextUpdateSelected}" Command="{Binding Software.UpdateCommand}" Margin="8,0,0,0"
+                      Visibility="{Binding Software.ShowUpdateAction, Converter={StaticResource Visible}}" />
+            </StackPanel>
+            <TextBlock Text="{Binding Software.UpdateStatus}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite" />
+            <DataGrid ItemsSource="{Binding Software.Updates}" SelectedItem="{Binding Software.SelectedUpdate}" MaxHeight="190"
+                      SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowHeaderWidth="0">
+              <DataGrid.Columns>
+                <DataGridTextColumn Binding="{Binding Name}" Width="2*">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextName, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*" />
+                <DataGridTextColumn Binding="{Binding InstalledVersion}" Width="*">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding AvailableVersion}" Width="*">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextAvailableVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Expander>
       </StackPanel>
       <DataGrid ItemsSource="{Binding Software.Items}" AutoGenerateColumns="False" IsReadOnly="True"
                 CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"

@@ -1,8 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.ComponentModel;
+using System.Windows;
 using ShivaAssist.Core.Localization;
+using ShivaAssist.Core.Repairs;
 using ShivaAssist.Core.Software;
+using ShivaAssist.Windows;
+using ShivaAssist.Windows.Repairs;
 using ShivaAssist.Windows.Sources;
 
 namespace ShivaAssist.App.ViewModels;
@@ -16,14 +21,43 @@ public sealed class SoftwareViewModel : Observable
     private bool loaded;
     private bool failed;
     private int unreadable;
+    private readonly bool technicianMode;
+    private readonly Func<bool> repairBusy;
+    private readonly Action<bool> setRepairBusy;
+    private bool checkingUpdates;
+    private string? updateStatus;
+    private PackageUpdate? selectedUpdate;
 
-    public SoftwareViewModel(Func<TextCatalog> catalog)
+    public SoftwareViewModel(Func<TextCatalog> catalog, bool technicianMode, Func<bool> repairBusy, Action<bool> setRepairBusy)
     {
         this.catalog = catalog;
-        RefreshCommand = new RelayCommand(async _ => await LoadAsync(), _ => !loading);
+        this.technicianMode = technicianMode;
+        this.repairBusy = repairBusy;
+        this.setRepairBusy = setRepairBusy;
+        RefreshCommand = new RelayCommand(async _ => await LoadAsync(), _ => !loading && !repairBusy());
+        CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(), _ => !checkingUpdates && !repairBusy());
+        UpdateCommand = new RelayCommand(async _ => await UpdateAsync(), _ => technicianMode && selectedUpdate is not null && !checkingUpdates && !repairBusy());
     }
 
     public RelayCommand RefreshCommand { get; }
+    public RelayCommand CheckUpdatesCommand { get; }
+    public RelayCommand UpdateCommand { get; }
+    public ObservableCollection<PackageUpdate> Updates { get; } = [];
+    public bool ShowUpdateAction => technicianMode;
+    public string TextCheckUpdates => T("Check program updates");
+    public string TextUpdateSelected => T("Update selected program");
+    public string TextAvailableVersion => T("Available version");
+    public string TextUpdateScope => T("Checks the WinGet community source over the internet. Only programs recognised by Windows Package Manager can appear here.");
+    public string? UpdateStatus => updateStatus;
+    public PackageUpdate? SelectedUpdate
+    {
+        get => selectedUpdate;
+        set
+        {
+            Set(ref selectedUpdate, value);
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
     public ObservableCollection<SoftwareItem> Items { get; } = [];
     public string TextSearch => T("Search installed programs");
     public string TextRefresh => T("Refresh programs");
@@ -62,6 +96,98 @@ public sealed class SoftwareViewModel : Observable
     {
         ApplyFilter();
         RefreshAll();
+    }
+
+    private async Task CheckUpdatesAsync()
+    {
+        checkingUpdates = true;
+        Updates.Clear();
+        SelectedUpdate = null;
+        SetUpdateStatus(T("Checking program updates…"));
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            var updates = await PackageUpdateSource.ReadAsync(timeout.Token);
+            foreach (var update in updates)
+            {
+                Updates.Add(update);
+            }
+
+            SetUpdateStatus(T("Select a program to review its update."));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException or IOException or Win32Exception or UnauthorizedAccessException)
+        {
+            SetUpdateStatus(catalog().Translate(ex.Message));
+        }
+        catch (OperationCanceledException)
+        {
+            SetUpdateStatus(T("The update check timed out. Please try again."));
+        }
+        finally
+        {
+            checkingUpdates = false;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    private async Task UpdateAsync()
+    {
+        var selected = selectedUpdate;
+        if (!technicianMode || selected is null || repairBusy())
+        {
+            return;
+        }
+
+        var operation = RepairCatalogue.Find(RepairCatalogue.UpdateSoftware)!;
+        var explanation = new Message("Update {name} from {current} to {available}? Save your work and close the program first. Its installer may ask for administrator permission or licence acceptance.",
+            ("name", selected.Name), ("current", selected.InstalledVersion), ("available", selected.AvailableVersion)).Render(catalog());
+        if (MessageBox.Show(explanation, operation.Name.Render(catalog()), MessageBoxButton.YesNo, MessageBoxImage.Question,
+            MessageBoxResult.No) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        setRepairBusy(true);
+        SetUpdateStatus(T("Updating the selected program. Follow any installer prompts."));
+        var job = new RepairJob
+        {
+            JobId = Guid.NewGuid().ToString("N"), OperationId = operation.Id, ApprovedAt = DateTimeOffset.UtcNow,
+            Items = [selected.Id, selected.InstalledVersion, selected.AvailableVersion],
+        };
+        RepairResult result;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+            result = await new WindowsRepairExecutor(WindowsPlatform.IsElevated()).ExecuteAsync(job, timeout.Token);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException or IOException
+            or Win32Exception or UnauthorizedAccessException or ArgumentException or OperationCanceledException)
+        {
+            result = new RepairResult
+            {
+                JobId = job.JobId, OperationId = job.OperationId, Completed = false,
+                Verdict = RepairVerdict.Inconclusive, Detail = ex.GetType().Name,
+            };
+        }
+        finally
+        {
+            setRepairBusy(false);
+        }
+
+        RepairAudit.Append(result);
+        Updates.Remove(selected);
+        SelectedUpdate = null;
+        SetUpdateStatus(result.Verdict == RepairVerdict.Fixed
+            ? T("The program was updated and its installed version was verified.")
+            : T("The update could not be verified. Check the program and refresh the update list before trying again."));
+        await LoadAsync();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    private void SetUpdateStatus(string value)
+    {
+        updateStatus = value;
+        OnPropertyChanged(nameof(UpdateStatus));
     }
 
     private async Task LoadAsync()

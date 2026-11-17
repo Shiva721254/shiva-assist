@@ -53,7 +53,8 @@ public sealed class MainViewModel : Observable
         repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || State == ScreenState.Scanning) : null;
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
-        Software = new SoftwareViewModel(() => catalog);
+        Software = new SoftwareViewModel(() => catalog, technicianMode,
+            () => repairing || State == ScreenState.Scanning, value => repairing = value);
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
         {

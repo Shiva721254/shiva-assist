@@ -11,7 +11,7 @@ namespace ShivaAssist.Windows.Repairs;
 /// Executes catalogue repairs on Windows. Every operation validates its own input again, because the same code
 /// runs inside the elevated helper, which must not trust the job file blindly.
 /// </summary>
-public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
+public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
 {
     private static readonly TimeSpan TempAge = TimeSpan.FromDays(7);
 
@@ -46,6 +46,7 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             RepairCatalogue.RestartNow => await RunToolAsync(job, ToolRunner.System32("shutdown.exe"), ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken),
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
             RepairCatalogue.RestoreStartupPrograms => RestoreStartupPrograms(job),
+            RepairCatalogue.UpdateSoftware => await UpdateSoftwareAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 

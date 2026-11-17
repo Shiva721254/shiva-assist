@@ -132,10 +132,16 @@ with search, sortable columns, English/Dutch labels, refresh, and partial-access
 reads both HKLM/HKCU registry views. `SoftwareInventory` normalizes display metadata and parses registry dates.
 Exact duplicate display rows are collapsed while different versions remain visible. Store and portable apps may
 be absent and publisher-provided sizes may be missing or inaccurate. The screen explains these limits.
-No uninstall strings or executable commands are collected. Update checks and consented software repairs below
-remain the next increment. Windows UI/registry behaviour still needs a VM run.
+No uninstall strings are collected. The next increment now includes an explicit WinGet update check and a
+technician-only catalogue action to update one selected package after consent. It revalidates package ID and
+both versions before running an interactive installer, then checks the installed version with WinGet and logs
+Fixed or Inconclusive. The community source is queried without silently accepting source or package terms.
+Missing WinGet, source agreement failures, empty/unparseable output and timeouts remain explicit unknowns.
+The conservative table parser uses header column positions and refuses truncated IDs and duplicate package
+IDs. Test real English/Dutch WinGet output, installer/UAC prompts and History in the VM. Uninstall actions
+and selecting multiple software updates remain future work.
 
-Validation for this increment: 118 platform-neutral tests passed, Dutch translation check passed, and the Core,
+Validation for this increment: 126 platform-neutral tests passed, Dutch translation check passed, and the Core,
 Windows and WPF projects compile with zero warnings/errors on Linux with Windows targeting. The WPF build
 used `-m:1 -p:SelfContained=false -p:RuntimeIdentifier=win-x64`. Run Windows CI for packaging and smoke tests.
 
