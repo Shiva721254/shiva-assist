@@ -45,7 +45,7 @@ internal sealed record CliOptions
     public static string HelpText(string product) => $"""
         {product}: a read-only health check for this Windows PC. It changes nothing.
 
-        Usage: ShivaAssist [options]
+        Usage: ShivaAssistCli [options]
 
           -d, --details      Show the evidence and possible cause for every finding
               --report FILE  Save the JSON report to FILE

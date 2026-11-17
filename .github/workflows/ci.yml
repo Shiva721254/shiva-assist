@@ -29,14 +29,22 @@ jobs:
       - name: Test
         run: dotnet test tests/ShivaAssist.Tests --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory test-results
 
-      - name: Publish ShivaAssist.exe (self-contained, single file)
-        run: dotnet publish src/ShivaAssist.Cli --configuration Release --output publish
+      - name: Publish for x64 and ARM64 (self-contained, single file)
+        shell: pwsh
+        run: |
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            dotnet publish src/ShivaAssist.App --configuration Release --runtime $rid --output "publish/$rid"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            dotnet publish src/ShivaAssist.Cli --configuration Release --runtime $rid --output "publish/$rid"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            Remove-Item "publish/$rid/*.pdb" -ErrorAction SilentlyContinue
+          }
 
       - name: Smoke test on the runner (read-only scan, report must validate)
         shell: pwsh
         run: |
           # Results and errors are written as annotations, which are readable without signing in.
-          $output = & ./publish/ShivaAssist.exe --plain --details --report scan.json 2>&1 | Out-String
+          $output = & ./publish/win-x64/ShivaAssistCli.exe --plain --details --report scan.json 2>&1 | Out-String
           $exit = $LASTEXITCODE
           $output | Set-Content scan-output.txt
           Write-Output $output
@@ -45,7 +53,7 @@ jobs:
             Write-Output "::error title=Smoke test::$message%0A$tail"
             exit 1
           }
-          if ($exit -notin 0, 2) { Fail "ShivaAssist.exe exited with code $exit" }
+          if ($exit -notin 0, 2) { Fail "ShivaAssistCli.exe exited with code $exit" }
           if (-not (Test-Path scan.json)) { Fail 'No report was written' }
           try { $report = Get-Content scan.json -Raw | ConvertFrom-Json } catch { Fail "Report is not valid JSON: $($_.Exception.Message)" }
           if ($report.schema -ne 'shiva.assist.report/1.0') { Fail "Wrong report schema: $($report.schema)" }
@@ -57,16 +65,31 @@ jobs:
 
       - name: SHA-256 for the release manifest on assist.shivacomputers.nl
         shell: pwsh
-        run: (Get-FileHash publish/ShivaAssist.exe -Algorithm SHA256).Hash.ToLower() | Tee-Object publish/ShivaAssist.exe.sha256
+        run: |
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            Get-ChildItem "publish/$rid/*.exe" | ForEach-Object {
+              $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+              Set-Content "$($_.FullName).sha256" $hash
+              Write-Output "::notice title=SHA-256 $rid/$($_.Name)::$hash"
+            }
+          }
 
       - uses: actions/upload-artifact@v5
         with:
           name: shiva-assist-win-x64
           path: |
-            publish/ShivaAssist.exe
-            publish/ShivaAssist.exe.sha256
+            publish/win-x64/ShivaAssist.exe
+            publish/win-x64/ShivaAssistCli.exe
+            publish/win-x64/*.sha256
             scan.json
-            scan-output.txt
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: shiva-assist-win-arm64
+          path: |
+            publish/win-arm64/ShivaAssist.exe
+            publish/win-arm64/ShivaAssistCli.exe
+            publish/win-arm64/*.sha256
 
       - uses: actions/upload-artifact@v5
         if: always()

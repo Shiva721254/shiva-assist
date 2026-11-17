@@ -21,7 +21,7 @@ try
 catch (ArgumentException ex)
 {
     Console.Error.WriteLine(ex.Message);
-    Console.Error.WriteLine("Run 'ShivaAssist --help' for the options.");
+    Console.Error.WriteLine("Run 'ShivaAssistCli --help' for the options.");
     return 1;
 }
 

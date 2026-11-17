@@ -7,8 +7,8 @@ Product page and downloads: **https://assist.shivacomputers.nl**
 
 | | |
 |---|---|
-| Status | Stage 1 (Milestone 1): read-only diagnostic core, console app |
-| Runs on | Windows 10 and 11, x64. No installation, no .NET needed (self-contained `ShivaAssist.exe`) |
+| Status | Stage 2 in progress: dashboard window (English and Dutch) on the stage 1 read-only core |
+| Runs on | Windows 10 and 11, x64 and ARM64. No installation, no .NET needed (self-contained) |
 | Built with | C# / .NET 10, no external packages in the product |
 | Specification | *Shiva Assist PRA v2.0* (architecture), *Shiva Utilities Product Strategy v2.0*, *20 Windows problems in the Netherlands* (research) |
 
@@ -36,10 +36,15 @@ This is the research report's **phase 1 read-only MVP** (performance, updates, s
 
 ## Use it
 
+**`ShivaAssist.exe`** is the dashboard window: start the scan, see the categories at a glance, read each finding with its advice, open *Details* for the evidence, and save the report. Choose English or Nederlands at the top right; the choice is remembered.
+
+**`ShivaAssistCli.exe`** is the console version for technicians and automated checks:
+
 ```powershell
-ShivaAssist.exe              # scan, show results, save the report
-ShivaAssist.exe --details    # also show evidence and possible causes
-ShivaAssist.exe --help
+ShivaAssistCli.exe              # scan, show results, save the report
+ShivaAssistCli.exe --details    # also show evidence and possible causes
+ShivaAssistCli.exe --lang nl    # results in Dutch
+ShivaAssistCli.exe --help
 ```
 
 Right-click → **Run as administrator** for the complete scan (the system file check needs it). Reports are saved as JSON in `Documents\Shiva Assist\Reports`. They contain no computer name, user name, file paths or serial numbers.
@@ -48,11 +53,15 @@ Exit codes: `0` nothing needs attention · `2` warnings or critical findings · 
 
 ## Safety rules (stage 1)
 
-- **Read-only.** No setting, file, service or registry value is changed. The only file written is the report.
+- **Read-only.** No system setting, file, service or registry value is changed. The only things written are the report (when you save it) and the chosen language (`HKCU\\Software\\Shiva Computers\\Shiva Assist`).
 - Only built-in Windows tools, started by their full `System32` path: PowerShell (CIM queries), DISM `/CheckHealth`, `wevtutil`.
 - Every check has a time limit and is stopped when it runs out; one failing check never stops the scan.
 - No fear words, no invented problems: every finding other than Unknown carries evidence. A single busy moment is not reported as a fault.
 - The only network traffic is Windows' own connectivity test (`www.msftconnecttest.com`), the same request Windows itself makes.
+
+## Languages
+
+English is the default; Dutch (`nl`) is included. Every user-facing text is an English template (`new Message("…{free:gb}…", ("free", bytes))`); `src/ShivaAssist.Core/Localization/<code>.json` maps it to the translation and names its language. **Adding a language = adding one file**, no code. `python tools/check_translations.py` (also run in CI) fails when a text has no translation or a placeholder is missing. Technical evidence stays in English on purpose: it quotes Windows and is meant for technicians.
 
 ## Develop
 
@@ -61,15 +70,17 @@ Requires the .NET 10 SDK. On Windows:
 ```powershell
 dotnet build ShivaAssist.slnx
 dotnet test tests/ShivaAssist.Tests
-dotnet run --project src/ShivaAssist.Cli -- --details
-dotnet publish src/ShivaAssist.Cli -c Release -o publish   # → publish\ShivaAssist.exe
+dotnet run --project src/ShivaAssist.App                   # dashboard
+dotnet run --project src/ShivaAssist.Cli -- --details      # console
+dotnet publish src/ShivaAssist.App -c Release -r win-x64 -o publish   # → publish\ShivaAssist.exe
 ```
 
 | Project | Role |
 |---|---|
 | `ShivaAssist.Core` | Finding contract, scan runner, report, **all diagnostic rules** (platform-neutral, fully tested) |
 | `ShivaAssist.Windows` | Read-only data sources: registry, CIM, DISM, event logs, networking |
-| `ShivaAssist.Cli` | Console host for stage 1 (`ShivaAssist.exe`) |
+| `ShivaAssist.App` | Dashboard window (WPF, `ShivaAssist.exe`) |
+| `ShivaAssist.Cli` | Console version (`ShivaAssistCli.exe`) |
 | `ShivaAssist.Tests` | Rules, runner, contract and the research scenarios (runs on Windows and Linux) |
 
 Each module is a `SnapshotCheck<T>`: a Windows source collects a snapshot, and a pure `Evaluate` function decides. New modules follow the same pattern; register them in `WindowsPlatform.CreateChecks()`.
@@ -89,7 +100,7 @@ Planned modules from the *Shiva Utilities* strategy (storage manager, network to
 ## Roadmap
 
 1. **Diagnostic foundation** (this release): read-only scan, JSON report, console
-2. Dashboard: WPF window, categories, Dutch and English, report export
+2. **Dashboard** (in progress): WPF window, categories, Dutch and English, report export
 3. Repair engine: signed repair catalogue, approval per repair, rollback and verification
 4. Website and API: download, update check, consented report upload
 5–8. Offline recovery, reinstallation, licensing, advanced features (see the architecture document)
