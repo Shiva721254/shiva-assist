@@ -420,7 +420,7 @@ public sealed class MainViewModel : Observable
             : verdict;
     }
 
-    private Brush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict == RepairVerdict.Fixed
+    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict == RepairVerdict.Fixed
         ? Palette.For(Severity.Healthy)
         : Palette.For(Severity.Warning);
 
