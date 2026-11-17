@@ -45,7 +45,10 @@ public sealed record RepairOperation
     /// </summary>
     public bool VerifyLater { get; init; }
 
-    public bool NeedsRestorePoint => Risk >= RiskClass.Medium;
+    /// <summary>Reverses an earlier repair; started from the history page, never offered for a finding.</summary>
+    public bool IsUndo { get; init; }
+
+    public bool NeedsRestorePoint => Risk >= RiskClass.Medium && !IsUndo;
 }
 
 /// <summary>The signed repair catalogue (stages 3a and 3b). IDs follow the contract: <c>AREA.TOPIC.ACTION</c>.</summary>
@@ -62,6 +65,7 @@ public static class RepairCatalogue
     public const string UpdateDefender = "SECURITY.DEFENDER.UPDATE";
     public const string RestartNow = "UPDATE.RESTART.NOW";
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
+    public const string RestoreStartupPrograms = "STARTUP.PROGRAMS.RESTORE";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -174,7 +178,24 @@ public static class RepairCatalogue
             Minutes = (5, 15),
             VerifiesFinding = "UPDATE-RECENT-001",
         },
+        new()
+        {
+            Id = RestoreStartupPrograms,
+            Name = "Switch startup programs on again",
+            Description = "Puts the startup programs that Shiva Assist switched off back the way they were.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "PERF-STARTUP-001",
+            IsUndo = true,
+        },
     ];
+
+    /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
+    public static RepairOperation? UndoFor(string operationId) => operationId switch
+    {
+        DisableStartupPrograms => Find(RestoreStartupPrograms),
+        _ => null,
+    };
 
     public static RepairOperation? Find(string id) => All.FirstOrDefault(o => o.Id == id);
 

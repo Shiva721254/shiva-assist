@@ -26,6 +26,7 @@ public sealed record AppModule
 public static class AppModules
 {
     public const string OverviewKey = "overview";
+    public const string HistoryKey = "history";
 
     public static IReadOnlyList<AppModule> All { get; } =
     [
@@ -34,14 +35,14 @@ public static class AppModules
             Key = OverviewKey,
             Name = "Overview",
             Description = "The results of the check-up for all areas together.",
-            Glyph = "",
+            Glyph = "\uE80F",
         },
         new()
         {
             Key = "hardware",
             Name = "Hardware",
             Description = "Processor, memory, battery, devices and hardware errors reported by Windows.",
-            Glyph = "",
+            Glyph = "\uE7F8",
             IdPrefixes = ["MEMORY-CAPACITY", "MEMORY-CHECK", "CPU-CHECK", "BATTERY-", "DEVICE-", "HARDWARE-"],
         },
         new()
@@ -49,7 +50,7 @@ public static class AppModules
             Key = "storage-health",
             Name = "Storage health",
             Description = "The health of the hard disks and SSDs, as reported by the drives themselves.",
-            Glyph = "",
+            Glyph = "\uEDA2",
             IdPrefixes = ["STORAGE-HEALTH", "STORAGE-CHECK"],
         },
         new()
@@ -57,7 +58,7 @@ public static class AppModules
             Key = "cleaner",
             Name = "Cleaner",
             Description = "Free space on the Windows drive and safe cleanups: Recycle Bin, temporary files and old update files.",
-            Glyph = "",
+            Glyph = "\uE74D",
             IdPrefixes = ["STORAGE-SPACE"],
         },
         new()
@@ -65,7 +66,7 @@ public static class AppModules
             Key = "performance",
             Name = "Performance",
             Description = "Processor load, memory pressure and how long the PC has been running without a restart.",
-            Glyph = "",
+            Glyph = "\uE9D9",
             IdPrefixes = ["CPU-LOAD", "MEMORY-USAGE", "MEMORY-COMMIT", "OS-UPTIME"],
         },
         new()
@@ -73,7 +74,7 @@ public static class AppModules
             Key = "startup",
             Name = "Startup",
             Description = "Programs that start together with Windows, and switching off the ones you do not need.",
-            Glyph = "",
+            Glyph = "\uE768",
             IdPrefixes = ["PERF-STARTUP"],
         },
         new()
@@ -81,7 +82,7 @@ public static class AppModules
             Key = "windows",
             Name = "Windows repair",
             Description = "Windows version and support, updates, system files, crashes and unexpected shutdowns.",
-            Glyph = "",
+            Glyph = "\uE90F",
             IdPrefixes = ["OS-", "UPDATE-", "WIN-", "SYSTEM-", "APP-CRASH"],
         },
         new()
@@ -89,7 +90,7 @@ public static class AppModules
             Key = "network",
             Name = "Network",
             Description = "Network adapter, address, router, DNS and internet, tested layer by layer.",
-            Glyph = "",
+            Glyph = "\uE701",
             IdPrefixes = ["NETWORK-"],
         },
         new()
@@ -97,7 +98,7 @@ public static class AppModules
             Key = "security",
             Name = "Security",
             Description = "Antivirus and firewall protection.",
-            Glyph = "",
+            Glyph = "\uEA18",
             IdPrefixes = ["SECURITY-"],
         },
         new()
@@ -105,23 +106,22 @@ public static class AppModules
             Key = "software",
             Name = "Software",
             Description = "Installed programs, available updates through Windows Package Manager, and safe uninstalling.",
-            Glyph = "",
+            Glyph = "\uE71D",
             Available = false,
         },
         new()
         {
-            Key = "history",
+            Key = HistoryKey,
             Name = "History and undo",
             Description = "Every repair with its result, and undoing the changes that can be reversed.",
-            Glyph = "",
-            Available = false,
+            Glyph = "\uE81C",
         },
         new()
         {
             Key = "recovery",
             Name = "Emergency recovery",
             Description = "When Windows no longer starts: rescue your files and repair the start-up with Shiva Rescue.",
-            Glyph = "",
+            Glyph = "\uE72C",
             Available = false,
         },
         new()
@@ -129,7 +129,7 @@ public static class AppModules
             Key = "remote",
             Name = "Remote help",
             Description = "A Shiva Computers technician helps on this PC, only with your permission and only for one job.",
-            Glyph = "",
+            Glyph = "\uE77B",
             Available = false,
         },
     ];

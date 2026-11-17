@@ -185,7 +185,22 @@ public sealed class MainViewModel : Observable
 
     public bool IsOverviewPage => selectedModule.IsOverview;
 
-    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon;
+    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon && !IsHistoryPage;
+
+    public bool IsHistoryPage => selectedModule.Module.Key == AppModules.HistoryKey;
+
+    /// <summary>Every repair and undo from the audit log, newest first.</summary>
+    public ObservableCollection<HistoryItem> History { get; } = [];
+
+    public bool HistoryEmpty => IsHistoryPage && History.Count == 0;
+
+    public string TextHistoryEmpty => T("No repairs yet. Every repair you run appears here with its result, so you can always see what was changed.");
+
+    public string TextUndo => T("Undo");
+
+    public string TextOpenSystemRestore => T("Open System Restore");
+
+    public string TextRestorePointHint => T("A restore point was made before this repair. Windows System Restore can take the PC back to that moment.");
 
     public bool IsSoonPage => selectedModule.IsSoon;
 
@@ -384,6 +399,11 @@ public sealed class MainViewModel : Observable
         selectedModule.Selected = false;
         selectedModule = item;
         item.Selected = true;
+        if (IsHistoryPage)
+        {
+            LoadHistory();
+        }
+
         ApplyFilter();
         RefreshAll();
     }
@@ -516,13 +536,10 @@ public sealed class MainViewModel : Observable
         return picker.ShowDialog() == true && picker.Selected.Count > 0 ? picker.Selected : null;
     }
 
-    private string? OutcomeText(string findingId)
-    {
-        if (!outcomes.TryGetValue(findingId, out var result))
-        {
-            return null;
-        }
+    private string? OutcomeText(string findingId) => outcomes.TryGetValue(findingId, out var result) ? VerdictText(result) : null;
 
+    private string VerdictText(RepairResult result)
+    {
         var verdict = result.Verdict switch
         {
             RepairVerdict.Fixed => T("Fixed"),
@@ -548,7 +565,93 @@ public sealed class MainViewModel : Observable
             : verdict;
     }
 
-    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict is RepairVerdict.Fixed or RepairVerdict.Improved or RepairVerdict.Pending
+    private static bool Succeeded(RepairResult r) => r.Completed && r.Verdict is RepairVerdict.Fixed or RepairVerdict.Improved or RepairVerdict.Pending;
+
+    // ---- History and undo (roadmap step 2) ----
+
+    private void LoadHistory()
+    {
+        History.Clear();
+        IReadOnlyList<RepairResult> entries;
+        try
+        {
+            entries = File.Exists(RepairAudit.LogPath) ? RepairHistory.Parse(File.ReadAllLines(RepairAudit.LogPath)) : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            entries = [];
+            Status = new Message("The repair history could not be read: {reason}", ("reason", ex.Message)).Render(catalog);
+        }
+
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(catalog.Language.Code);
+        foreach (var entry in entries)
+        {
+            var operation = RepairCatalogue.Find(entry.OperationId);
+            var name = operation?.Name.Render(catalog) ?? entry.OperationId;
+            var outcome = operation?.IsUndo == true
+                ? (entry.Completed ? T("Undone: everything is back the way it was") : new Message("The undo did not complete: {reason}", ("reason", catalog.Translate(entry.Detail))).Render(catalog))
+                : VerdictText(entry);
+            if (RepairHistory.WasUndone(entry, entries))
+            {
+                outcome += " · " + T("undone later");
+            }
+
+            var item = entry;
+            History.Add(new HistoryItem(
+                entry,
+                entry.FinishedAt.ToLocalTime().ToString("d MMMM yyyy, HH:mm", culture),
+                name,
+                outcome,
+                Succeeded(entry) ? Palette.For(Severity.Healthy) : Palette.For(Severity.Warning),
+                RepairHistory.CanUndo(entry, entries),
+                entry.Completed && operation?.NeedsRestorePoint == true,
+                new RelayCommand(async _ => await UndoAsync(item), _ => !repairing),
+                new RelayCommand(_ => OpenSystemRestore())));
+        }
+
+        OnPropertyChanged(nameof(HistoryEmpty));
+    }
+
+    private async Task UndoAsync(RepairResult original)
+    {
+        var undo = RepairCatalogue.UndoFor(original.OperationId);
+        if (undo is null || MessageBox.Show(
+                undo.Description.Render(catalog) + Environment.NewLine + Environment.NewLine + T("Do you want to undo this repair now?"),
+                undo.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        repairing = true;
+        try
+        {
+            var result = await Task.Run(() => new RepairRunner(IsElevated).UndoAsync(original, CancellationToken.None));
+            Status = result.Completed
+                ? T("Undone: everything is back the way it was")
+                : new Message("The undo did not complete: {reason}", ("reason", catalog.Translate(result.Detail))).Render(catalog);
+        }
+        finally
+        {
+            repairing = false;
+        }
+
+        LoadHistory();
+    }
+
+    /// <summary>Windows' own System Restore: the way back for repairs that made a restore point.</summary>
+    private void OpenSystemRestore()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "rstrui.exe")) { UseShellExecute = true });
+        }
+        catch (Win32Exception ex)
+        {
+            Status = new Message("System Restore could not be opened: {reason}", ("reason", ex.Message)).Render(catalog);
+        }
+    }
+
+    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && Succeeded(r)
         ? Palette.For(Severity.Healthy)
         : Palette.For(Severity.Warning);
 

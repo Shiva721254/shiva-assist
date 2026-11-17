@@ -183,3 +183,28 @@ public sealed class NavItem(AppModule module, Func<TextCatalog> catalog) : Obser
 
     public void Refresh() => RefreshAll();
 }
+
+/// <summary>One line on the history page: a repair (or an undo) with its result and, where possible, an undo.</summary>
+public sealed class HistoryItem(RepairResult result, string when, string name, string outcome, Brush colour, bool canUndo, bool restorePoint, RelayCommand undo, RelayCommand openRestore)
+{
+    public RepairResult Result { get; } = result;
+
+    public string When { get; } = when;
+
+    public string Name { get; } = name;
+
+    public string Outcome { get; } = outcome;
+
+    public Brush Colour { get; } = colour;
+
+    /// <summary>Technical detail stays in English, like the evidence on finding cards.</summary>
+    public string Detail => Result.Detail;
+
+    public bool CanUndo { get; } = canUndo;
+
+    public bool HasRestorePoint { get; } = restorePoint;
+
+    public RelayCommand UndoCommand { get; } = undo;
+
+    public RelayCommand OpenRestoreCommand { get; } = openRestore;
+}

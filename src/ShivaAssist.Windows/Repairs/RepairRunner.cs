@@ -60,6 +60,38 @@ public sealed class RepairRunner(bool isElevated)
     }
 
     /// <summary>Runs the module that produced the finding again and returns the same finding.</summary>
+    /// <summary>Reverses an earlier repair from the history page, using the state that repair recorded.</summary>
+    public async Task<RepairResult> UndoAsync(RepairResult original, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        var operation = RepairCatalogue.UndoFor(original.OperationId)
+            ?? throw new InvalidOperationException($"{original.OperationId} cannot be undone.");
+        var job = new RepairJob
+        {
+            JobId = Guid.NewGuid().ToString("N"),
+            OperationId = operation.Id,
+            ApprovedAt = DateTimeOffset.UtcNow,
+            Items = original.Rollback,
+            Undoes = original.JobId,
+        };
+
+        RepairResult result;
+        try
+        {
+            result = NeedsAdmin(operation, job) && !isElevated
+                ? await RunElevatedAsync(job, cancellationToken)
+                : await new WindowsRepairExecutor(isElevated).ExecuteAsync(job, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or Win32Exception or JsonException or FormatException)
+        {
+            result = new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = ex.Message, Undoes = original.JobId };
+        }
+
+        result = result with { Verdict = result.Completed ? RepairVerdict.Fixed : RepairVerdict.Inconclusive, Undoes = original.JobId };
+        RepairAudit.Append(result);
+        return result;
+    }
+
     public async Task<Finding?> RecheckAsync(Finding before, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(before);

@@ -286,6 +286,18 @@
     "Shiva Assist by Shiva Computers · page {page} of {total}": "Shiva Assist door Shiva Computers · pagina {page} van {total}",
     "PDF report": "PDF-rapport",
     "Technical report": "Technisch rapport",
-    "Save as PDF…": "Opslaan als PDF…"
+    "Save as PDF…": "Opslaan als PDF…",
+    "The repair history could not be read: {reason}": "De reparatiegeschiedenis kon niet worden gelezen: {reason}",
+    "The undo did not complete: {reason}": "Het ongedaan maken is niet voltooid: {reason}",
+    "System Restore could not be opened: {reason}": "Systeemherstel kon niet worden geopend: {reason}",
+    "No repairs yet. Every repair you run appears here with its result, so you can always see what was changed.": "Nog geen reparaties. Elke reparatie die u uitvoert, verschijnt hier met het resultaat, zodat u altijd kunt zien wat er is veranderd.",
+    "Undo": "Ongedaan maken",
+    "Open System Restore": "Systeemherstel openen",
+    "A restore point was made before this repair. Windows System Restore can take the PC back to that moment.": "Voor deze reparatie is een herstelpunt gemaakt. Met Systeemherstel van Windows kan de pc terug naar dat moment.",
+    "Undone: everything is back the way it was": "Ongedaan gemaakt: alles is weer zoals het was",
+    "undone later": "later ongedaan gemaakt",
+    "Do you want to undo this repair now?": "Wilt u deze reparatie nu ongedaan maken?",
+    "Switch startup programs on again": "Opstartprogramma's weer inschakelen",
+    "Puts the startup programs that Shiva Assist switched off back the way they were.": "Zet de opstartprogramma's die Shiva Assist heeft uitgeschakeld terug zoals ze waren."
   }
 }

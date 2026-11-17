@@ -45,9 +45,11 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
             RepairCatalogue.RestartNow => await RunToolAsync(job, ToolRunner.System32("shutdown.exe"), ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken),
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
+            RepairCatalogue.RestoreStartupPrograms => RestoreStartupPrograms(job),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
+        result = result with { Undoes = job.Undoes };
         return operation.Id.StartsWith("DISK.", StringComparison.Ordinal)
             ? result with { BytesFreed = Math.Max(result.BytesFreed, SystemDriveFree() - freeBefore) } // Windows may use space meanwhile
 
@@ -354,6 +356,47 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             Completed = disabled > 0,
             Detail = string.Create(CultureInfo.InvariantCulture, $"Switched off {disabled} startup program(s)"),
             Rollback = rollback,
+        };
+    }
+
+    /// <summary>
+    /// Undo of <see cref="DisableStartupPrograms"/>: each item is "Location|Name|previous value" as recorded in
+    /// its rollback list; the previous StartupApproved value is written back, or removed when there was none.
+    /// </summary>
+    private RepairResult RestoreStartupPrograms(RepairJob job)
+    {
+        int restored = 0;
+        foreach (var item in job.Items)
+        {
+            var cut = item.LastIndexOf('|');
+            var reference = cut > 0 ? item[..cut] : throw new ArgumentException($"Unknown rollback entry '{item}'.");
+            var previous = item[(cut + 1)..];
+            var (hive, subKey, valueName) = StartupSource.ApprovedLocation(reference)
+                ?? throw new ArgumentException($"Unknown startup entry '{reference}'.");
+            if (hive == Registry.LocalMachine && !isElevated)
+            {
+                throw new UnauthorizedAccessException("Programs registered for all users need administrator rights.");
+            }
+
+            using var key = hive.CreateSubKey(subKey, writable: true);
+            if (previous == "none")
+            {
+                key.DeleteValue(valueName, throwOnMissingValue: false);
+            }
+            else
+            {
+                key.SetValue(valueName, Convert.FromHexString(previous), RegistryValueKind.Binary);
+            }
+
+            restored++;
+        }
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = restored > 0,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"Switched {restored} startup program(s) on again"),
         };
     }
 }

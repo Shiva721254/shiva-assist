@@ -15,6 +15,8 @@
 - Brighter look: solid green header and menu selection, solid severity badges.
 - The report is saved as a customer-friendly PDF (problems first, then good to know, then what is OK); the JSON
   report is still available as "technical report".
+- History and undo page: every repair and undo from the audit log with its result; switched-off startup
+  programs can be switched on again with one click; repairs that made a restore point link to System Restore.
 - Test VM fault injection: `tools/test-vm/Inject-Faults.ps1`.
 
 ## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation

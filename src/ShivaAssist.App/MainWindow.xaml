@@ -289,6 +289,51 @@
       </ScrollViewer>
     </DockPanel>
 
+    <!-- History and undo: every repair from the audit log, with undo where the old state was recorded -->
+    <DockPanel Margin="28,22" Visibility="{Binding IsHistoryPage, Converter={StaticResource Visible}}">
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+        <Grid DockPanel.Dock="Left" Width="46" Height="46" Margin="0,0,14,0" VerticalAlignment="Top">
+          <Ellipse Fill="{StaticResource GreenSoft}" />
+          <TextBlock Text="{Binding SelectedModule.Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20"
+                     Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel>
+          <TextBlock Text="{Binding SelectedModule.Name}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+          <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,16,0" />
+        </StackPanel>
+      </DockPanel>
+      <Border DockPanel.Dock="Top" Visibility="{Binding HistoryEmpty, Converter={StaticResource Visible}}"
+              Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
+        <TextBlock Text="{Binding TextHistoryEmpty}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
+      </Border>
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding History}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,10">
+                <DockPanel>
+                  <Border DockPanel.Dock="Left" Width="6" Background="{Binding Colour}" CornerRadius="12,0,0,12" />
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <Button Style="{StaticResource QuietButton}" Content="{Binding DataContext.TextUndo, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Command="{Binding UndoCommand}" Visibility="{Binding CanUndo, Converter={StaticResource Visible}}" Padding="14,6" />
+                    <Button Style="{StaticResource QuietButton}" Content="{Binding DataContext.TextOpenSystemRestore, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Command="{Binding OpenRestoreCommand}" Visibility="{Binding HasRestorePoint, Converter={StaticResource Visible}}"
+                            ToolTip="{Binding DataContext.TextRestorePointHint, RelativeSource={RelativeSource AncestorType=Window}}" Padding="14,6" Margin="8,0,0,0" />
+                  </StackPanel>
+                  <StackPanel Margin="16,12,16,12">
+                    <TextBlock Text="{Binding When}" FontSize="12" Foreground="{StaticResource Muted}" />
+                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    <TextBlock Text="{Binding Outcome}" Foreground="{Binding Colour}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource Muted}" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,4,0,0" />
+                  </StackPanel>
+                </DockPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </DockPanel>
+
     <!-- "Soon" page for modules of a later phase -->
     <StackPanel Margin="28,22" MaxWidth="560" VerticalAlignment="Center" HorizontalAlignment="Center"
                 Visibility="{Binding IsSoonPage, Converter={StaticResource Visible}}">

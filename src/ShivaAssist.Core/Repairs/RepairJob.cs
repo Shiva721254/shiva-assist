@@ -25,6 +25,9 @@ public sealed record RepairJob
 
     /// <summary>Where the elevated helper writes its result.</summary>
     public string? ResultPath { get; init; }
+
+    /// <summary>For an undo job: the job whose changes are reversed.</summary>
+    public string? Undoes { get; init; }
 }
 
 /// <summary>Verification outcome in the contract: <c>fixed | unresolved | inconclusive</c>.</summary>
@@ -62,6 +65,9 @@ public sealed record RepairResult
     public RepairVerdict? Verdict { get; init; }
 
     public DateTimeOffset FinishedAt { get; init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>For an undo: the job whose changes were reversed.</summary>
+    public string? Undoes { get; init; }
 }
 
 /// <summary>Runs one approved job. Implementations live in the platform project.</summary>
