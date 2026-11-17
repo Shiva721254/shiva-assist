@@ -12,7 +12,7 @@ internal static class ToolRunner
 {
     public static string System32(string relative) => Path.Combine(Environment.SystemDirectory, relative);
 
-    public static async Task<(int ExitCode, string Output, string Error)> RunAsync(string executable, IEnumerable<string> arguments, CancellationToken cancellationToken)
+    public static async Task<(int ExitCode, string Output, string Error)> RunAsync(string executable, IEnumerable<string> arguments, CancellationToken cancellationToken, Encoding? encoding = null)
     {
         var start = new ProcessStartInfo(executable)
         {
@@ -20,7 +20,7 @@ internal static class ToolRunner
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
+            StandardOutputEncoding = encoding ?? Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
         foreach (var argument in arguments)

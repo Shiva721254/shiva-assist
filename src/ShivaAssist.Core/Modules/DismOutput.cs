@@ -3,6 +3,8 @@ namespace ShivaAssist.Core.Modules;
 /// <summary>Parses the English output of <c>DISM /Online /Cleanup-Image /CheckHealth /English</c>.</summary>
 public static class DismOutput
 {
+    public const string RepairableSummary = "The component store is repairable.";
+
     /// <summary>Classifies DISM's English summary line.</summary>
     public static IntegritySnapshot Classify(string output)
     {
@@ -16,7 +18,7 @@ public static class DismOutput
 
         if (Has(output, "component store is repairable"))
         {
-            return new(ComponentStoreState.Repairable, "The component store is repairable.");
+            return new(ComponentStoreState.Repairable, RepairableSummary);
         }
 
         if (Has(output, "component store cannot be repaired"))

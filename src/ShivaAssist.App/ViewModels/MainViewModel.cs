@@ -57,7 +57,7 @@ public sealed class MainViewModel : Observable
         StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning);
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
         HelpCommand = new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal)));
-        RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(), _ => !IsElevated && State != ScreenState.Scanning);
+        RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode), _ => !IsElevated && State != ScreenState.Scanning);
         SelectTileCommand = new RelayCommand(tile => SelectTile(tile as CategoryTile));
     }
 
@@ -97,6 +97,8 @@ public sealed class MainViewModel : Observable
 
     /// <summary>Repairs are offered only in technician mode (start with --technician) during stage 3.</summary>
     public bool TechnicianMode { get; }
+
+    public bool ShowReadOnlyBadge => !TechnicianMode;
 
     public string TextTechnicianMode => T("Technician mode · repairs enabled");
 
@@ -353,15 +355,16 @@ public sealed class MainViewModel : Observable
         var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
         var question = string.Join(Environment.NewLine + Environment.NewLine,
             operation.Description.Render(catalog),
+            operation.NeedsRestorePoint ? T("A restore point is made before the repair starts.") : string.Empty,
             new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
-            T("Do you want to run this repair now?"));
+            T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
         if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
         {
             return;
         }
 
         repairing = true;
-        Status = new Message("Running: {repair}…", ("repair", operation.Name.Render(catalog))).Render(catalog);
+        Status = new Message("Running: {repair}… This can take up to {max} minutes; keep the PC switched on.", ("repair", operation.Name.Render(catalog)), ("max", operation.Minutes.Max)).Render(catalog);
         var job = new RepairJob { JobId = Guid.NewGuid().ToString("N"), OperationId = operation.Id, ApprovedAt = DateTimeOffset.UtcNow, Items = items };
         var (result, after) = await Task.Run(() => new RepairRunner(IsElevated).RunAsync(operation, job, before, CancellationToken.None));
         repairing = false;
@@ -424,11 +427,11 @@ public sealed class MainViewModel : Observable
         ? Palette.For(Severity.Healthy)
         : Palette.For(Severity.Warning);
 
-    private static void RestartAsAdmin()
+    private static void RestartAsAdmin(bool technicianMode)
     {
         try
         {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas" });
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", Arguments = technicianMode ? "--technician" : string.Empty });
             Application.Current.Shutdown();
         }
         catch (Win32Exception)

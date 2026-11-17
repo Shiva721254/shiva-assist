@@ -1,5 +1,6 @@
 using ShivaAssist.Core.Findings;
 using ShivaAssist.Core.Localization;
+using ShivaAssist.Core.Modules;
 
 namespace ShivaAssist.Core.Repairs;
 
@@ -48,6 +49,7 @@ public static class RepairCatalogue
     public const string CleanTempFiles = "DISK.TEMP.CLEAN";
     public const string CleanComponentStore = "DISK.COMPONENTS.CLEANUP";
     public const string DisableStartupPrograms = "STARTUP.PROGRAMS.DISABLE";
+    public const string RepairSystemFiles = "WIN.SYSTEMFILES.REPAIR";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -89,6 +91,16 @@ public static class RepairCatalogue
             VerifiesFinding = "PERF-STARTUP-001",
             NeedsSelection = true,
         },
+        new()
+        {
+            Id = RepairSystemFiles,
+            Name = "Repair Windows system files",
+            Description = "Repairs the damaged Windows component store from Windows Update (DISM /RestoreHealth), then checks and restores the protected system files (sfc /scannow). A restore point is made first. Keep the PC switched on and connected to the charger.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            Minutes = (15, 45),
+            VerifiesFinding = "WIN-INTEGRITY-001",
+        },
     ];
 
     public static RepairOperation? Find(string id) => All.FirstOrDefault(o => o.Id == id);
@@ -108,6 +120,7 @@ public static class RepairCatalogue
         {
             "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanComponentStore)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
+            "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };
     }

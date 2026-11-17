@@ -69,6 +69,7 @@ Start `ShivaAssist.exe --technician` to see repair buttons on findings that have
 | Delete temporary files older than 7 days (user's `AppData\Local\Temp` only, skips files in use, never follows links) | `DISK.TEMP.CLEAN` | Low | `STORAGE-SPACE-001` |
 | Remove old Windows update files (`DISM /StartComponentCleanup`, admin) | `DISK.COMPONENTS.CLEANUP` | Low | `STORAGE-SPACE-001` |
 | Switch off selected startup programs (Task Manager's own marker, reversible; previous value kept in the log) | `STARTUP.PROGRAMS.DISABLE` | Low | `PERF-STARTUP-001` |
+| Repair Windows system files: DISM /RestoreHealth then sfc /scannow; restore point first, charger required | `WIN.SYSTEMFILES.REPAIR` | Medium | `WIN-INTEGRITY-001` (repairable) |
 
 Repairs that need administrator rights run in **`ShivaAssistAgent.exe`**: one Windows permission prompt per job, it accepts only catalogue operations and validates every input again, then exits. Every repair is logged in `%LOCALAPPDATA%\Shiva Assist\repair-log.jsonl` (no personal data).
 

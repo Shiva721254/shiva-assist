@@ -74,6 +74,20 @@ public sealed class RepairTests
     }
 
     [Fact]
+    public void DamagedSystemFilesOfferTheMediumRepairOnlyWhenRepairable()
+    {
+        var check = new IntegrityCheck(new Fixed<IntegritySnapshot>(null!));
+        var repairable = Assert.Single(check.Evaluate(DismOutput.Classify("The component store is repairable."), Ctx.Admin));
+        var operation = Assert.Single(RepairCatalogue.For(repairable));
+        Assert.Equal(RepairCatalogue.RepairSystemFiles, operation.Id);
+        Assert.True(operation.NeedsRestorePoint);
+        Assert.True(operation.RequiresAdmin);
+
+        var lost = Assert.Single(check.Evaluate(DismOutput.Classify("The component store cannot be repaired."), Ctx.Admin));
+        Assert.Empty(RepairCatalogue.For(lost));
+    }
+
+    [Fact]
     public void JobsRoundTripThroughJson()
     {
         var job = new RepairJob { JobId = "abc", OperationId = RepairCatalogue.DisableStartupPrograms, ApprovedAt = Ctx.Now, Items = ["HKCU-Run|OneDrive"] };

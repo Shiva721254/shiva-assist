@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Microsoft.Win32;
 using ShivaAssist.Core.Repairs;
 using ShivaAssist.Windows.Infrastructure;
@@ -24,6 +25,12 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             throw new UnauthorizedAccessException($"{operation.Id} needs administrator rights.");
         }
 
+        if (operation.NeedsRestorePoint)
+        {
+            await EnsureOnMainsPowerAsync(cancellationToken);
+            await CreateRestorePointAsync(operation, cancellationToken);
+        }
+
         var freeBefore = SystemDriveFree();
         var result = operation.Id switch
         {
@@ -31,12 +38,73 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             RepairCatalogue.CleanTempFiles => CleanTempFiles(job),
             RepairCatalogue.CleanComponentStore => await CleanComponentStoreAsync(job, cancellationToken),
             RepairCatalogue.DisableStartupPrograms => DisableStartupPrograms(job),
+            RepairCatalogue.RepairSystemFiles => await RepairSystemFilesAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
         return operation.Id.StartsWith("DISK.", StringComparison.Ordinal)
             ? result with { BytesFreed = Math.Max(0, SystemDriveFree() - freeBefore) }
             : result;
+    }
+
+    /// <summary>A long repair on battery can end in a half-repaired Windows; require the charger.</summary>
+    private static async Task EnsureOnMainsPowerAsync(CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $b = Get-CimInstance Win32_Battery | Select-Object -First 1
+            [pscustomobject]@{ battery = [bool]$b; status = if ($b) { [int]$b.BatteryStatus } else { 0 } } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        // BatteryStatus 1 = discharging (running on battery).
+        if (PowerShell.Bool(json, "battery") && PowerShell.Long(json, "status") == 1)
+        {
+            throw new InvalidOperationException("Connect the charger first: this repair must not run on battery.");
+        }
+    }
+
+    /// <summary>
+    /// Restore point before every Medium/High repair. Windows makes at most one per 24 hours by default; a recent one
+    /// is then kept, which still protects the repair. When System Restore is switched off, the repair stops.
+    /// </summary>
+    private static async Task CreateRestorePointAsync(RepairOperation operation, CancellationToken cancellationToken)
+    {
+        var description = "Shiva Assist: " + operation.Id;
+        var json = await PowerShell.QueryAsync($$"""
+            $before = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue).Count
+            try { Checkpoint-Computer -Description '{{description}}' -RestorePointType MODIFY_SETTINGS -WarningAction SilentlyContinue -ErrorAction Stop; $ok = $true }
+            catch { $ok = $false }
+            $points = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue)
+            $recent = $points | Where-Object { $_.ConvertToDateTime($_.CreationTime) -gt (Get-Date).AddHours(-24) }
+            [pscustomobject]@{ ok = $ok; recent = [bool]$recent } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        if (!PowerShell.Bool(json, "recent"))
+        {
+            throw new InvalidOperationException("No restore point could be made. Turn on System Protection for the Windows drive first (Control Panel → System → System Protection).");
+        }
+    }
+
+    /// <summary>DISM /RestoreHealth, then sfc /scannow. Both are Microsoft's supported repair tools.</summary>
+    private static async Task<RepairResult> RepairSystemFilesAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var (dismExit, dismOutput, _) = await ToolRunner.RunAsync(
+            ToolRunner.System32("dism.exe"), ["/Online", "/Cleanup-Image", "/RestoreHealth", "/English"], cancellationToken);
+        var dismOk = dismExit == 0 && dismOutput.Contains("restore operation completed successfully", StringComparison.OrdinalIgnoreCase);
+
+        // sfc writes UTF-16; its language follows Windows, so the exit code and known English phrases are both kept.
+        var (sfcExit, sfcOutput, _) = await ToolRunner.RunAsync(ToolRunner.System32("sfc.exe"), ["/scannow"], cancellationToken, Encoding.Unicode);
+        var sfc = sfcOutput.Contains("did not find any integrity violations", StringComparison.OrdinalIgnoreCase) ? "no integrity violations"
+            : sfcOutput.Contains("successfully repaired", StringComparison.OrdinalIgnoreCase) ? "corrupt files repaired"
+            : sfcOutput.Contains("unable to fix", StringComparison.OrdinalIgnoreCase) ? "some files could not be repaired"
+            : string.Create(CultureInfo.InvariantCulture, $"exit code {sfcExit}");
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = dismOk,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"DISM RestoreHealth: {(dismOk ? "completed" : $"exit code {dismExit}")}; SFC: {sfc}"),
+        };
     }
 
     private static long SystemDriveFree() => new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!).AvailableFreeSpace;

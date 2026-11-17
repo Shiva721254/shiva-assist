@@ -202,7 +202,6 @@
     "It takes about a minute.": "Het duurt ongeveer een minuut.",
     "The repair did not complete: {reason}": "De reparatie is niet voltooid: {reason}",
     "Risk: {risk} · Takes {min}–{max} minutes": "Risico: {risk} · Duurt {min}–{max} minuten",
-    "Running: {repair}…": "Bezig: {repair}…",
     "{verdict} · {freed:gb} freed": "{verdict} · {freed:gb} vrijgemaakt",
     "Technician mode · repairs enabled": "Technicusmodus · reparaties ingeschakeld",
     "Low": "Laag",
@@ -223,6 +222,10 @@
     "Deletes temporary files that programs left behind more than 7 days ago. Files that are in use are skipped. Your documents, photos and downloads are not touched.": "Verwijdert tijdelijke bestanden die programma's meer dan 7 dagen geleden hebben achtergelaten. Bestanden die in gebruik zijn, worden overgeslagen. Uw documenten, foto's en downloads blijven onaangeroerd.",
     "Remove old Windows update files": "Oude Windows-updatebestanden verwijderen",
     "Lets Windows remove superseded versions of its own system files with its built-in cleanup (DISM /StartComponentCleanup). Installed updates keep working.": "Laat Windows met de ingebouwde opschoning (DISM /StartComponentCleanup) vervangen versies van de eigen systeembestanden verwijderen. Geïnstalleerde updates blijven werken.",
-    "Stops the programs you select from starting with Windows, the same way Task Manager does. The programs stay installed and can be switched on again at any time.": "Zorgt dat de programma's die u kiest niet meer met Windows starten, op dezelfde manier als Taakbeheer. De programma's blijven geïnstalleerd en kunnen altijd weer worden ingeschakeld."
+    "Stops the programs you select from starting with Windows, the same way Task Manager does. The programs stay installed and can be switched on again at any time.": "Zorgt dat de programma's die u kiest niet meer met Windows starten, op dezelfde manier als Taakbeheer. De programma's blijven geïnstalleerd en kunnen altijd weer worden ingeschakeld.",
+    "Running: {repair}… This can take up to {max} minutes; keep the PC switched on.": "Bezig: {repair}… Dit kan tot {max} minuten duren; laat de pc aan staan.",
+    "A restore point is made before the repair starts.": "Voordat de reparatie begint, wordt een herstelpunt gemaakt.",
+    "Repair Windows system files": "Windows-systeembestanden herstellen",
+    "Repairs the damaged Windows component store from Windows Update (DISM /RestoreHealth), then checks and restores the protected system files (sfc /scannow). A restore point is made first. Keep the PC switched on and connected to the charger.": "Herstelt het beschadigde onderdelenarchief van Windows via Windows Update (DISM /RestoreHealth) en controleert en herstelt daarna de beveiligde systeembestanden (sfc /scannow). Eerst wordt een herstelpunt gemaakt. Laat de pc aan staan en aangesloten op de lader."
   }
 }
