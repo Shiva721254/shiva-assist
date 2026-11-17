@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
@@ -34,9 +35,33 @@ public sealed class SoftwareViewModel : Observable
         this.technicianMode = technicianMode;
         this.repairBusy = repairBusy;
         this.setRepairBusy = setRepairBusy;
+        OpenWindowsUpdateCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate"), _ => !repairBusy());
+        OpenDriverUpdatesCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate-optionalupdates"), _ => !repairBusy());
+        OpenUninstallerCommand = new RelayCommand(_ => OpenSettings("ms-settings:appsfeatures"), _ => !repairBusy());
         RefreshCommand = new RelayCommand(async _ => await LoadAsync(), _ => !loading && !repairBusy());
         CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(), _ => !checkingUpdates && !repairBusy());
         UpdateCommand = new RelayCommand(async _ => await UpdateAsync(), _ => technicianMode && selectedUpdate is not null && !checkingUpdates && !repairBusy());
+    }
+
+    public RelayCommand OpenWindowsUpdateCommand { get; }
+    public RelayCommand OpenDriverUpdatesCommand { get; }
+    public RelayCommand OpenUninstallerCommand { get; }
+    public string TextWindowsUpdate => T("Windows Update");
+    public string TextDriverUpdates => T("Driver updates");
+    public string TextUninstaller => T("Uninstaller");
+    public string TextWindowsTools => T("Open Windows Settings to review Windows updates, optional driver updates or uninstall a program. Choose and confirm changes in Windows; then refresh or scan again. These actions are separate from Fix it all.");
+
+    private void OpenSettings(string uri)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            SetUpdateStatus(T("Windows Settings could not be opened. Open Settings from the Start menu and try again."));
+            MessageBox.Show(UpdateStatus, T("Windows Settings"), MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     public RelayCommand RefreshCommand { get; }

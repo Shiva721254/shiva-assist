@@ -119,6 +119,17 @@ multi-page; "Save as PDF…" in the app (JSON stays available as "technical repo
 
 ## 6. Status (17 Nov 2026)
 
+Navigation is now five pages: Overview, PC health, Repairs and cleanup, Updates and apps, History and help.
+Results no longer repeat the sidebar as a tile grid. Repairs filters to findings with supported catalogue actions.
+A persistent summary below the header shows the latest Critical + Warning count on every page after scanning.
+The green Fix it all button opens the existing selection/review flow; individual approvals, verification and audit
+remain in place. It is disabled during scanning/repairs, in read-only mode or without supported actions.
+Updates and apps now has Windows Update, Driver updates and Uninstaller buttons. These open fixed official
+ms-settings URIs (windowsupdate, windowsupdate-optionalupdates, appsfeatures). Changes are selected and confirmed
+in Windows Settings; no registry uninstall strings are executed, no automatic drivers are installed, and these
+external actions are not included in the repair queue or recorded as verified Shiva repairs. Refresh inventory or
+scan again afterwards. Check Settings launch, layout and persistent summary on Windows in the VM.
+
 Owner requested administrator permission at initial startup for nontechnical customers. App.OnStartup now
 relaunches with Windows UAC before opening the dashboard when needed, preserving command-line arguments.
 Declining UAC closes the app with a clear message. Already-elevated launches continue directly. This also

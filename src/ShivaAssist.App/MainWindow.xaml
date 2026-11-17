@@ -88,6 +88,19 @@
       </DockPanel>
     </Border>
 
+    <!-- Persistent result summary on every page. -->
+    <Border DockPanel.Dock="Top" Visibility="{Binding ShowRepairReview, Converter={StaticResource Visible}}"
+            Background="{StaticResource GreenSoft}" Padding="28,12">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Content="{Binding TextFixAll}" Command="{Binding ReviewRepairsCommand}"
+                Style="{StaticResource PrimaryButton}" Margin="18,0,0,0" ToolTip="{Binding TextRepairCoverage}" />
+        <StackPanel>
+          <TextBlock Text="{Binding TextProblemCount}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+          <TextBlock Text="{Binding TextRepairCoverage}" TextWrapping="Wrap" Margin="0,4,0,0" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
     <!-- Footer: status, help -->
     <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="28,10">
       <DockPanel>
@@ -219,60 +232,6 @@
           </StackPanel>
         </DockPanel>
 
-        <Border DockPanel.Dock="Top" Visibility="{Binding ShowRepairReview, Converter={StaticResource Visible}}"
-                Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="14" Margin="0,0,0,14">
-          <StackPanel>
-            <DockPanel>
-              <Button DockPanel.Dock="Right" Content="{Binding TextReviewRepairs}" Command="{Binding ReviewRepairsCommand}"
-                      Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" />
-              <TextBlock Text="{Binding TextRepairCoverage}" TextWrapping="Wrap" VerticalAlignment="Center" />
-            </DockPanel>
-            <Button Content="{Binding TextRestartAsAdmin}" Command="{Binding RestartAsAdminCommand}"
-                    Visibility="{Binding ShowAdminHint, Converter={StaticResource Visible}}"
-                    Style="{StaticResource QuietButton}" HorizontalAlignment="Left" Margin="0,8,0,0" />
-          </StackPanel>
-        </Border>
-
-        <!-- Module tiles: worst severity colours the bar; click to open the module page -->
-        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ModuleTiles}" Margin="0,0,0,12">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Button Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
-                      Margin="0,0,10,10" Cursor="Hand" AutomationProperties.Name="{Binding Name}">
-                <Button.Template>
-                  <ControlTemplate TargetType="Button">
-                    <Border x:Name="Tile" Width="176" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="0">
-                      <StackPanel>
-                        <Border Height="8" Background="{Binding Accent}" CornerRadius="12,12,0,0" />
-                        <StackPanel Margin="14,10,14,12">
-                          <DockPanel>
-                            <TextBlock DockPanel.Dock="Left" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="{StaticResource Green}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                          </DockPanel>
-                          <TextBlock Text="{Binding Status}" Foreground="{Binding Accent}" FontSize="13" Margin="0,2,0,0" />
-                        </StackPanel>
-                      </StackPanel>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Tile" Property="Background" Value="{StaticResource GreenSoft}" />
-                      </Trigger>
-                      <Trigger Property="IsKeyboardFocused" Value="True">
-                        <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Ink}" />
-                      </Trigger>
-                    </ControlTemplate.Triggers>
-                  </ControlTemplate>
-                </Button.Template>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
           <CheckBox Content="{Binding TextShowHealthy}" IsChecked="{Binding ShowHealthy}" VerticalAlignment="Center" />
         </DockPanel>
@@ -304,6 +263,8 @@
               Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
         <TextBlock Text="{Binding TextModuleNeedsScan}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
       </Border>
+      <TextBlock DockPanel.Dock="Top" Text="{Binding TextRepairCoverage}" TextWrapping="Wrap"
+                 Visibility="{Binding RepairsEmpty, Converter={StaticResource Visible}}" Margin="0,0,0,12" />
       <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding ModuleHasResults, Converter={StaticResource Visible}}">
         <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource FindingCard}" />
       </ScrollViewer>
@@ -312,6 +273,12 @@
     <DockPanel Margin="28,22" Visibility="{Binding IsSoftwarePage, Converter={StaticResource Visible}}">
       <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
         <TextBlock Text="{Binding SelectedModule.Name}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+        <WrapPanel Margin="0,12,0,8">
+          <Button Content="{Binding Software.TextWindowsUpdate}" Command="{Binding Software.OpenWindowsUpdateCommand}" Margin="0,0,8,6" />
+          <Button Content="{Binding Software.TextDriverUpdates}" Command="{Binding Software.OpenDriverUpdatesCommand}" Margin="0,0,8,6" />
+          <Button Content="{Binding Software.TextUninstaller}" Command="{Binding Software.OpenUninstallerCommand}" Margin="0,0,8,6" />
+        </WrapPanel>
+        <TextBlock Text="{Binding Software.TextWindowsTools}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,10" />
         <TextBlock Text="{Binding Software.TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,12" />
         <DockPanel>
           <Button DockPanel.Dock="Right" Content="{Binding Software.TextRefresh}" Command="{Binding Software.RefreshCommand}"

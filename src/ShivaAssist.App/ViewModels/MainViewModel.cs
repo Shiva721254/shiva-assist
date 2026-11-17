@@ -61,10 +61,6 @@ public sealed class MainViewModel : Observable
         {
             var item = new NavItem(module, () => catalog);
             Modules.Add(item);
-            if (!item.IsOverview && module.Key != AppModules.ResultsKey)
-            {
-                ModuleTiles.Add(item);
-            }
         }
 
         selectedModule = Modules[0];
@@ -87,7 +83,7 @@ public sealed class MainViewModel : Observable
 
         StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning && !repairing && !reviewingRepairs);
         ReviewRepairsCommand = new RelayCommand(async _ => await ReviewRepairsAsync(),
-            _ => TechnicianMode && HasResults && AvailableRepairCount > 0 && !repairing && !reviewingRepairs);
+            _ => TechnicianMode && HasResults && AvailableRepairCount > 0 && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
         ConfigureScanCommand = new RelayCommand(_ => Navigate(Modules.First(module => module.IsOverview)));
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
         HelpCommand = new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal)));
@@ -192,7 +188,6 @@ public sealed class MainViewModel : Observable
     public ObservableCollection<NavItem> Modules { get; } = [];
 
     /// <summary>Overview tiles: every module except the overview itself.</summary>
-    public ObservableCollection<NavItem> ModuleTiles { get; } = [];
 
     public RelayCommand NavigateCommand { get; }
 
@@ -212,7 +207,13 @@ public sealed class MainViewModel : Observable
 
     public RelayCommand ReviewRepairsCommand { get; }
 
-    public bool ShowRepairReview => TechnicianMode && HasResults;
+    public bool ShowRepairReview => HasResults;
+
+    public string TextFixAll => T("Fix it all");
+
+    public string TextProblemCount => new Message("{count} problems found", ("count", CountOf(Severity.Critical) + CountOf(Severity.Warning))).Render(catalog);
+
+    public bool RepairsEmpty => IsModulePage && HasResults && Findings.Count == 0;
 
     public int AvailableRepairCount => AllFindings.SelectMany(item => item.Repairs).Count();
 
@@ -222,7 +223,7 @@ public sealed class MainViewModel : Observable
         ? T("No supported automatic repairs are available for these findings. Open Details for advice. Unknown checks may need administrator permission or further investigation.")
         : T("Review the available repairs below. Each selected repair explains the changes and asks for your approval.");
 
-    public bool IsModulePage => !selectedModule.IsOverview && !IsResultsPage && !selectedModule.IsSoon && !IsHistoryPage && !IsSoftwarePage;
+    public bool IsModulePage => selectedModule.Module.Key == AppModules.RepairsKey;
 
     public bool IsSoftwarePage => selectedModule.Module.Key == "software";
 
@@ -411,9 +412,9 @@ public sealed class MainViewModel : Observable
             Tiles.Add(new CategoryTile(group.Key, [.. group], () => catalog));
         }
 
-        foreach (var module in Modules.Where(m => !m.IsOverview && m.Module.Key != AppModules.ResultsKey))
+        foreach (var module in Modules.Where(m => m.Module.Key is AppModules.ResultsKey or AppModules.RepairsKey))
         {
-            module.Update([.. report.Findings.Where(f => AppModules.KeyFor(f) == module.Module.Key)]);
+            module.Update([.. report.Findings.Where(f => module.Module.Key == AppModules.ResultsKey || RepairCatalogue.For(f).Count > 0)]);
         }
 
         selectedTile = null;
@@ -456,9 +457,8 @@ public sealed class MainViewModel : Observable
     private void ApplyFilter()
     {
         Findings.Clear();
-        var key = selectedModule.Module.Key;
         foreach (var item in AllFindings.Where(f => IsModulePage
-            ? AppModules.KeyFor(f.Finding) == key
+            ? f.Repairs.Count > 0
             : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category)))
         {
             Findings.Add(item);
