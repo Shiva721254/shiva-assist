@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Repairs that need a restore point switch System Protection on for the Windows drive when it is off, instead of
+  stopping. The confirmation window says so.
+- A repair that does not complete shows the reason on the finding card.
+- Technician mode no longer calls the app read-only.
+
 ## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation
 
 First read-only release (Milestone 1 of the Shiva Assist architecture, phase 1 of the problem research).

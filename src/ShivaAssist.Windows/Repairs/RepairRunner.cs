@@ -41,7 +41,7 @@ public sealed class RepairRunner(bool isElevated)
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or Win32Exception or JsonException)
         {
-            result = new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = ex.GetType().Name + ": " + ex.Message };
+            result = new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = ex.Message };
         }
 
         var after = result.Completed ? await RecheckAsync(before, cancellationToken) : null;

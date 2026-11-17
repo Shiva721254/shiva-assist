@@ -168,13 +168,15 @@ public sealed class MainViewModel : Observable
 
     // ---- Texts (re-rendered on a language switch) ----
 
-    public string TextTagline => T("Read-only PC health check by Shiva Computers");
+    public string TextTagline => TechnicianMode ? T("PC health check and repair by Shiva Computers") : T("Read-only PC health check by Shiva Computers");
 
     public string TextLanguage => T("Language");
 
     public string TextIntroTitle => T("Let's give your PC a quick check-up");
 
-    public string TextIntro => T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
+    public string TextIntro => TechnicianMode
+        ? T("In about a minute, Shiva Assist looks at how this PC is doing (storage, updates, security, internet and more). The check itself changes nothing. For each problem it finds, you can start a repair; every repair is explained and asked first.")
+        : T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
 
     public string TextStart => State == ScreenState.Results ? T("Scan again") : T("Start the check-up");
 
@@ -355,7 +357,7 @@ public sealed class MainViewModel : Observable
         var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
         var question = string.Join(Environment.NewLine + Environment.NewLine,
             operation.Description.Render(catalog),
-            operation.NeedsRestorePoint ? T("A restore point is made before the repair starts.") : string.Empty,
+            operation.NeedsRestorePoint ? T("A restore point is made before the repair starts. If System Protection is off, it is switched on first.") : string.Empty,
             new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
             T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
         if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
@@ -415,7 +417,9 @@ public sealed class MainViewModel : Observable
         };
         if (!result.Completed)
         {
-            verdict = T("The repair did not complete");
+            verdict = string.IsNullOrWhiteSpace(result.Detail)
+                ? T("The repair did not complete")
+                : new Message("The repair did not complete: {reason}", ("reason", catalog.Translate(result.Detail))).Render(catalog);
         }
 
         return result.BytesFreed > 0

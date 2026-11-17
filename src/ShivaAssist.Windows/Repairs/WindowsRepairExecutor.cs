@@ -63,24 +63,26 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
     }
 
     /// <summary>
-    /// Restore point before every Medium/High repair. Windows makes at most one per 24 hours by default; a recent one
-    /// is then kept, which still protects the repair. When System Restore is switched off, the repair stops.
+    /// Restore point before every Medium/High repair. When System Protection is off for the Windows drive, it is
+    /// switched on first (the customer approved the repair, and the restore point is part of it). Windows makes at
+    /// most one restore point per 24 hours; a recent one is kept, which still protects the repair.
     /// </summary>
     private static async Task CreateRestorePointAsync(RepairOperation operation, CancellationToken cancellationToken)
     {
         var description = "Shiva Assist: " + operation.Id;
         var json = await PowerShell.QueryAsync($$"""
-            $before = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue).Count
-            try { Checkpoint-Computer -Description '{{description}}' -RestorePointType MODIFY_SETTINGS -WarningAction SilentlyContinue -ErrorAction Stop; $ok = $true }
-            catch { $ok = $false }
+            $drive = $env:SystemDrive + '\'
+            # Idempotent: switches System Protection on for the Windows drive, or leaves it on.
+            try { Enable-ComputerRestore -Drive $drive -ErrorAction Stop } catch { }
+            try { Checkpoint-Computer -Description '{{description}}' -RestorePointType MODIFY_SETTINGS -WarningAction SilentlyContinue -ErrorAction Stop } catch { }
             $points = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue)
             $recent = $points | Where-Object { $_.ConvertToDateTime($_.CreationTime) -gt (Get-Date).AddHours(-24) }
-            [pscustomobject]@{ ok = $ok; recent = [bool]$recent } | ConvertTo-Json -Compress
+            [pscustomobject]@{ recent = [bool]$recent } | ConvertTo-Json -Compress
             """, cancellationToken);
 
         if (!PowerShell.Bool(json, "recent"))
         {
-            throw new InvalidOperationException("No restore point could be made. Turn on System Protection for the Windows drive first (Control Panel → System → System Protection).");
+            throw new InvalidOperationException("No restore point could be made, so the repair was stopped. Nothing was changed.");
         }
     }
 
