@@ -1,4 +1,5 @@
 using ShivaAssist.Core.Findings;
+using ShivaAssist.Core.Localization;
 
 namespace ShivaAssist.Core.Scanning;
 
@@ -41,6 +42,9 @@ public interface ICheck
     /// <summary>Module name in the finding contract, e.g. <c>storage</c>.</summary>
     string Module { get; }
 
+    /// <summary>What the customer sees when the check cannot finish, e.g. "Check of Windows system files".</summary>
+    Message Name { get; }
+
     Category Category { get; }
 
     /// <summary>Finding ID used when the whole check fails (Unknown), e.g. <c>STORAGE-CHECK-000</c>.</summary>
@@ -59,6 +63,8 @@ public interface ICheck
 public abstract class SnapshotCheck<T>(ISnapshotSource<T> source) : ICheck
 {
     public abstract string Module { get; }
+
+    public abstract Message Name { get; }
 
     public abstract Category Category { get; }
 

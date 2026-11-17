@@ -13,6 +13,8 @@ public sealed class NetworkCheck(ISnapshotSource<NetworkSnapshot> source) : Snap
 {
     public override string Module => "network";
 
+    public override Message Name => "Check of the internet connection";
+
     public override Category Category => Category.Network;
 
     public override string FailureId => "NETWORK-CHECK-000";
@@ -106,6 +108,8 @@ public sealed class NetworkCheck(ISnapshotSource<NetworkSnapshot> source) : Snap
 public sealed class DeviceCheck(ISnapshotSource<DeviceSnapshot> source) : SnapshotCheck<DeviceSnapshot>(source)
 {
     public override string Module => "devices";
+
+    public override Message Name => "Check of devices and drivers";
 
     public override Category Category => Category.Drivers;
 

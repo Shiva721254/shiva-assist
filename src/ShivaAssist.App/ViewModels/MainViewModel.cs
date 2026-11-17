@@ -191,7 +191,7 @@ public sealed class MainViewModel : Observable
     public string TextSummary => report is null
         ? string.Empty
         : new Message(
-            "{critical} critical · {warning} warnings · {info} info · {ok} OK · {unknown} unknown · {seconds} s",
+            "Critical {critical} · Warnings {warning} · Info {info} · OK {ok} · Unknown {unknown} · {seconds} s",
             ("critical", CountOf(Severity.Critical)),
             ("warning", CountOf(Severity.Warning)),
             ("info", CountOf(Severity.Information)),

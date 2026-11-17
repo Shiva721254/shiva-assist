@@ -249,6 +249,25 @@ public sealed class DeviceAndStabilityTests
         Assert.Equal(Severity.Healthy, Ctx.Single(findings, "SYSTEM-BUGCHECK-001").Severity);
     }
 
+    [Theory]
+    [InlineData(1, Severity.Information)]
+    [InlineData(3, Severity.Warning)]
+    public void SingleHardwareErrorReportIsNotYetAWarning(int reports, Severity expected) =>
+        Assert.Equal(expected, Ctx.Single(Stability(0, 0, reports, []), "HARDWARE-WHEA-001").Severity);
+
+    [Fact]
+    public async Task FailedCheckShowsItsCustomerFacingName()
+    {
+        var report = await new ShivaAssist.Core.Scanning.ScanRunner([new IntegrityCheck(new Failing<IntegritySnapshot>(new ShivaAssist.Core.Scanning.RequiresAdminException()))])
+            .RunAsync(new("t", "Windows 11", "25H2", false));
+        var finding = Assert.Single(report.Findings);
+        Assert.Equal("Check of Windows system files", finding.Title.ToString());
+    }
+
+    [Fact]
+    public void BatteryWithoutCapacitiesAsksForAdminRights() =>
+        Assert.Equal(UnknownReason.RequiresAdmin, Assert.Single(new BatteryCheck(new Fixed<BatterySnapshot>(null!)).Evaluate(new(true, null, null, null), Ctx.User)).UnknownReason);
+
     [Fact]
     public void RepeatedBlueScreensAreCritical() => Assert.Equal(Severity.Critical, Ctx.Single(Stability(3, 3, 0, []), "SYSTEM-BUGCHECK-001").Severity);
 

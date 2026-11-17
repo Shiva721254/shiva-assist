@@ -10,6 +10,8 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
 {
     public override string Module => "security";
 
+    public override Message Name => "Check of antivirus and firewall";
+
     public override Category Category => Category.Security;
 
     public override string FailureId => "SECURITY-CHECK-000";
@@ -124,6 +126,8 @@ public sealed class StartupCheck(ISnapshotSource<StartupSnapshot> source) : Snap
 {
     public override string Module => "startup";
 
+    public override Message Name => "Check of startup programs";
+
     public override Category Category => Category.Performance;
 
     public override string FailureId => "PERF-STARTUP-001";
@@ -167,6 +171,8 @@ public sealed class StartupCheck(ISnapshotSource<StartupSnapshot> source) : Snap
 public sealed class StabilityCheck(ISnapshotSource<StabilitySnapshot> source) : SnapshotCheck<StabilitySnapshot>(source)
 {
     public override string Module => "stability";
+
+    public override Message Name => "Check of crashes and shutdowns";
 
     public override Category Category => Category.WindowsSystem;
 
@@ -215,13 +221,14 @@ public sealed class StabilityCheck(ISnapshotSource<StabilitySnapshot> source) : 
         };
 
         var whea = new Evidence("System log: WHEA-Logger", $"{N(snapshot.HardwareErrors)} hardware error reports {window}");
+        // Single corrected errors are common and often harmless; only a pattern is a warning.
         var hardwareFinding = snapshot.HardwareErrors > 0
             ? new Finding
             {
                 Id = "HARDWARE-WHEA-001",
                 Module = Module,
                 Category = Category.Hardware,
-                Severity = Severity.Warning,
+                Severity = snapshot.HardwareErrors >= 3 ? Severity.Warning : Severity.Information,
                 Confidence = Confidence.Medium,
                 Title = new Message("Windows recorded {count} hardware error report(s) in the last {days} days", ("count", snapshot.HardwareErrors), ("days", snapshot.Days)),
                 Evidence = [whea],

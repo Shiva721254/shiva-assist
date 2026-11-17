@@ -12,6 +12,8 @@ public sealed class StorageCheck(ISnapshotSource<StorageSnapshot> source) : Snap
 
     public override string Module => "storage";
 
+    public override Message Name => "Check of the drives and disks";
+
     public override Category Category => Category.Hardware;
 
     public override string FailureId => "STORAGE-CHECK-000";

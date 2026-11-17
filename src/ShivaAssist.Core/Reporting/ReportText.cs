@@ -95,7 +95,7 @@ public static class ReportText
         var counts = report.CountBySeverity;
         lines.Add(new ReportLine(
             new Message(
-                "Summary: {critical} critical · {warning} warnings · {info} info · {ok} OK · {unknown} unknown ({seconds} s)",
+                "Summary: critical {critical} · warnings {warning} · info {info} · OK {ok} · unknown {unknown} ({seconds} s)",
                 ("critical", counts[Severity.Critical]),
                 ("warning", counts[Severity.Warning]),
                 ("info", counts[Severity.Information]),

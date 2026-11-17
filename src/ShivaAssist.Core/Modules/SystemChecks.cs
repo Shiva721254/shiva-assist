@@ -13,6 +13,8 @@ public sealed class OsCheck(ISnapshotSource<OsSnapshot> source) : SnapshotCheck<
 
     public override string Module => "windows-version";
 
+    public override Message Name => "Check of the Windows version";
+
     public override Category Category => Category.WindowsSystem;
 
     public override string FailureId => "OS-CHECK-000";
@@ -106,6 +108,8 @@ public sealed class UpdateCheck(ISnapshotSource<UpdateSnapshot> source) : Snapsh
 {
     public override string Module => "updates";
 
+    public override Message Name => "Check of Windows updates";
+
     public override Category Category => Category.WindowsSystem;
 
     public override string FailureId => "UPDATE-CHECK-000";
@@ -161,6 +165,8 @@ public sealed class IntegrityCheck(ISnapshotSource<IntegritySnapshot> source) : 
 {
     public override string Module => "windows-integrity";
 
+    public override Message Name => "Check of Windows system files";
+
     public override Category Category => Category.WindowsSystem;
 
     public override string FailureId => "WIN-INTEGRITY-001";
@@ -204,6 +210,8 @@ public sealed class IntegrityCheck(ISnapshotSource<IntegritySnapshot> source) : 
 public sealed class PrivilegeCheck : ICheck
 {
     public string Module => "scan";
+
+    public Message Name => "Check of administrator rights";
 
     public Category Category => Category.WindowsSystem;
 

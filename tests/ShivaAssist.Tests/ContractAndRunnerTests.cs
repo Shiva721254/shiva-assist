@@ -51,6 +51,8 @@ public sealed class ScanRunnerTests
     {
         public string Module => "slow";
 
+        public ShivaAssist.Core.Localization.Message Name => "Check of something slow";
+
         public Category Category => Category.Performance;
 
         public string FailureId => "SLOW-CHECK-000";
@@ -67,6 +69,8 @@ public sealed class ScanRunnerTests
     private sealed class InvalidCheck : ICheck
     {
         public string Module => "broken";
+
+        public ShivaAssist.Core.Localization.Message Name => "Check that breaks";
 
         public Category Category => Category.Hardware;
 

@@ -10,6 +10,8 @@ public sealed class ProcessorCheck(ISnapshotSource<ProcessorSnapshot> source) : 
 {
     public override string Module => "processor";
 
+    public override Message Name => "Check of the processor";
+
     public override Category Category => Category.Hardware;
 
     public override string FailureId => "CPU-CHECK-000";
@@ -55,6 +57,8 @@ public sealed class MemoryCheck(ISnapshotSource<MemorySnapshot> source) : Snapsh
     private const long OneGb = 1_000_000_000;
 
     public override string Module => "memory";
+
+    public override Message Name => "Check of the memory";
 
     public override Category Category => Category.Hardware;
 
@@ -144,6 +148,8 @@ public sealed class BatteryCheck(ISnapshotSource<BatterySnapshot> source) : Snap
 {
     public override string Module => "battery";
 
+    public override Message Name => "Check of the battery";
+
     public override Category Category => Category.Hardware;
 
     public override string FailureId => "BATTERY-WEAR-001";
@@ -151,6 +157,7 @@ public sealed class BatteryCheck(ISnapshotSource<BatterySnapshot> source) : Snap
     public override IReadOnlyList<Finding> Evaluate(BatterySnapshot snapshot, ScanContext context)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(context);
         if (!snapshot.HasBattery)
         {
             return [];
@@ -158,7 +165,9 @@ public sealed class BatteryCheck(ISnapshotSource<BatterySnapshot> source) : Snap
 
         if (snapshot.DesignCapacity is not > 0 || snapshot.FullChargeCapacity is not > 0)
         {
-            return [Finding.Unknown("BATTERY-WEAR-001", Module, Category, "Battery wear could not be measured", UnknownReason.Unsupported, "The battery does not report its capacities")];
+            // Windows often shares the capacities only with administrators; say so rather than "not available".
+            return [Finding.Unknown("BATTERY-WEAR-001", Module, Category, "Battery wear could not be measured",
+                context.IsElevated ? UnknownReason.Unsupported : UnknownReason.RequiresAdmin, "The battery does not report its capacities")];
         }
 
         var health = Math.Min(1.0, (double)snapshot.FullChargeCapacity.Value / snapshot.DesignCapacity.Value);

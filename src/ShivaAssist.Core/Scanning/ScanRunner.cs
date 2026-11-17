@@ -100,7 +100,7 @@ public sealed class ScanRunner(IReadOnlyList<ICheck> checks, TimeProvider? time 
     }
 
     private static Finding Failed(ICheck check, UnknownReason reason, string detail) =>
-        Finding.Unknown(check.FailureId, check.Module, check.Category, new Message("The {module} check could not be completed", ("module", check.Module)), reason, detail);
+        Finding.Unknown(check.FailureId, check.Module, check.Category, check.Name, reason, detail);
 }
 
 /// <summary>What the host knows about itself before the scan starts.</summary>
