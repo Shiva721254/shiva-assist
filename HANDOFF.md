@@ -119,6 +119,36 @@ multi-page; "Save as PDF…" in the app (JSON stays available as "technical repo
 
 ## 6. Status (17 Nov 2026)
 
+Integrated uninstaller added under Updates and apps. Software inventory keeps registry identity and declared
+InstallLocation; executable commands are read afresh only for the selected registration and never persisted.
+`UninstallPolicy` accepts MSI GUID maintenance strings or unambiguous absolute EXE commands. The Windows layer
+uses System32 msiexec `/x /norestart` or native EXEs under Program Files (no scripts, network paths, shell launch,
+per-user EXEs or shared Common Files executables). Unsupported programs have an explicit Windows fallback.
+The selected name/version/publisher and command hash are revalidated by the executor. Uninstall is a Medium
+catalogue operation with restore point/charger protection and separate user consent. Never kill an uninstaller
+on cancellation/timeout. Only exit 0 plus a complete inventory confirming registration/product absence verifies
+removal; restart codes remain Pending and prevent cleanup until the next Windows boot and fresh verification.
+
+`UninstallerService` snapshots only isolated declared Program Files locations. It excludes protected/shared
+roots and folders overlapping other registered products. `LeftoverFiles` in Core offers only pre-existing,
+unchanged binaries/logs/temp/cache files and eligible empty directories. It skips files over 64 MB; snapshots
+over 5,000 entries/256 MB or with access failures disable cleanup. Paths, hashes, selections and no-link rules
+are checked again before changes. Documents, preferences, databases, profiles, registry entries and unknown
+file types are not offered. No AppData-wide leftover hunting or installation monitoring yet.
+
+Cleanup and restore are catalogue operations. Cleanup persists a recovery receipt and Pending audit entry
+before changes, then moves selected files (no overwrite) and deletes selected directories non-recursively.
+The ProgramData `Shiva Assist Uninstaller` store is created atomically with Administrators/System-only access
+and admin ownership. Existing unexpected owners/write permissions or links cause refusal. Never retrofit an
+untrusted recovery store. `RepairHistory` displays the latest audit entry per JobId; a partial cleanup retains
+Undo. Restore validates files/hashes and does not overwrite a reinstalled program's files or reinstall an app.
+Recovery copies continue using disk space. There is no permanent recovery-purge UI in this increment.
+
+The app now has program selection, expandable removal tools, saved removal sessions, asynchronous verification,
+leftover checkboxes, folder/child selection dependencies, approval and History undo. Windows integration tests
+use `tools/test-vm/UninstallerChecks` with the disposable self-contained `UninstallerFixture`; no real installed
+application is removed. Manual WPF/restore-point/MSI/reboot checklist: tools/test-vm/UNINSTALLER-TEST.md.
+
 Navigation is now five pages: Overview, PC health, Repairs and cleanup, Updates and apps, History and help.
 Results no longer repeat the sidebar as a tile grid. Repairs filters to findings with supported catalogue actions.
 A persistent summary below the header shows the latest Critical + Warning count on every page after scanning.
@@ -165,14 +195,14 @@ both versions before running an interactive installer, then checks the installed
 Fixed or Inconclusive. The community source is queried without silently accepting source or package terms.
 Missing WinGet, source agreement failures, empty/unparseable output and timeouts remain explicit unknowns.
 The conservative table parser uses header column positions and refuses truncated IDs and duplicate package
-IDs. Test real English/Dutch WinGet output, installer/UAC prompts and History in the VM. Uninstall actions
-and selecting multiple software updates remain future work.
+IDs. Test real English/Dutch WinGet output, installer/UAC prompts and History in the VM. The integrated
+uninstaller is now implemented as described in section 6; selecting multiple software updates remains future work.
 
 Validation for this increment: 126 platform-neutral tests passed, Dutch translation check passed, and the Core,
 Windows and WPF projects compile with zero warnings/errors on Linux with Windows targeting. The WPF build
 used `-m:1 -p:SelfContained=false -p:RuntimeIdentifier=win-x64`. Run Windows CI for packaging and smoke tests.
 
-3. **Software manager** (module `software`, currently "Soon"): inventory of installed programs (registry Uninstall
+3. **Software manager** (module `software`, now Updates and apps): inventory of installed programs (registry Uninstall
    keys, HKLM + HKLM\WOW6432Node + HKCU; name, publisher, version, size, install date), available updates via
    `winget upgrade` (parse output or `--output json` where available; handle winget missing), update one/selected
    app as a Low-risk catalogue repair, uninstall only through the program's own uninstaller after consent.

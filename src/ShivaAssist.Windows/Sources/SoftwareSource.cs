@@ -57,7 +57,12 @@ public static class SoftwareSource
                             programs.Add(new InstalledProgram(displayName,
                                 entry.GetValue("Publisher") as string ?? string.Empty,
                                 entry.GetValue("DisplayVersion") as string ?? string.Empty,
-                                size, SoftwareInventory.ParseInstallDate(entry.GetValue("InstallDate") as string)));
+                                size, SoftwareInventory.ParseInstallDate(entry.GetValue("InstallDate") as string))
+                            {
+                                Registration = (hive == RegistryHive.LocalMachine ? "HKLM" : "HKCU") + "|"
+                                    + (view == RegistryView.Registry64 ? "64" : "32") + "|" + name,
+                                InstallLocation = entry.GetValue("InstallLocation") as string ?? string.Empty,
+                            });
                         }
                         catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
                         {
@@ -74,4 +79,32 @@ public static class SoftwareSource
 
         return new SoftwareInventoryResult(SoftwareInventory.Normalize(programs), unreadable);
     }
+
+    public static RegisteredUninstaller ReadUninstaller(string reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        var parts = reference.Split('|');
+        if (parts.Length != 3 || parts[0] is not ("HKLM" or "HKCU") || parts[1] is not ("32" or "64")
+            || string.IsNullOrWhiteSpace(parts[2]) || parts[2].Length > 256 || parts[2].IndexOfAny(['\\', '/', '\0']) >= 0)
+        {
+            throw new ArgumentException("Invalid program registration.");
+        }
+
+        using var root = RegistryKey.OpenBaseKey(parts[0] == "HKLM" ? RegistryHive.LocalMachine : RegistryHive.CurrentUser,
+            parts[1] == "64" ? RegistryView.Registry64 : RegistryView.Registry32);
+        using var entry = root.OpenSubKey(UninstallPath + "\\" + parts[2]);
+        if (entry is null || entry.GetValue("SystemComponent") is 1 || entry.GetValue("NoRemove") is 1
+            || entry.GetValue("DisplayName") is not string name || string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException("This program has no supported registered uninstaller. Use Windows Settings instead.");
+        }
+
+        return new RegisteredUninstaller(reference, name, entry.GetValue("DisplayVersion") as string ?? string.Empty,
+            entry.GetValue("Publisher") as string ?? string.Empty,
+            entry.GetValue("InstallLocation") as string ?? string.Empty,
+            entry.GetValue("UninstallString") as string ?? string.Empty);
+    }
+
 }
+
+public sealed record RegisteredUninstaller(string Reference, string Name, string Version, string Publisher, string InstallLocation, string Command);

@@ -47,6 +47,9 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
             RepairCatalogue.RestoreStartupPrograms => RestoreStartupPrograms(job),
             RepairCatalogue.UpdateSoftware => await UpdateSoftwareAsync(job, cancellationToken),
+            RepairCatalogue.UninstallSoftware => await UninstallSoftwareAsync(job, cancellationToken),
+            RepairCatalogue.CleanSoftwareLeftovers => UninstallerService.Clean(job),
+            RepairCatalogue.RestoreSoftwareLeftovers => UninstallerService.Restore(job),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 

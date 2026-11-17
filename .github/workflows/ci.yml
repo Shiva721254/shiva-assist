@@ -29,6 +29,14 @@ jobs:
       - name: Test
         run: dotnet test tests/ShivaAssist.Tests --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory test-results
 
+      - name: Windows uninstaller integration (disposable fixture only)
+        shell: pwsh
+        run: |
+          dotnet publish tools/test-vm/UninstallerFixture -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o fixture-publish
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet run --project tools/test-vm/UninstallerChecks -c Release -- "$PWD/fixture-publish/ShivaUninstallFixture.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
       - name: Publish for x64 and ARM64 (self-contained, single file)
         shell: pwsh
         run: |

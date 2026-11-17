@@ -67,9 +67,45 @@ public static class RepairCatalogue
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
     public const string RestoreStartupPrograms = "STARTUP.PROGRAMS.RESTORE";
     public const string UpdateSoftware = "SOFTWARE.PACKAGE.UPDATE";
+    public const string UninstallSoftware = "SOFTWARE.PROGRAM.UNINSTALL";
+    public const string CleanSoftwareLeftovers = "SOFTWARE.LEFTOVERS.CLEAN";
+    public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
+        new()
+        {
+            Id = UninstallSoftware,
+            Name = "Uninstall selected program",
+            Description = "Runs the program's registered uninstaller after creating a restore point. Save your work first. Follow the uninstaller's prompts. A restart may be required. Reinstalling the program may be needed to reverse its removal. Leftover cleanup requires separate approval.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            Minutes = (1, 30),
+            VerifiesFinding = "SOFTWARE-UNINSTALL-001",
+            NeedsSelection = true,
+        },
+        new()
+        {
+            Id = CleanSoftwareLeftovers,
+            Name = "Clean selected leftovers",
+            Description = "Moves only selected, unchanged installation-folder leftovers to recovery storage and removes selected empty folders. Personal files, settings, shared folders and registry keys are excluded. Recovery copies still use disk space. Undo is available in History.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SOFTWARE-LEFTOVERS-001",
+            NeedsSelection = true,
+        },
+        new()
+        {
+            Id = RestoreSoftwareLeftovers,
+            Name = "Restore cleaned leftovers",
+            Description = "Restores the leftover files and empty folders from this cleanup's recovery storage. Existing files are never overwritten. This does not reinstall the program.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            IsUndo = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SOFTWARE-LEFTOVERS-001",
+        },
         new()
         {
             Id = UpdateSoftware,
@@ -205,6 +241,7 @@ public static class RepairCatalogue
     public static RepairOperation? UndoFor(string operationId) => operationId switch
     {
         DisableStartupPrograms => Find(RestoreStartupPrograms),
+        CleanSoftwareLeftovers => Find(RestoreSoftwareLeftovers),
         _ => null,
     };
 

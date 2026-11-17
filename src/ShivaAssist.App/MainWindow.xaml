@@ -270,7 +270,8 @@
       </ScrollViewer>
     </DockPanel>
 
-    <DockPanel Margin="28,22" Visibility="{Binding IsSoftwarePage, Converter={StaticResource Visible}}">
+    <ScrollViewer Margin="28,22" Visibility="{Binding IsSoftwarePage, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto">
+     <StackPanel>
       <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
         <TextBlock Text="{Binding SelectedModule.Name}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
         <WrapPanel Margin="0,12,0,8">
@@ -289,6 +290,45 @@
           </StackPanel>
         </DockPanel>
         <TextBlock Text="{Binding Software.Status}" Foreground="{StaticResource Muted}" Margin="0,10,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+        <Expander Header="{Binding Software.TextUninstaller}" IsExpanded="{Binding Software.UninstallerExpanded}" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="{Binding Software.TextUninstallScope}" TextWrapping="Wrap" Margin="0,8" />
+            <TextBlock Text="{Binding Software.TextSelectedProgram}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <WrapPanel>
+              <Button Content="{Binding Software.TextUninstall}" Command="{Binding Software.UninstallCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8" />
+              <Button Content="{Binding Software.TextWindowsUninstall}" Command="{Binding Software.WindowsUninstallCommand}" Margin="0,0,0,8" />
+            </WrapPanel>
+            <TextBlock Text="{Binding Software.UninstallStatus}" TextWrapping="Wrap" Margin="0,4,0,8" AutomationProperties.LiveSetting="Polite" />
+            <StackPanel Visibility="{Binding Software.HasUninstallSessions, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding Software.TextRemovalSession}" Margin="0,4" />
+              <ComboBox ItemsSource="{Binding Software.UninstallSessions}" SelectedItem="{Binding Software.SelectedSession}" DisplayMemberPath="Label"
+                        IsEnabled="{Binding Software.CanManagePrograms}" AutomationProperties.Name="{Binding Software.TextRemovalSession}" />
+              <WrapPanel Margin="0,8,0,0">
+                <Button Content="{Binding Software.TextScanLeftovers}" Command="{Binding Software.ScanLeftoversCommand}" Margin="0,0,8,8" />
+                <Button Content="{Binding Software.TextCleanLeftovers}" Command="{Binding Software.CleanLeftoversCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" />
+              </WrapPanel>
+              <TextBlock Text="{Binding Software.TextLeftoverScope}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8" />
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding Software.Leftovers}" Visibility="{Binding Software.HasLeftovers, Converter={StaticResource Visible}}"
+                      IsEnabled="{Binding Software.CanManagePrograms}" MaxHeight="220" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Width="65">
+                  <DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextSelect, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
+                  <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" AutomationProperties.Name="{Binding PathLabel}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Binding="{Binding PathLabel}" Width="*" IsReadOnly="True">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextPath, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Kind}" Width="80" IsReadOnly="True">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextType, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Size}" Width="90" IsReadOnly="True">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextSize, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Expander>
         <Expander Header="{Binding Software.TextCheckUpdates}" Margin="0,12,0,0">
           <StackPanel>
             <TextBlock Text="{Binding Software.TextUpdateScope}" TextWrapping="Wrap" Margin="0,8" />
@@ -316,7 +356,8 @@
           </StackPanel>
         </Expander>
       </StackPanel>
-      <DataGrid ItemsSource="{Binding Software.Items}" AutoGenerateColumns="False" IsReadOnly="True"
+      <DataGrid ItemsSource="{Binding Software.Items}" SelectedItem="{Binding Software.SelectedProgram}" SelectionMode="Single" MaxHeight="400" MinHeight="160"
+                AutoGenerateColumns="False" IsReadOnly="True" IsEnabled="{Binding Software.CanManagePrograms}"
                 CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"
                 EnableRowVirtualization="True" GridLinesVisibility="Horizontal" Background="{StaticResource Surface}"
                 BorderBrush="{StaticResource Line}" RowHeaderWidth="0">
@@ -358,7 +399,8 @@
           </DataGridTextColumn>
         </DataGrid.Columns>
       </DataGrid>
-    </DockPanel>
+     </StackPanel>
+    </ScrollViewer>
 
     <!-- History and undo: every repair from the audit log, with undo where the old state was recorded -->
     <DockPanel Margin="28,22" Visibility="{Binding IsHistoryPage, Converter={StaticResource Visible}}">

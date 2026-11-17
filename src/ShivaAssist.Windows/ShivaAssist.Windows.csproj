@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="ShivaAssist.Tests" />
+    <InternalsVisibleTo Include="ShivaAssist.UninstallerChecks" />
   </ItemGroup>
 </Project>

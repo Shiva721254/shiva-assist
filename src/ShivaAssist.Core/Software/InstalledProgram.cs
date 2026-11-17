@@ -3,7 +3,12 @@ using System.Globalization;
 namespace ShivaAssist.Core.Software;
 
 /// <summary>Display metadata from Windows' registered programs. Contains no executable commands.</summary>
-public sealed record InstalledProgram(string Name, string Publisher, string Version, long? SizeBytes, DateOnly? InstalledOn);
+public sealed record InstalledProgram(string Name, string Publisher, string Version, long? SizeBytes, DateOnly? InstalledOn)
+{
+    /// <summary>Opaque registry identity, never an executable command.</summary>
+    public string Registration { get; init; } = string.Empty;
+    public string InstallLocation { get; init; } = string.Empty;
+}
 
 public static class SoftwareInventory
 {

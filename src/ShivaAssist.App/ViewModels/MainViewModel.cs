@@ -56,6 +56,7 @@ public sealed class MainViewModel : Observable
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
         Software = new SoftwareViewModel(() => catalog, technicianMode,
             () => repairing || reviewingRepairs || State == ScreenState.Scanning, value => repairing = value);
+        PropertyChanged += (_, _) => Software.RefreshBusyState();
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
         {

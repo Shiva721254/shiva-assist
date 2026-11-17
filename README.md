@@ -78,7 +78,7 @@ Repairs that need administrator rights run in **`ShivaAssistAgent.exe`**: one Wi
 
 ## Software manager
 
-Open **Software** to search the programs registered in Windows. Expand **Check program updates** to query
+Open **Updates and apps** to search the programs registered in Windows. Expand **Check program updates** to query
 the WinGet community source. App Installer must be available. If source agreements need review, run
 `winget list --source winget` in a normal Windows terminal and review the prompt, then check again.
 
@@ -87,6 +87,33 @@ name and old/new versions. Save your work and close that program before agreeing
 may show Windows permission and licence prompts. Shiva Assist verifies the installed version and writes
 the outcome in History. Missing or ambiguous WinGet results are reported as unverified. Store and portable
 programs may be absent from the registry inventory. This update check makes an explicit internet request.
+
+### Integrated uninstaller
+
+In technician mode, click **Uninstaller**, select a program in the inventory and choose **Uninstall selected
+program**. The confirmation identifies the program/publisher and executable. A restore point is required before
+running its normal registered uninstaller. MSI product GUIDs run through System32 `msiexec /x /norestart`;
+native desktop EXE uninstallers must be full, unambiguous paths inside Program Files. Scripts, network paths,
+per-user EXEs and unsupported registrations use the explicit **Open Windows uninstaller instead** fallback.
+No uninstaller is downloaded and no arbitrary shell command is executed.
+
+When removal is verified, choose **Check removal and scan leftovers**. The app reviews only a recorded,
+isolated installation folder, comparing it with a snapshot taken before uninstall. It offers unchanged
+`.exe`, `.dll`, `.pdb`, `.log`, `.tmp`, `.cache` files up to 64 MB each and eligible empty folders. Other files,
+settings, profiles, registry keys, shared locations, links and changed/new files are preserved. AppData-wide
+search and installation monitoring are not implemented. Missing, shared or overly large snapshots disable
+cleanup rather than guessing. Nothing starts selected; selecting a folder selects its listed contents.
+
+**Clean selected leftovers** asks separately, moves the files into administrator-protected recovery storage
+and removes only selected empty folders. Recovery copies still consume disk space; no reclaimed-space claim
+is made. History provides **Undo**, which verifies hashes and refuses to overwrite existing files. Undoing
+cleanup does not reinstall an application. A journal is saved before changes so interrupted cleanup can be
+recovered. Removal sessions persist across app restarts; a pending Windows restart blocks cleanup.
+
+Try the disposable VM fixture first: [Windows manual checklist](tools/test-vm/UNINSTALLER-TEST.md).
+CI also tests the native fixture's cancellation, failure, pending restart, registry verification, persistent
+session, cleanup and recovery. These integration checks bypass restore-point creation; check that separately
+in the VM using the actual application.
 
 ## Languages
 

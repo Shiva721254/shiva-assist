@@ -13,7 +13,7 @@ using ShivaAssist.Windows.Sources;
 
 namespace ShivaAssist.App.ViewModels;
 
-public sealed class SoftwareViewModel : Observable
+public sealed partial class SoftwareViewModel : Observable
 {
     private readonly Func<TextCatalog> catalog;
     private IReadOnlyList<InstalledProgram> programs = [];
@@ -35,9 +35,13 @@ public sealed class SoftwareViewModel : Observable
         this.technicianMode = technicianMode;
         this.repairBusy = repairBusy;
         this.setRepairBusy = setRepairBusy;
+        UninstallCommand = new RelayCommand(async _ => await UninstallAsync(), _ => technicianMode && selectedProgram is not null && CanManagePrograms);
+        ScanLeftoversCommand = new RelayCommand(async _ => await ScanLeftoversAsync(), _ => technicianMode && selectedSession is not null && CanManagePrograms);
+        CleanLeftoversCommand = new RelayCommand(async _ => await CleanLeftoversAsync(), _ => technicianMode && Leftovers.Any(item => item.Selected) && CanManagePrograms);
         OpenWindowsUpdateCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate"), _ => !repairBusy());
         OpenDriverUpdatesCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate-optionalupdates"), _ => !repairBusy());
-        OpenUninstallerCommand = new RelayCommand(_ => OpenSettings("ms-settings:appsfeatures"), _ => !repairBusy());
+        OpenUninstallerCommand = new RelayCommand(_ => { UninstallerExpanded = true; }, _ => !repairBusy());
+        WindowsUninstallCommand = new RelayCommand(_ => OpenSettings("ms-settings:appsfeatures"), _ => !repairBusy());
         RefreshCommand = new RelayCommand(async _ => await LoadAsync(), _ => !loading && !repairBusy());
         CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(), _ => !checkingUpdates && !repairBusy());
         UpdateCommand = new RelayCommand(async _ => await UpdateAsync(), _ => technicianMode && selectedUpdate is not null && !checkingUpdates && !repairBusy());
@@ -46,10 +50,11 @@ public sealed class SoftwareViewModel : Observable
     public RelayCommand OpenWindowsUpdateCommand { get; }
     public RelayCommand OpenDriverUpdatesCommand { get; }
     public RelayCommand OpenUninstallerCommand { get; }
+    public RelayCommand WindowsUninstallCommand { get; }
     public string TextWindowsUpdate => T("Windows Update");
     public string TextDriverUpdates => T("Driver updates");
     public string TextUninstaller => T("Uninstaller");
-    public string TextWindowsTools => T("Open Windows Settings to review Windows updates, optional driver updates or uninstall a program. Choose and confirm changes in Windows; then refresh or scan again. These actions are separate from Fix it all.");
+    public string TextWindowsTools => T("Windows and driver updates open Windows Settings. Uninstaller opens the removal tools below. These actions are separate from Fix it all.");
 
     private void OpenSettings(string uri)
     {
@@ -120,12 +125,14 @@ public sealed class SoftwareViewModel : Observable
     public void RefreshLanguage()
     {
         ApplyFilter();
+        RefreshUninstallLanguage();
         RefreshAll();
     }
 
     private async Task CheckUpdatesAsync()
     {
         checkingUpdates = true;
+        RefreshAll();
         Updates.Clear();
         SelectedUpdate = null;
         SetUpdateStatus(T("Checking program updates…"));
@@ -151,6 +158,7 @@ public sealed class SoftwareViewModel : Observable
         finally
         {
             checkingUpdates = false;
+            RefreshAll();
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -172,7 +180,7 @@ public sealed class SoftwareViewModel : Observable
             return;
         }
 
-        setRepairBusy(true);
+        SetSoftwareBusy(true);
         SetUpdateStatus(T("Updating the selected program. Follow any installer prompts."));
         var job = new RepairJob
         {
@@ -196,7 +204,7 @@ public sealed class SoftwareViewModel : Observable
         }
         finally
         {
-            setRepairBusy(false);
+            SetSoftwareBusy(false);
         }
 
         RepairAudit.Append(result);
@@ -227,6 +235,7 @@ public sealed class SoftwareViewModel : Observable
             unreadable = result.UnreadableEntries;
             loaded = true;
             ApplyFilter();
+            LoadUninstallSessions();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -243,6 +252,7 @@ public sealed class SoftwareViewModel : Observable
     private void ApplyFilter()
     {
         Items.Clear();
+        SelectedProgram = null;
         var query = search.Trim();
         var culture = CultureInfo.GetCultureInfo(catalog().Language.Code);
         foreach (var program in programs.Where(program => program.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -250,7 +260,7 @@ public sealed class SoftwareViewModel : Observable
         {
             Items.Add(new SoftwareItem(program.Name, program.Publisher, program.Version,
                 program.SizeBytes is long bytes ? (bytes / 1048576d).ToString("N1", culture) + " MB" : "—",
-                program.InstalledOn?.ToString("d", culture) ?? "—"));
+                program.InstalledOn?.ToString("d", culture) ?? "—", program));
         }
 
         OnPropertyChanged(nameof(Status));
@@ -259,4 +269,4 @@ public sealed class SoftwareViewModel : Observable
     private string T(string text) => catalog().Translate(text);
 }
 
-public sealed record SoftwareItem(string Name, string Publisher, string Version, string Size, string Date);
+public sealed record SoftwareItem(string Name, string Publisher, string Version, string Size, string Date, InstalledProgram Program);
