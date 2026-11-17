@@ -18,7 +18,7 @@ public sealed class RepairTests
     public void FullDriveOffersTheThreeCleanups()
     {
         var ids = RepairCatalogue.For(Space(3 * Gb)).Select(o => o.Id).ToList();
-        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanComponentStore], ids);
+        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
     }
 
     [Fact]
@@ -37,9 +37,47 @@ public sealed class RepairTests
     public void ReportListsCatalogueOperationsAndTheyValidate()
     {
         var finding = ScanRunner.WithRepairs(Space(3 * Gb));
-        Assert.Equal(3, finding.Recommendation!.Operations.Count);
+        Assert.Equal(4, finding.Recommendation!.Operations.Count);
         Assert.Empty(FindingValidator.Validate(finding));
         Assert.NotEmpty(FindingValidator.Validate(finding with { Recommendation = finding.Recommendation with { Operations = ["FORMAT.C.DRIVE"] } }));
+    }
+
+    private static Finding Network(LayerResult ip, LayerResult gateway, LayerResult dns, LayerResult internet, bool portal = false) => Ctx.Single(
+        new NetworkCheck(new Fixed<NetworkSnapshot>(null!)).Evaluate(new(["Wi-Fi"], LayerResult.Passed, ip, gateway, dns, internet, portal, false), Ctx.User),
+        "NETWORK-CONNECT-001");
+
+    [Fact]
+    public void NetworkRepairsFollowTheFailingLayer()
+    {
+        var pass = LayerResult.Passed;
+        var fail = LayerResult.Failed;
+        var skip = LayerResult.NotTested;
+        Assert.Equal([RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
+        Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, fail, portal: true)));
+        Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, pass)));
+    }
+
+    [Fact]
+    public void OutdatedDefenderOffersAnUpdateButDisabledDefenderDoesNot()
+    {
+        Finding Av(DefenderStatus status) => Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([], [new("Domain", true), new("Private", true), new("Public", true)], status), Ctx.User), "SECURITY-AV-001");
+        Assert.Equal([RepairCatalogue.UpdateDefender], RepairCatalogue.For(Av(new DefenderStatus(true, true, 20))).Select(o => o.Id));
+        Assert.Empty(RepairCatalogue.For(Av(new DefenderStatus(true, false, 1))));
+    }
+
+    [Fact]
+    public void UpdateRepairsAreVerifiedLater()
+    {
+        var findings = new UpdateCheck(new Fixed<UpdateSnapshot>(null!)).Evaluate(new(true, ["Component Based Servicing"], DateOnly.FromDateTime(Ctx.Now.UtcDateTime.AddDays(-120)), "KB1"), Ctx.User);
+        var restart = Assert.Single(RepairCatalogue.For(Ctx.Single(findings, "UPDATE-RESTART-001")));
+        var reset = Assert.Single(RepairCatalogue.For(Ctx.Single(findings, "UPDATE-RECENT-001")));
+        Assert.Equal(RepairCatalogue.RestartNow, restart.Id);
+        Assert.True(restart.VerifyLater && restart.RestartRequired && !restart.NeedsRestorePoint);
+        Assert.Equal(RepairCatalogue.ResetUpdateComponents, reset.Id);
+        Assert.True(reset.VerifyLater && reset.NeedsRestorePoint && reset.RequiresAdmin);
     }
 
     [Fact]

@@ -450,6 +450,7 @@ public sealed class MainViewModel : Observable
         {
             RepairVerdict.Fixed => T("Fixed"),
             RepairVerdict.Unresolved => T("Repair done, but the problem is still there"),
+            RepairVerdict.Pending => T("Done. Windows confirms the result after a restart or within a few hours."),
             _ => T("Result unclear"),
         };
         if (!result.Completed)
@@ -464,7 +465,7 @@ public sealed class MainViewModel : Observable
             : verdict;
     }
 
-    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict == RepairVerdict.Fixed
+    private SolidColorBrush OutcomeColour(string findingId) => outcomes.TryGetValue(findingId, out var r) && r.Completed && r.Verdict is RepairVerdict.Fixed or RepairVerdict.Pending
         ? Palette.For(Severity.Healthy)
         : Palette.For(Severity.Warning);
 

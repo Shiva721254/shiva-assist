@@ -39,6 +39,12 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             RepairCatalogue.CleanComponentStore => await CleanComponentStoreAsync(job, cancellationToken),
             RepairCatalogue.DisableStartupPrograms => DisableStartupPrograms(job),
             RepairCatalogue.RepairSystemFiles => await RepairSystemFilesAsync(job, cancellationToken),
+            RepairCatalogue.CleanUpdateCache => await CleanUpdateCacheAsync(job, cancellationToken),
+            RepairCatalogue.FlushDns => await RunToolAsync(job, ToolRunner.System32("ipconfig.exe"), ["/flushdns"], "DNS cache cleared", cancellationToken),
+            RepairCatalogue.RenewAddress => await RenewAddressAsync(job, cancellationToken),
+            RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
+            RepairCatalogue.RestartNow => await RunToolAsync(job, ToolRunner.System32("shutdown.exe"), ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken),
+            RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
@@ -106,6 +112,98 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             OperationId = job.OperationId,
             Completed = dismOk,
             Detail = string.Create(CultureInfo.InvariantCulture, $"DISM RestoreHealth: {(dismOk ? "completed" : $"exit code {dismExit}")}; SFC: {sfc}"),
+        };
+    }
+
+    /// <summary>Runs one Microsoft tool; exit code 0 means done.</summary>
+    private static async Task<RepairResult> RunToolAsync(RepairJob job, string executable, string[] arguments, string done, CancellationToken cancellationToken)
+    {
+        var (exit, output, error) = await ToolRunner.RunAsync(executable, arguments, cancellationToken);
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = exit == 0,
+            Detail = exit == 0 ? done : string.Create(CultureInfo.InvariantCulture, $"{Path.GetFileName(executable)} ended with exit code {exit}: {Shorten(error.Length > 0 ? error : output)}"),
+        };
+    }
+
+    private static string DefenderCommandLine() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Windows Defender", "MpCmdRun.exe");
+
+    private static string Shorten(string text)
+    {
+        var line = text.Trim().ReplaceLineEndings(" ");
+        return line.Length > 200 ? line[..200] + "…" : line;
+    }
+
+    /// <summary>ipconfig /release then /renew: the router hands out a fresh address.</summary>
+    private static async Task<RepairResult> RenewAddressAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var ipconfig = ToolRunner.System32("ipconfig.exe");
+        await ToolRunner.RunAsync(ipconfig, ["/release"], cancellationToken);
+        return await RunToolAsync(job, ipconfig, ["/renew"], "New network address received", cancellationToken);
+    }
+
+    /// <summary>
+    /// Update download cache, Delivery Optimization cache and crash dumps. Update services that were running are
+    /// stopped while their folder is emptied and started again afterwards.
+    /// </summary>
+    private static async Task<RepairResult> CleanUpdateCacheAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        await PowerShell.QueryAsync("""
+            $running = @(Get-Service wuauserv, bits -ErrorAction SilentlyContinue | Where-Object Status -eq 'Running')
+            try {
+                $running | Stop-Service -Force -ErrorAction SilentlyContinue
+                Get-ChildItem "$env:SystemRoot\SoftwareDistribution\Download" -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            } finally {
+                $running | Start-Service -ErrorAction SilentlyContinue
+            }
+            try { Delete-DeliveryOptimizationCache -Force -ErrorAction Stop } catch { }
+            $dumps = @(Get-ChildItem "$env:SystemRoot\Minidump", "$env:SystemRoot\LiveKernelReports" -Filter *.dmp -Recurse -Force -ErrorAction SilentlyContinue)
+            $dumps += @(Get-Item "$env:SystemRoot\MEMORY.DMP" -Force -ErrorAction SilentlyContinue)
+            $dumps | Remove-Item -Force -ErrorAction SilentlyContinue
+            [pscustomobject]@{ ok = $true } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = true, Detail = "Update download cache, Delivery Optimization cache and crash dumps removed" };
+    }
+
+    /// <summary>
+    /// The classic Windows Update reset: stop the services, rename SoftwareDistribution and catroot2 (kept for
+    /// rollback), start the services and ask Windows to scan again.
+    /// </summary>
+    private static async Task<RepairResult> ResetUpdateComponentsAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $services = 'wuauserv', 'bits', 'cryptsvc'
+            $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+            $renamed = @()
+            try {
+                foreach ($folder in "$env:SystemRoot\SoftwareDistribution", "$env:SystemRoot\System32\catroot2") {
+                    if (-not (Test-Path $folder)) { continue }
+                    $target = "$(Split-Path $folder -Leaf).shiva-$stamp"
+                    # The services restart themselves on demand, so stop them again right before each rename.
+                    for ($try = 1; $try -le 3; $try++) {
+                        Stop-Service $services -Force -ErrorAction SilentlyContinue
+                        try { Rename-Item $folder $target -ErrorAction Stop; $renamed += "$folder -> $target"; break }
+                        catch { if ($try -eq 3) { throw } ; Start-Sleep -Seconds 2 }
+                    }
+                }
+            } finally {
+                Start-Service $services -ErrorAction SilentlyContinue
+            }
+            $uso = "$env:SystemRoot\System32\UsoClient.exe"
+            if (Test-Path $uso) { & $uso StartScan | Out-Null }
+            [pscustomobject]@{ renamed = $renamed } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var renamed = PowerShell.Items(json, "renamed").Select(e => e.GetString() ?? string.Empty).Where(r => r.Length > 0).ToList();
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = renamed.Count > 0,
+            Detail = renamed.Count > 0 ? "Windows Update reset; it now rebuilds its folders and checks for updates" : "No Windows Update folder could be set aside",
+            Rollback = renamed,
         };
     }
 

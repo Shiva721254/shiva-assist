@@ -44,8 +44,17 @@ public sealed class RepairRunner(bool isElevated)
             result = new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = ex.Message };
         }
 
-        var after = result.Completed ? await RecheckAsync(before, cancellationToken) : null;
-        result = result with { Verdict = RepairVerification.Judge(before, after, result) };
+        Finding? after = null;
+        if (result.Completed && operation.VerifyLater)
+        {
+            result = result with { Verdict = RepairVerdict.Pending };
+        }
+        else
+        {
+            after = result.Completed ? await RecheckAsync(before, cancellationToken) : null;
+            result = result with { Verdict = RepairVerification.Judge(before, after, result) };
+        }
+
         RepairAudit.Append(result);
         return (result, after);
     }

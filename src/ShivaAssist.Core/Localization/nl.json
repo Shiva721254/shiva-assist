@@ -233,6 +233,19 @@
     "Connect the charger first: this repair must not run on battery.": "Sluit eerst de lader aan: deze reparatie mag niet op de accu draaien.",
     "What the check-up covers": "Wat er wordt gecontroleerd",
     "Select all": "Alles selecteren",
-    "Select at least one area to check.": "Kies ten minste één onderdeel om te controleren."
+    "Select at least one area to check.": "Kies ten minste één onderdeel om te controleren.",
+    "Done. Windows confirms the result after a restart or within a few hours.": "Klaar. Windows bevestigt het resultaat na een herstart of binnen enkele uren.",
+    "Remove downloaded update files and crash reports": "Gedownloade updatebestanden en crashrapporten verwijderen",
+    "Deletes update files Windows already installed (the download cache and Delivery Optimization cache) and old crash dump files. Windows downloads again whatever it still needs.": "Verwijdert updatebestanden die Windows al heeft geïnstalleerd (de downloadcache en de cache voor Delivery Optimization) en oude crashdumpbestanden. Wat Windows nog nodig heeft, wordt opnieuw gedownload.",
+    "Reset the DNS cache": "DNS-cache leegmaken",
+    "Clears the list of website addresses Windows remembers, so they are looked up again (ipconfig /flushdns). Safe at any time.": "Wist de lijst met websiteadressen die Windows onthoudt, zodat ze opnieuw worden opgezocht (ipconfig /flushdns). Altijd veilig.",
+    "Request a new network address": "Nieuw netwerkadres aanvragen",
+    "Releases the current network address and asks the router for a new one (ipconfig /release and /renew). The connection drops for a few seconds.": "Geeft het huidige netwerkadres vrij en vraagt de router om een nieuw adres (ipconfig /release en /renew). De verbinding valt een paar seconden weg.",
+    "Update Microsoft Defender": "Microsoft Defender bijwerken",
+    "Downloads the latest virus definitions for Microsoft Defender from Microsoft.": "Downloadt de nieuwste virusdefinities voor Microsoft Defender van Microsoft.",
+    "Restart the PC to finish updates": "Pc opnieuw opstarten om updates af te ronden",
+    "Restarts the PC in 2 minutes so Windows can finish installing updates. Save your work and close your programs first.": "Start de pc over 2 minuten opnieuw op, zodat Windows de updates kan afronden. Sla eerst uw werk op en sluit uw programma's.",
+    "Reset Windows Update": "Windows Update herstellen",
+    "Stops the update services, sets aside the Windows Update download folder and its signature store (they are renamed, not deleted), and starts the services again. Windows then rebuilds them and checks for updates. A restore point is made first.": "Stopt de updateservices, zet de downloadmap van Windows Update en de handtekeningopslag opzij (ze worden hernoemd, niet verwijderd) en start de services weer. Windows bouwt ze daarna opnieuw op en zoekt naar updates. Eerst wordt een herstelpunt gemaakt."
   }
 }

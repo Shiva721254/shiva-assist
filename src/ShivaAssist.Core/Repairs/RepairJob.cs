@@ -33,6 +33,9 @@ public enum RepairVerdict
     Fixed,
     Unresolved,
     Inconclusive,
+
+    /// <summary>Done; the result is confirmed after a restart or once Windows has finished in the background.</summary>
+    Pending,
 }
 
 /// <summary>What the executor did; the verdict is added after the check runs again.</summary>

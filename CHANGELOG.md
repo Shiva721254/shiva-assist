@@ -7,6 +7,9 @@
 - A repair that does not complete shows the reason on the finding card.
 - Technician mode no longer calls the app read-only.
 - New warm look: matte green on cream, a large round check-up button, and a choice of which areas to check.
+- Stage 3b repairs: reset the DNS cache, request a new network address, update Microsoft Defender, restart to
+  finish updates, reset Windows Update (Medium, restore point), remove the update download cache and crash dumps.
+  Repairs whose effect shows only later end with the verdict "pending".
 - Test VM fault injection: `tools/test-vm/Inject-Faults.ps1`.
 
 ## 0.1.0 (2026-11-16): Stage 1, diagnostic foundation

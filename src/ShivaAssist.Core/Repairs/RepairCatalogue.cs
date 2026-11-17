@@ -39,10 +39,16 @@ public sealed record RepairOperation
     /// <summary>Asks the user to pick items first (e.g. which startup programs to switch off).</summary>
     public bool NeedsSelection { get; init; }
 
+    /// <summary>
+    /// The result can only be confirmed later (after a restart or once Windows has worked in the background), so the
+    /// check is not repeated straight away and the verdict is <see cref="RepairVerdict.Pending"/>.
+    /// </summary>
+    public bool VerifyLater { get; init; }
+
     public bool NeedsRestorePoint => Risk >= RiskClass.Medium;
 }
 
-/// <summary>The signed repair catalogue of stage 3a. IDs follow the contract: <c>AREA.TOPIC.ACTION</c>.</summary>
+/// <summary>The signed repair catalogue (stages 3a and 3b). IDs follow the contract: <c>AREA.TOPIC.ACTION</c>.</summary>
 public static class RepairCatalogue
 {
     public const string EmptyRecycleBin = "DISK.RECYCLEBIN.EMPTY";
@@ -50,6 +56,12 @@ public static class RepairCatalogue
     public const string CleanComponentStore = "DISK.COMPONENTS.CLEANUP";
     public const string DisableStartupPrograms = "STARTUP.PROGRAMS.DISABLE";
     public const string RepairSystemFiles = "WIN.SYSTEMFILES.REPAIR";
+    public const string CleanUpdateCache = "DISK.UPDATECACHE.CLEAN";
+    public const string FlushDns = "NET.DNS.FLUSH";
+    public const string RenewAddress = "NET.ADDRESS.RENEW";
+    public const string UpdateDefender = "SECURITY.DEFENDER.UPDATE";
+    public const string RestartNow = "UPDATE.RESTART.NOW";
+    public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -101,6 +113,67 @@ public static class RepairCatalogue
             Minutes = (15, 45),
             VerifiesFinding = "WIN-INTEGRITY-001",
         },
+        new()
+        {
+            Id = CleanUpdateCache,
+            Name = "Remove downloaded update files and crash reports",
+            Description = "Deletes update files Windows already installed (the download cache and Delivery Optimization cache) and old crash dump files. Windows downloads again whatever it still needs.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = FlushDns,
+            Name = "Reset the DNS cache",
+            Description = "Clears the list of website addresses Windows remembers, so they are looked up again (ipconfig /flushdns). Safe at any time.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
+        new()
+        {
+            Id = RenewAddress,
+            Name = "Request a new network address",
+            Description = "Releases the current network address and asks the router for a new one (ipconfig /release and /renew). The connection drops for a few seconds.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 2),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
+        new()
+        {
+            Id = UpdateDefender,
+            Name = "Update Microsoft Defender",
+            Description = "Downloads the latest virus definitions for Microsoft Defender from Microsoft.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SECURITY-AV-001",
+        },
+        new()
+        {
+            Id = RestartNow,
+            Name = "Restart the PC to finish updates",
+            Description = "Restarts the PC in 2 minutes so Windows can finish installing updates. Save your work and close your programs first.",
+            Risk = RiskClass.Low,
+            RestartRequired = true,
+            VerifyLater = true,
+            Minutes = (2, 15),
+            VerifiesFinding = "UPDATE-RESTART-001",
+        },
+        new()
+        {
+            Id = ResetUpdateComponents,
+            Name = "Reset Windows Update",
+            Description = "Stops the update services, sets aside the Windows Update download folder and its signature store (they are renamed, not deleted), and starts the services again. Windows then rebuilds them and checks for updates. A restore point is made first.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            VerifyLater = true,
+            Minutes = (5, 15),
+            VerifiesFinding = "UPDATE-RECENT-001",
+        },
     ];
 
     public static RepairOperation? Find(string id) => All.FirstOrDefault(o => o.Id == id);
@@ -118,10 +191,39 @@ public static class RepairCatalogue
 
         return finding.Id switch
         {
-            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanComponentStore)!],
+            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
+            "NETWORK-CONNECT-001" => NetworkRepairs(finding),
+            "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
+            "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
+            "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };
     }
+
+    /// <summary>Network repairs follow the failing layer (see NetworkCheck): no address → renew; DNS → flush.</summary>
+    private static List<RepairOperation> NetworkRepairs(Finding finding)
+    {
+        if (finding.Severity == Severity.Information || Observed(finding, "adapter failed"))
+        {
+            return []; // Captive portal, or no network at all: nothing to repair on the PC.
+        }
+
+        var operations = new List<RepairOperation>();
+        if (Observed(finding, "IP address failed") || Observed(finding, "gateway failed"))
+        {
+            operations.Add(Find(RenewAddress)!);
+        }
+
+        if (Observed(finding, "DNS failed"))
+        {
+            operations.Add(Find(FlushDns)!);
+        }
+
+        return operations;
+    }
+
+    private static bool Observed(Finding finding, string text) =>
+        finding.Evidence.Any(e => e.Observation.Contains(text, StringComparison.Ordinal));
 }
