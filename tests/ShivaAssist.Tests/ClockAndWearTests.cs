@@ -65,3 +65,23 @@ public sealed class ClockAndWearTests
         Assert.Equal(UnknownReason.Unsupported, notReported.UnknownReason);
     }
 }
+
+public sealed class CleanupAreaTests
+{
+    [Fact]
+    public void EveryCleanupAreaIsALowRiskCatalogueRepairWithoutSelection()
+    {
+        Assert.Equal(4, ShivaAssist.Core.Cleanup.CleanupAreas.All.Count);
+        Assert.All(ShivaAssist.Core.Cleanup.CleanupAreas.All, area =>
+        {
+            var operation = RepairCatalogue.Find(area.OperationId);
+            Assert.NotNull(operation);
+            Assert.Equal(RiskClass.Low, operation!.Risk);
+            Assert.False(operation.NeedsSelection || operation.RestartRequired || operation.IsUndo);
+        });
+    }
+
+    [Fact]
+    public void TotalIgnoresAreasThatCouldNotBeMeasured() => Assert.Equal(300, ShivaAssist.Core.Cleanup.CleanupAreas.Total(
+        [new("a", 100, 1), new("b", null, 0), new("c", 200, 3)]));
+}

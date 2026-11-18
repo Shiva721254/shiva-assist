@@ -18,7 +18,7 @@ public sealed class RepairTests
     public void FullDriveOffersTheThreeCleanups()
     {
         var ids = RepairCatalogue.For(Space(3 * Gb)).Select(o => o.Id).ToList();
-        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
+        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanBrowserCache, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class RepairTests
     public void ReportListsCatalogueOperationsAndTheyValidate()
     {
         var finding = ScanRunner.WithRepairs(Space(3 * Gb));
-        Assert.Equal(4, finding.Recommendation!.Operations.Count);
+        Assert.Equal(5, finding.Recommendation!.Operations.Count);
         Assert.Empty(FindingValidator.Validate(finding));
         Assert.NotEmpty(FindingValidator.Validate(finding with { Recommendation = finding.Recommendation with { Operations = ["FORMAT.C.DRIVE"] } }));
     }

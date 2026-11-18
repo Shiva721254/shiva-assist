@@ -59,6 +59,9 @@ public sealed partial class MainViewModel : Observable
         Startup = new StartupViewModel(() => catalog, technicianMode,
             () => repairing || reviewingRepairs || State == ScreenState.Scanning,
             value => { repairing = value; RefreshAll(); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); });
+        Cleanup = new CleanupViewModel(() => catalog, technicianMode,
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning,
+            value => { repairing = value; OnPropertyChanged(nameof(IsBusy)); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); });
         PropertyChanged += (_, _) => Software.RefreshBusyState();
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
@@ -143,6 +146,7 @@ public sealed partial class MainViewModel : Observable
             RefreshAll();
             Software.RefreshLanguage();
             Startup.RefreshLanguage();
+            Cleanup.RefreshLanguage();
             RebuildSections();
             ApplyFilter();
         }
@@ -590,9 +594,17 @@ public sealed partial class MainViewModel : Observable
             LoadHistory();
         }
 
+        if (IsModulePage && TechnicianMode)
+        {
+            _ = Cleanup.EnsureLoadedAsync(); // measures in the background; the page shows "Measuring…" meanwhile
+        }
+
         ApplyFilter();
         RefreshAll();
     }
+
+    /// <summary>Cleanup with preview on the Optimize page.</summary>
+    public CleanupViewModel Cleanup { get; }
 
     /// <summary>Overview: problems (and, on request, what is OK). Module page: everything the module found.</summary>
     private void ApplyFilter()

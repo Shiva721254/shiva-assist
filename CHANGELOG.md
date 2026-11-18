@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 0.1.7: Free up space with a preview (roadmap step 3). The Optimize page measures, read-only, what each area
+  would free (old temporary files, browser cache, Recycle Bin, Windows Update downloads and crash dumps), shows
+  the size per area with a checkbox, and cleans only the ticked areas with one large button, then measures again.
+  New catalogue repair DISK.BROWSERCACHE.CLEAN: only the cache folders of Edge, Chrome and Firefox (passwords,
+  cookies, history and bookmarks are never touched); also part of the disk-space repairs in Fix it all.
 - 0.1.6: honest Fix it all, clock and disk wear.
   - Fix it all no longer offers the same repairs again after they ran on a finding (until the next scan). When
     nothing safe is left, the card says so ("{n} problems remain · Nothing more to fix automatically") and points

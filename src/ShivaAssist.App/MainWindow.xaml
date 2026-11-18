@@ -510,14 +510,63 @@
           <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,16,0" />
         </StackPanel>
       </DockPanel>
-      <Border DockPanel.Dock="Top" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
+      <!-- Free up space: measured preview per area, tick what to clean, one big button -->
+      <Border DockPanel.Dock="Top" DataContext="{Binding Cleanup}" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
               Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
-              CornerRadius="12" Padding="16" Margin="0,0,0,12">
+              CornerRadius="16" Padding="20,16" Margin="0,0,0,14">
         <StackPanel>
-          <Button Content="{Binding TextCleanTemporaryFiles}" Command="{Binding CleanTemporaryFilesCommand}"
-                  Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" />
-          <TextBlock Text="{Binding TextTemporaryCleanupScope}" TextWrapping="Wrap" Margin="0,8,0,0" />
-          <TextBlock Text="{Binding TemporaryCleanupStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="{Binding TextMeasure}" Command="{Binding MeasureCommand}" VerticalAlignment="Top" />
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="{Binding TextTitle}" FontSize="21" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level2" />
+              <TextBlock Text="{Binding TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+            </StackPanel>
+          </DockPanel>
+          <ItemsControl ItemsSource="{Binding Items}" Margin="0,12,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,10">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Style="{StaticResource AreaCheck}" IsChecked="{Binding IsChecked}" IsEnabled="{Binding CanClean}"
+                              VerticalAlignment="Center" AutomationProperties.Name="{Binding Name}" />
+                    <Grid Grid.Column="1" Width="38" Height="38" Margin="4,0,12,0" VerticalAlignment="Center">
+                      <Ellipse Fill="{StaticResource GreenSoft}" />
+                      <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17"
+                                 Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="3" Text="{Binding Size}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                               VerticalAlignment="Center" Margin="16,0,0,0" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <DockPanel Margin="0,14,0,0">
+            <Button DockPanel.Dock="Right" Style="{StaticResource HeroButton}" Command="{Binding CleanCommand}" MinWidth="260" MinHeight="60"
+                    AutomationProperties.Name="{Binding TextClean}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Text="{Binding TextClean}" FontSize="17" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="{Binding TextTotal}" FontSize="15" FontWeight="SemiBold" />
+              <ProgressBar IsIndeterminate="True" Height="5" Width="140" HorizontalAlignment="Left" Margin="0,6,0,0"
+                           Foreground="{StaticResource Green}" Background="{StaticResource GreenSoft}" BorderThickness="0"
+                           Visibility="{Binding Working, Converter={StaticResource Visible}}" />
+              <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,12,0" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+          </DockPanel>
         </StackPanel>
       </Border>
       <Border DockPanel.Dock="Top" Visibility="{Binding ModuleNeedsScan, Converter={StaticResource Visible}}"

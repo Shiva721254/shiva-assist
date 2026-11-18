@@ -52,6 +52,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.RestoreSoftwareLeftovers => UninstallerService.Restore(job),
             RepairCatalogue.ResetPrintSpooler => await ResetPrintSpoolerAsync(job, cancellationToken),
             RepairCatalogue.SyncClock => await SyncClockAsync(job, cancellationToken),
+            RepairCatalogue.CleanBrowserCache => CleanBrowserCache(job),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
@@ -300,6 +301,44 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
     }
 
     /// <summary>Deletes files older than 7 days in the user's temp folder. Never follows links, skips locked files.</summary>
+    /// <summary>
+    /// Deletes files inside the fixed browser cache folders only (see <see cref="BrowserCaches"/>). Files in use
+    /// (an open browser) are skipped; folders themselves stay so the browser keeps working.
+    /// </summary>
+    private static RepairResult CleanBrowserCache(RepairJob job)
+    {
+        int deleted = 0, skipped = 0;
+        long bytes = 0;
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System };
+        var folders = BrowserCaches.Folders();
+        foreach (var folder in folders)
+        {
+            foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
+            {
+                try
+                {
+                    var length = file.Length;
+                    file.Delete();
+                    deleted++;
+                    bytes += length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    skipped++;
+                }
+            }
+        }
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = true,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"Browser cache: deleted {deleted} files in {folders.Count} cache folders; skipped {skipped} in use"),
+            BytesFreed = bytes,
+        };
+    }
+
     private static RepairResult CleanTempFiles(RepairJob job)
     {
         var folder = job.Items.Count == 1 ? job.Items[0] : throw new ArgumentException("Exactly one temp folder expected.");

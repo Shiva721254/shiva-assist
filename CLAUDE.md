@@ -29,6 +29,8 @@ The working branch also includes installed app inventory and supported uninstall
 
 - 0.1.6: Fix it all skips repairs that already ran on a finding since the last scan (`triedRepairs`) and says when nothing safe is left; "already clean" bucket for cleanups that removed nothing. New checks: clock (`ClockCheck`, `TimeSource`, repair `TIME.SYNC.REPAIR`) and disk wear (`STORAGE-WEAR-001` from `Get-StorageReliabilityCounter`, no repair by design). VM tests: `Set-Date (Get-Date).AddMinutes(-30)` then scan → Fix it all → expect Fixed; `Stop-Service Spooler` likewise.
 
+- 0.1.7: Optimize page "Free up space" (`CleanupViewModel`, `Core/Cleanup/CleanupAreas.cs`, `Windows/Repairs/CleanupMeasurement.cs`): measured preview per area, checkboxes, one big clean button; browser cache cleanup limited to fixed cache folders (`BrowserCaches`).
+
 ## Next development work
 
 Prioritize repair and maintenance functionality. Review the current checks and repair catalog, then extend a useful Windows problem that can be detected, repaired, and verified. Use automated checks where practical so minor UI changes do not require repeated manual VM reinstalls. Public distribution on ShivaComputers.nl is a later milestone and still requires code signing, hosting, and an end-to-end download test.

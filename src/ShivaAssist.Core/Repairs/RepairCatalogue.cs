@@ -72,6 +72,7 @@ public static class RepairCatalogue
     public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
     public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
     public const string SyncClock = "TIME.SYNC.REPAIR";
+    public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -257,6 +258,15 @@ public static class RepairCatalogue
             Minutes = (1, 1),
             VerifiesFinding = ClockCheck.FindingId,
         },
+        new()
+        {
+            Id = CleanBrowserCache,
+            Name = "Clear the browser cache",
+            Description = "Deletes the stored copies of web pages that Edge, Chrome and Firefox keep. Passwords, cookies, history and bookmarks are not touched. Pages may load a little slower the first time afterwards.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 3),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
     ];
 
     /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
@@ -282,7 +292,7 @@ public static class RepairCatalogue
 
         return finding.Id switch
         {
-            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
+            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanBrowserCache)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
             "NETWORK-CONNECT-001" => NetworkRepairs(finding),
             "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
