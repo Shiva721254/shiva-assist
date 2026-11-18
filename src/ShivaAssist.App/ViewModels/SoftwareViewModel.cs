@@ -41,7 +41,8 @@ public sealed partial class SoftwareViewModel : Observable
         UninstallCommand = new RelayCommand(async _ => await UninstallAsync(), _ => technicianMode && selectedProgram is not null && CanManagePrograms);
         ScanLeftoversCommand = new RelayCommand(async _ => await ScanLeftoversAsync(), _ => technicianMode && selectedSession is not null && CanManagePrograms);
         CleanLeftoversCommand = new RelayCommand(async _ => await CleanLeftoversAsync(), _ => technicianMode && Leftovers.Any(item => item.Selected) && CanManagePrograms);
-        OpenWindowsUpdateCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate"), _ => !repairBusy());
+        InstallWindowsUpdatesCommand = new RelayCommand(async _ => await InstallUpdatesAsync(includePrograms: false), _ => CanInstallUpdates);
+        InstallWindowsAndAppsCommand = new RelayCommand(async _ => await InstallUpdatesAsync(includePrograms: true), _ => CanInstallUpdates);
         OpenDriverUpdatesCommand = new RelayCommand(_ => OpenSettings("ms-settings:windowsupdate-optionalupdates"), _ => !repairBusy());
         OpenUninstallerCommand = new RelayCommand(_ => { ActivePanel = "uninstaller"; UninstallerExpanded = true; }, _ => !repairBusy());
         WindowsUninstallCommand = new RelayCommand(_ => OpenSettings("ms-settings:appsfeatures"), _ => !repairBusy());
@@ -50,14 +51,19 @@ public sealed partial class SoftwareViewModel : Observable
         UpdateCommand = new RelayCommand(async _ => await UpdateAsync(), _ => technicianMode && selectedUpdate is not null && !checkingUpdates && !repairBusy());
     }
 
-    public RelayCommand OpenWindowsUpdateCommand { get; }
+    public RelayCommand InstallWindowsUpdatesCommand { get; }
+    public RelayCommand InstallWindowsAndAppsCommand { get; }
+    private bool CanInstallUpdates => technicianMode && !checkingUpdates && !repairBusy();
+    public string TextInstallWindows => T("Update Windows");
+    public string TextInstallWindowsAndApps => T("Update Windows and apps");
+    public string? InstallStatus { get; private set; }
     public RelayCommand OpenDriverUpdatesCommand { get; }
     public RelayCommand OpenUninstallerCommand { get; }
     public RelayCommand WindowsUninstallCommand { get; }
     public string TextWindowsUpdate => T("Windows Update");
     public string TextDriverUpdates => T("Driver updates");
     public string TextUninstaller => T("Uninstaller");
-    public string TextWindowsTools => T("Review updates in Windows Settings. For drivers not offered there, use your PC or device manufacturer's official support tools. Return here afterwards and run a new PC scan to refresh its findings.");
+    public string TextWindowsTools => T("Install recommended Windows updates here. For optional drivers, use Windows Settings or your PC manufacturer's official support tools.");
 
     private void OpenSettings(string uri)
     {
@@ -185,6 +191,25 @@ public sealed partial class SoftwareViewModel : Observable
 
         SetSoftwareBusy(true);
         SetUpdateStatus(T("Updating the selected program. Follow any installer prompts."));
+        try
+        {
+            var verified = await InstallProgramAsync(selected);
+            Updates.Remove(selected);
+            SelectedUpdate = null;
+            SetUpdateStatus(verified
+                ? T("The program was updated and its installed version was verified.")
+                : T("The update could not be verified. Check the program and refresh the update list before trying again."));
+        }
+        finally
+        {
+            SetSoftwareBusy(false);
+        }
+        await LoadAsync();
+    }
+
+    private static async Task<bool> InstallProgramAsync(PackageUpdate selected)
+    {
+        var operation = RepairCatalogue.Find(RepairCatalogue.UpdateSoftware)!;
         var job = new RepairJob
         {
             JobId = Guid.NewGuid().ToString("N"), OperationId = operation.Id, ApprovedAt = DateTimeOffset.UtcNow,
@@ -205,19 +230,88 @@ public sealed partial class SoftwareViewModel : Observable
                 Verdict = RepairVerdict.Inconclusive, Detail = ex.GetType().Name,
             };
         }
-        finally
+        RepairAudit.Append(result);
+        return result.Verdict == RepairVerdict.Fixed;
+    }
+
+    private async Task InstallUpdatesAsync(bool includePrograms)
+    {
+        if (!CanInstallUpdates)
         {
-            SetSoftwareBusy(false);
+            return;
         }
 
-        RepairAudit.Append(result);
-        Updates.Remove(selected);
-        SelectedUpdate = null;
-        SetUpdateStatus(result.Verdict == RepairVerdict.Fixed
-            ? T("The program was updated and its installed version was verified.")
-            : T("The update could not be verified. Check the program and refresh the update list before trying again."));
-        await LoadAsync();
-        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        var question = includePrograms
+            ? T("Install recommended Windows updates and supported app updates? Save your work and close your apps first. Some app installers may ask for your input.")
+            : T("Install recommended Windows updates? Save your work first. Shiva Assist will tell you if a restart is needed.");
+        if (MessageBox.Show(Application.Current.MainWindow, question, includePrograms ? TextInstallWindowsAndApps : TextInstallWindows,
+            MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        SetSoftwareBusy(true);
+        var summary = new List<string>();
+        try
+        {
+            ShowInstallStatus(T("Checking and installing Windows updates…"));
+            try
+            {
+                var outcome = await WindowsUpdateInstaller.RunAsync();
+                summary.Add(new Message("Windows updates: {installed} installed, {failed} failed, {skipped} skipped.",
+                    ("installed", outcome.Installed), ("failed", outcome.Failed), ("skipped", outcome.Skipped)).Render(catalog()));
+                if (outcome.RestartRequired)
+                {
+                    summary.Add(T("Restart Windows to finish updating."));
+                }
+            }
+            catch (Exception ex) when (IsUpdateError(ex))
+            {
+                summary.Add(T("Windows Update did not report a completed result. Try again later."));
+            }
+
+            if (includePrograms)
+            {
+                ShowInstallStatus(T("Checking supported app updates…"));
+                try
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+                    var available = await PackageUpdateSource.ReadAsync(timeout.Token);
+                    int verified = 0;
+                    foreach (var update in available)
+                    {
+                        ShowInstallStatus(new Message("Updating {name}…", ("name", update.Name)).Render(catalog()));
+                        if (await InstallProgramAsync(update))
+                        {
+                            verified++;
+                        }
+                    }
+
+                    Updates.Clear();
+                    SelectedUpdate = null;
+                    summary.Add(new Message("App updates: {verified} verified, {unverified} could not be verified.",
+                        ("verified", verified), ("unverified", available.Count - verified)).Render(catalog()));
+                }
+                catch (Exception ex) when (IsUpdateError(ex))
+                {
+                    summary.Add(T("App updating could not finish. Check program updates before trying again."));
+                }
+            }
+        }
+        finally
+        {
+            ShowInstallStatus(string.Join(Environment.NewLine, summary));
+            SetSoftwareBusy(false);
+        }
+    }
+
+    private static bool IsUpdateError(Exception ex) => ex is InvalidOperationException or PlatformNotSupportedException
+        or IOException or Win32Exception or UnauthorizedAccessException or OperationCanceledException or System.Text.Json.JsonException;
+
+    private void ShowInstallStatus(string message)
+    {
+        InstallStatus = message;
+        OnPropertyChanged(nameof(InstallStatus));
     }
 
     private void SetUpdateStatus(string value)
