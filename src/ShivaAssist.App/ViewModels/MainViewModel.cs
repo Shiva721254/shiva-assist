@@ -234,7 +234,7 @@ public sealed partial class MainViewModel : Observable
 
     public string TextRepairCoverage => AvailableRepairCount == 0
         ? T("No supported automatic repairs are available for these findings. Open Details for advice. Unknown checks may need administrator permission or further investigation.")
-        : T("Review the available repairs below. Each selected repair explains the changes and asks for your approval.");
+        : T("Review the available repairs and approve the ones you want to run together.");
 
     public bool IsModulePage => selectedModule.Module.Key == AppModules.RepairsKey;
 
@@ -548,14 +548,28 @@ public sealed partial class MainViewModel : Observable
         reviewingRepairs = true;
         try
         {
+            var batch = new List<(RepairButton Repair, IReadOnlyList<string> Items)>();
             foreach (var selected in picker.Selected.OrderBy(repair => repair.Operation.RestartRequired))
             {
-                // Earlier repairs can resolve a finding, so only offer operations still applicable now.
+                // Gather any required choices before the first repair changes the PC.
+                var items = await ChooseItemsAsync(selected.Operation);
+                if (items is null)
+                {
+                    Status = T("Repair batch cancelled before any repairs started.");
+                    return;
+                }
+
+                batch.Add((selected, items));
+            }
+
+            foreach (var (selected, items) in batch)
+            {
+                // Earlier repairs can resolve a finding, so recheck that each operation still applies.
                 var current = AllFindings.FirstOrDefault(item => item.Id == selected.Item.Id);
                 var repair = current?.Repairs.FirstOrDefault(button => button.Operation.Id == selected.Operation.Id);
                 if (repair is not null)
                 {
-                    await RepairAsync(repair);
+                    await RepairAsync(repair, items);
                 }
             }
         }
@@ -566,11 +580,13 @@ public sealed partial class MainViewModel : Observable
         }
     }
 
-    private async Task RepairAsync(RepairButton button)
+    private Task RepairAsync(RepairButton button) => RepairAsync(button, null);
+
+    private async Task RepairAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
         try
         {
-            await RepairCoreAsync(button);
+            await RepairCoreAsync(button, approvedItems);
         }
 #pragma warning disable CA1031 // A failed repair must end in a message, never in a crashed window.
         catch (Exception ex)
@@ -581,25 +597,28 @@ public sealed partial class MainViewModel : Observable
         }
     }
 
-    private async Task RepairCoreAsync(RepairButton button)
+    private async Task RepairCoreAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
         var operation = button.Operation;
         var before = button.Item.Finding;
-        var items = await ChooseItemsAsync(operation);
+        var items = approvedItems ?? await ChooseItemsAsync(operation);
         if (items is null)
         {
             return;
         }
 
-        var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
-        var question = string.Join(Environment.NewLine + Environment.NewLine,
-            operation.Description.Render(catalog),
-            operation.NeedsRestorePoint ? T("A restore point is made before the repair starts. If System Protection is off, it is switched on first.") : string.Empty,
-            new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
-            T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
-        if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (approvedItems is null)
         {
-            return;
+            var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
+            var question = string.Join(Environment.NewLine + Environment.NewLine,
+                operation.Description.Render(catalog),
+                operation.NeedsRestorePoint ? T("A restore point is made before the repair starts. If System Protection is off, it is switched on first.") : string.Empty,
+                new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
+                T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
+            if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            {
+                return;
+            }
         }
 
         repairing = true;

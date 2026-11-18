@@ -5,7 +5,7 @@ using ShivaAssist.Core.Localization;
 
 namespace ShivaAssist.App;
 
-/// <summary>Reviews the exact catalogue operations before the existing individual approval workflow runs.</summary>
+/// <summary>Shows the exact catalogue operations and collects approval for the selected batch.</summary>
 public sealed class RepairPicker : Window
 {
     private readonly List<(CheckBox Box, RepairButton Repair)> choices = [];
@@ -24,7 +24,7 @@ public sealed class RepairPicker : Window
         var root = new DockPanel { Margin = new Thickness(20) };
         var intro = new TextBlock
         {
-            Text = catalog.Translate("Select the repairs you want to review. Each repair asks for approval before it starts. Repairs run one at a time and their results are checked."),
+            Text = catalog.Translate("Choose the repairs to run and approve them together. Some repairs need you to choose what to change before the batch starts. Repairs run one at a time and their results are checked."),
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 16),
         };
         DockPanel.SetDock(intro, Dock.Top);
@@ -33,7 +33,7 @@ public sealed class RepairPicker : Window
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var confirm = new Button
         {
-            Content = catalog.Translate("Review selected repairs"), IsEnabled = false,
+            Content = catalog.Translate("Approve and run selected repairs"), IsEnabled = false,
             Padding = new Thickness(16, 8, 16, 8), Margin = new Thickness(0, 12, 8, 0),
         };
         confirm.Click += (_, _) => DialogResult = true;
@@ -53,6 +53,11 @@ public sealed class RepairPicker : Window
             content.Children.Add(new TextBlock { Text = repair.Label, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
             content.Children.Add(new TextBlock { Text = repair.Item.Title, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 4) });
             content.Children.Add(new TextBlock { Text = repair.Tooltip, TextWrapping = TextWrapping.Wrap });
+            if (repair.Operation.NeedsRestorePoint)
+            {
+                content.Children.Add(new TextBlock { Text = catalog.Translate("A restore point is made before the repair starts. If System Protection is off, it is switched on first."), TextWrapping = TextWrapping.Wrap });
+            }
+
             var box = new CheckBox { Content = content, Margin = new Thickness(0, 0, 12, 18) };
             box.Checked += (_, _) => confirm.IsEnabled = choices.Any(choice => choice.Box.IsChecked == true);
             box.Unchecked += (_, _) => confirm.IsEnabled = choices.Any(choice => choice.Box.IsChecked == true);
