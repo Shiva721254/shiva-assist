@@ -15,29 +15,79 @@
     <SolidColorBrush x:Key="Amber" Color="#E8890C" />
     <BooleanToVisibilityConverter x:Key="Visible" />
 
+    <SolidColorBrush x:Key="GreenPressed" Color="#17633A" />
+    <SolidColorBrush x:Key="Disabled" Color="#D9D3C5" />
+    <SolidColorBrush x:Key="DisabledText" Color="#8A8577" />
+
+    <!-- Main action: large, solid green, clear hover/pressed/disabled states (minimum 46 px high for easy clicking) -->
     <Style x:Key="PrimaryButton" TargetType="Button">
       <Setter Property="Background" Value="{StaticResource Green}" />
       <Setter Property="Foreground" Value="White" />
-      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontSize" Value="16" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Padding" Value="22,10" />
+      <Setter Property="Padding" Value="24,12" />
+      <Setter Property="MinHeight" Value="46" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Box" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+            <Border x:Name="Box" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenDark}" />
               </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenPressed}" />
+              </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Ink}" />
                 <Setter TargetName="Box" Property="BorderThickness" Value="2" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Box" Property="Opacity" Value="0.5" />
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource Disabled}" />
+                <Setter Property="Foreground" Value="{StaticResource DisabledText}" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Fix it all: the biggest button in the app, with a soft shadow so it reads as the one thing to press -->
+    <Style x:Key="HeroButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+      <Setter Property="FontSize" Value="22" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Padding" Value="32,14" />
+      <Setter Property="MinHeight" Value="76" />
+      <Setter Property="MinWidth" Value="270" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Box" Background="{TemplateBinding Background}" CornerRadius="16" Padding="{TemplateBinding Padding}">
+              <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.28" Color="#1F7A44" />
+              </Border.Effect>
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenDark}" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenPressed}" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Ink}" />
+                <Setter TargetName="Box" Property="BorderThickness" Value="2" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource Disabled}" />
+                <Setter TargetName="Box" Property="Effect" Value="{x:Null}" />
+                <Setter Property="Foreground" Value="{StaticResource DisabledText}" />
+                <Setter Property="Cursor" Value="Arrow" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -47,23 +97,33 @@
 
     <Style x:Key="QuietButton" TargetType="Button">
       <Setter Property="Background" Value="{StaticResource Surface}" />
-      <Setter Property="Foreground" Value="{StaticResource Green}" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Padding" Value="14,7" />
+      <Setter Property="Foreground" Value="{StaticResource GreenDark}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="16,9" />
+      <Setter Property="MinHeight" Value="40" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10" Padding="{TemplateBinding Padding}">
+            <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="#BFDCC9" BorderThickness="1.5" CornerRadius="12" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Box" Property="Background" Value="{StaticResource GreenSoft}" />
               </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="#C8EBD3" />
+              </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Green}" />
                 <Setter TargetName="Box" Property="BorderThickness" Value="2" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{StaticResource DisabledText}" />
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Disabled}" />
+                <Setter Property="Cursor" Value="Arrow" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>

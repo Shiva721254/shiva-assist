@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- 0.1.4: Fix it all hero. After a scan a large card shows the problem count in the severity colour, what one click
+  will do (expandable list), the biggest button in the app, live progress during the batch ("Repair 2 of 5: …")
+  and the last outcome (fixed / improved / needs attention). Buttons are larger throughout (minimum 46 px for main
+  actions, 40 px for secondary) with clear pressed and disabled states; Start the check-up uses the same hero style.
+- New check and repair: printing. A stopped Print Spooler (with printers set up) or stuck print jobs give
+  PRINT-SPOOLER-001; PRINT.SPOOLER.RESET restarts the spooler, removes only queued job files and re-enables a
+  disabled spooler, verified by repeating the check. Included in Fix it all.
+- CI WorkspaceChecks now runs a read-only scan and fails when the Fix it all hero does not render or has binding
+  errors.
 - Repairs that need a restore point switch System Protection on for the Windows drive when it is off, instead of
   stopping. The confirmation window says so.
 - A repair that does not complete shows the reason on the finding card.

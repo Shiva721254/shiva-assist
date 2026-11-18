@@ -50,6 +50,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.UninstallSoftware => await UninstallSoftwareAsync(job, cancellationToken),
             RepairCatalogue.CleanSoftwareLeftovers => UninstallerService.Clean(job),
             RepairCatalogue.RestoreSoftwareLeftovers => UninstallerService.Restore(job),
+            RepairCatalogue.ResetPrintSpooler => await ResetPrintSpoolerAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
@@ -145,6 +146,42 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
     }
 
     /// <summary>ipconfig /release then /renew: the router hands out a fresh address.</summary>
+    /// <summary>
+    /// Stops the Print Spooler, removes only queued job files (*.SPL, *.SHD, *.TMP) from the system spool folder,
+    /// sets a disabled spooler back to automatic start and starts it again. Verified by repeating the print check.
+    /// </summary>
+    private static async Task<RepairResult> ResetPrintSpoolerAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $svc = Get-Service -Name Spooler -ErrorAction Stop
+            $previous = "$($svc.StartType)"
+            if ($svc.StartType -eq 'Disabled') { Set-Service -Name Spooler -StartupType Automatic }
+            Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
+            try { (Get-Service -Name Spooler).WaitForStatus('Stopped', [TimeSpan]::FromSeconds(20)) } catch { }
+            $queue = Join-Path $env:SystemRoot 'System32\spool\PRINTERS'
+            $removed = 0
+            Get-ChildItem -LiteralPath $queue -File -Force -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in '.SPL', '.SHD', '.TMP' -and -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) } |
+                ForEach-Object {
+                    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
+                    if (-not (Test-Path -LiteralPath $_.FullName)) { $removed++ }
+                }
+            Start-Service -Name Spooler -ErrorAction SilentlyContinue
+            try { (Get-Service -Name Spooler).WaitForStatus('Running', [TimeSpan]::FromSeconds(20)) } catch { }
+            $running = (Get-Service -Name Spooler).Status -eq 'Running'
+            [pscustomobject]@{ previous = $previous; removed = $removed; running = $running } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var running = PowerShell.Bool(json, "running");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = running,
+            Detail = string.Create(CultureInfo.InvariantCulture,
+                $"Print Spooler {(running ? "running again" : "did not start")}; removed {PowerShell.Long(json, "removed")} queued job file(s); start type was {PowerShell.Str(json, "previous")}"),
+        };
+    }
+
     private static async Task<RepairResult> RenewAddressAsync(RepairJob job, CancellationToken cancellationToken)
     {
         var ipconfig = ToolRunner.System32("ipconfig.exe");

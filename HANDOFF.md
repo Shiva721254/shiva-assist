@@ -45,7 +45,7 @@ xUnit1031), so write clean code first time.
 
 **Checks**: `ICheck` / `SnapshotCheck<T>`: an `ISnapshotSource<T>` (Windows project) collects data, a pure
 `Evaluate(snapshot, context)` (Core) decides. `ScanRunner` runs checks in parallel with a time limit each and turns
-exceptions into Unknown findings. 13 checks live in `Core/Modules/*`.
+exceptions into Unknown findings. 14 checks live in `Core/Modules/*` (printing added in 0.1.4).
 
 **Localization**: `Message` = English template (also the translation key) with placeholders `{x}`, `{x:gb}`,
 `{x:pct}`, `{x:date}`. Dutch texts in `Core/Localization/nl.json` (`"texts": {...}`, formal "u", Dutch Windows menu
@@ -71,7 +71,7 @@ the first module whose ID prefix matches. `Available = false` shows a "Soon" pag
   automatically if off; if no restore point can be made, the repair stops and changes nothing).
 - Admin repairs from a non-elevated app run via `RepairRunner.RunElevatedAsync`: writes
   `jobs\{id}.job.json`, starts the agent with `runas`, reads `{id}.result.json`, deletes both.
-- Current catalogue: Recycle Bin, old temp files, update download cache + crash dumps, component store cleanup,
+- Current catalogue: print spooler reset (PRINT-SPOOLER-001), Recycle Bin, old temp files, update download cache + crash dumps, component store cleanup,
   switch off startup programs (+ undo), system files (DISM RestoreHealth + SFC, Medium), DNS flush, IP renew,
   Defender definitions, restart to finish updates, Windows Update reset (Medium, folders renamed not deleted).
 - **Technician mode**: repairs are only offered when started with `ShivaAssist.exe --technician` (decision: free

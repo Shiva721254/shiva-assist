@@ -85,6 +85,20 @@ public sealed record ProblemDevice(string Name, string DeviceClass, int ProblemC
 
 public sealed record DeviceSnapshot(int PresentDevices, IReadOnlyList<ProblemDevice> Problems);
 
+/// <summary>State of the Windows Print Spooler service of the print queue.</summary>
+public enum SpoolerState
+{
+    Running,
+    Stopped,
+    Missing,
+}
+
+/// <summary>
+/// Printing (top-20 problem "printer does not print"): the Print Spooler service, how many printers are set up and
+/// how many jobs are stuck (error, deleting or blocked, or waiting for 30 minutes or longer).
+/// </summary>
+public sealed record PrintSnapshot(SpoolerState Spooler, string StartType, int Printers, int StuckJobs, int OldestStuckMinutes);
+
 /// <summary>Result of one network layer test.</summary>
 public enum LayerResult
 {

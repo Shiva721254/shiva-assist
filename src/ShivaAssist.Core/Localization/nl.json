@@ -536,6 +536,23 @@
     "The installed application could not be verified. It was not opened.": "De geïnstalleerde app kon niet worden gecontroleerd. De app is niet geopend.",
     "The release information is not valid.": "De versiegegevens zijn ongeldig.",
     "The download was incomplete. Please try again.": "De download is niet voltooid. Probeer het opnieuw.",
-    "Shiva Assist Setup": "Shiva Assist installeren"
+    "Shiva Assist Setup": "Shiva Assist installeren",
+    "Printing is not installed on this PC": "Afdrukken is niet geïnstalleerd op deze pc",
+    "No printers are set up on this PC": "Er zijn geen printers ingesteld op deze pc",
+    "{count} print jobs are stuck in the print queue": "{count} afdruktaken staan vast in de afdrukwachtrij",
+    "Printing works ({count} printers set up)": "Afdrukken werkt ({count} printers ingesteld)",
+    "Check of printing": "Controle van afdrukken",
+    "The print service is not running, so printing does not work": "De afdrukservice draait niet, dus afdrukken werkt niet",
+    "The Print Spooler service stopped or was switched off. A faulty printer driver or a stuck print job can make it stop.": "De service Afdrukwachtrij (Print Spooler) is gestopt of uitgeschakeld. Een defect printerstuurprogramma of een vastgelopen afdruktaak kan dit veroorzaken.",
+    "Restart the print service and clear stuck print jobs.": "Start de afdrukservice opnieuw en verwijder vastgelopen afdruktaken.",
+    "A print job that fails or waits too long blocks every document behind it.": "Een afdruktaak die mislukt of te lang wacht, blokkeert alle documenten erachter.",
+    "Restart printing and clear stuck print jobs": "Afdrukken herstarten en vastgelopen taken verwijderen",
+    "Restarts the Windows print service (Print Spooler) and removes print jobs that are stuck in the queue. Your documents are not affected: print them again afterwards. If the print service was switched off, it is set to start automatically again.": "Start de afdrukservice van Windows (Afdrukwachtrij) opnieuw en verwijdert afdruktaken die vastzitten in de wachtrij. Uw documenten blijven ongewijzigd: druk ze daarna opnieuw af. Als de afdrukservice was uitgeschakeld, wordt die weer automatisch gestart.",
+    "Repair {done} of {total}: {repair}": "Reparatie {done} van {total}: {repair}",
+    "{count} repairs ready · one click": "{count} reparaties klaar · één klik",
+    "Last Fix it all: {fixed} fixed · {improved} improved · {other} need attention": "Laatste keer Alles repareren: {fixed} opgelost · {improved} verbeterd · {other} vragen aandacht",
+    "Keep the PC switched on. Shiva Assist checks every repair afterwards.": "Laat de pc aan staan. Shiva Assist controleert elke reparatie achteraf.",
+    "What Fix it all will do": "Wat Alles repareren gaat doen",
+    "Nothing to fix automatically": "Niets om automatisch te herstellen"
   }
 }

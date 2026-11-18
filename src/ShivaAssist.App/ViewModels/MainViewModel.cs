@@ -265,6 +265,57 @@ public sealed partial class MainViewModel : Observable
     public bool ShowRepairReview => HasResults;
 
     public string TextFixAll => T("Fix it all");
+
+    // ---- Fix it all hero: what will happen, live progress, and the last outcome ----
+
+    private int fixAllDone;
+    private int fixAllTotal;
+    private string? fixAllCurrent;
+
+    /// <summary>True while the one-click batch runs; the hero shows progress instead of the button.</summary>
+    public bool IsFixingAll => fixAllTotal > 0 && reviewingRepairs;
+
+    public bool ShowFixAllButton => !IsFixingAll;
+
+    public int FixAllDone => fixAllDone;
+
+    public int FixAllTotal => Math.Max(1, fixAllTotal);
+
+    public string TextFixAllProgress => new Message("Repair {done} of {total}: {repair}",
+        ("done", Math.Min(fixAllDone + 1, fixAllTotal)), ("total", fixAllTotal), ("repair", fixAllCurrent ?? string.Empty)).Render(catalog);
+
+    public string TextFixAllKeepOn => T("Keep the PC switched on. Shiva Assist checks every repair afterwards.");
+
+    /// <summary>The distinct repairs one click will run, in order, so the customer knows what happens.</summary>
+    public IReadOnlyList<string> FixAllPlan => [.. AutomaticRepairs.Select(r => r.Operation).DistinctBy(o => o.Id).Select(o => o.Name.Render(catalog))];
+
+    public bool HasFixAllPlan => FixAllPlan.Count > 0;
+
+    public string TextFixAllReady => new Message("{count} repairs ready · one click", ("count", FixAllPlan.Count)).Render(catalog);
+
+    public string TextFixAllPlanTitle => T("What Fix it all will do");
+
+    public string TextNothingToFix => T("Nothing to fix automatically");
+
+    public bool NothingToFix => HasResults && !HasFixAllPlan && !IsFixingAll;
+
+    /// <summary>Hero accent: red for critical problems, amber for warnings, green when all is well.</summary>
+    public Brush HeroAccent => CountOf(Severity.Critical) > 0 ? Palette.For(Severity.Critical)
+        : CountOf(Severity.Warning) > 0 ? Palette.For(Severity.Warning)
+        : Palette.For(Severity.Healthy);
+
+    public string HeroCount => (CountOf(Severity.Critical) + CountOf(Severity.Warning)).ToString(System.Globalization.CultureInfo.CurrentCulture);
+
+    public string TextLastBatch
+    {
+        get
+        {
+            var bars = RepairSummaryBars;
+            return lastRepairBatch.Length == 0 ? string.Empty
+                : new Message("Last Fix it all: {fixed} fixed · {improved} improved · {other} need attention",
+                    ("fixed", bars[0].Count), ("improved", bars[1].Count), ("other", bars[2].Count)).Render(catalog);
+        }
+    }
     public string TextRepairAndCleanup => T("Repair and cleanup");
 
     public string TextProblemCount => new Message("{count} problems found", ("count", CountOf(Severity.Critical) + CountOf(Severity.Warning))).Render(catalog);
@@ -610,12 +661,17 @@ public sealed partial class MainViewModel : Observable
         var batch = AutomaticRepairs.ToArray();
         var completed = new List<(RepairOperation Operation, RepairResult? Result)>();
         reviewingRepairs = true;
+        fixAllTotal = batch.Length;
+        fixAllDone = 0;
         Status = T("Working on your PC…");
+        RefreshAll();
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         try
         {
             foreach (var selected in batch)
             {
+                fixAllCurrent = selected.Operation.Name.Render(catalog);
+                OnPropertyChanged(nameof(TextFixAllProgress));
                 // Earlier repairs can resolve a finding, so recheck that each operation still applies.
                 var current = AllFindings.FirstOrDefault(item => item.Id == selected.Item.Id);
                 var repair = current?.Repairs.FirstOrDefault(button => button.Operation.Id == selected.Operation.Id);
@@ -626,6 +682,10 @@ public sealed partial class MainViewModel : Observable
                         : [];
                     completed.Add((repair.Operation, await RepairAsync(repair, approvedItems)));
                 }
+
+                fixAllDone++;
+                OnPropertyChanged(nameof(FixAllDone));
+                OnPropertyChanged(nameof(TextFixAllProgress));
             }
             lastRepairBatch = completed.ToArray();
             Status = T("Repairs finished. See the summary in Overview.");
@@ -634,6 +694,9 @@ public sealed partial class MainViewModel : Observable
         finally
         {
             reviewingRepairs = false;
+            fixAllTotal = 0;
+            fixAllCurrent = null;
+            RefreshAll();
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
     }

@@ -129,28 +129,79 @@
       </DockPanel>
     </Border>
 
-    <!-- The scan outcome and repair action remain visible while navigating. -->
+    <!-- Fix it all hero: the scan outcome and the one big repair action stay visible on every page after a scan.
+         Left: problem count in the severity colour. Middle: what one click does. Right: the big button, or live progress. -->
     <Border DockPanel.Dock="Top" Visibility="{Binding ShowRepairReview, Converter={StaticResource Visible}}"
-            Background="{StaticResource Page}" Padding="18,14,18,10">
-      <Border Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="18,12">
+            Background="{StaticResource Page}" Padding="20,16,20,6">
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="16">
+        <Border.Effect>
+          <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.10" Color="#2F3B33" />
+        </Border.Effect>
         <Grid>
           <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock Text="{Binding TextProblemCount}" FontSize="18" FontWeight="SemiBold"
-                       Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level1" />
-            <TextBlock Text="{Binding TextRepairCoverage}" TextWrapping="Wrap" Margin="0,4,0,0" />
+          <Border Background="{Binding HeroAccent}" CornerRadius="16,0,0,16" />
+
+          <!-- Problem count -->
+          <Grid Grid.Column="1" Width="64" Height="64" Margin="18,16,16,16" VerticalAlignment="Center">
+            <Ellipse Fill="{Binding HeroAccent}" />
+            <TextBlock Text="{Binding HeroCount}" Foreground="White" FontSize="26" FontWeight="Bold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Grid>
+
+          <!-- What one click does -->
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,14,16,14">
+            <TextBlock Text="{Binding TextProblemCount}" FontSize="22" FontWeight="SemiBold"
+                       Foreground="{StaticResource Ink}" TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock Text="{Binding TextRepairCoverage}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding TextLastBatch}" Foreground="{StaticResource GreenDark}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Visibility="{Binding HasRepairSummary, Converter={StaticResource Visible}}" />
+            <Expander Header="{Binding TextFixAllPlanTitle}" Margin="0,8,0,0" Foreground="{StaticResource GreenDark}"
+                      Visibility="{Binding HasFixAllPlan, Converter={StaticResource Visible}}">
+              <ItemsControl ItemsSource="{Binding FixAllPlan}" Margin="20,6,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,2">
+                      <TextBlock DockPanel.Dock="Left" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                                 Foreground="{StaticResource Green}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <TextBlock Text="{Binding}" Foreground="{StaticResource Ink}" TextWrapping="Wrap" />
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Expander>
           </StackPanel>
-          <Button Grid.Column="1" Command="{Binding FixAllCommand}" AutomationProperties.Name="{Binding TextFixAll}"
-                  Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" MinWidth="132"
-                  VerticalAlignment="Center" ToolTip="{Binding TextRepairCoverage}">
-            <StackPanel>
-              <TextBlock Text="{Binding TextFixAll}" FontSize="16" FontWeight="Bold" TextAlignment="Center" />
-              <TextBlock Text="{Binding TextRepairAndCleanup}" FontSize="14" FontWeight="Normal" TextAlignment="Center" />
-            </StackPanel>
-          </Button>
+
+          <!-- The big button, or progress while the batch runs -->
+          <Grid Grid.Column="3" Margin="0,16,20,16" VerticalAlignment="Center" MinWidth="300">
+            <Button Style="{StaticResource HeroButton}" Command="{Binding FixAllCommand}" AutomationProperties.Name="{Binding TextFixAll}"
+                    ToolTip="{Binding TextRepairCoverage}" Visibility="{Binding ShowFixAllButton, Converter={StaticResource Visible}}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <TextBlock Text="&#xE90F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                  <TextBlock Text="{Binding TextFixAll}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding TextFixAllReady}" FontSize="13" FontWeight="Normal" TextAlignment="Center" Margin="0,4,0,0"
+                           Visibility="{Binding HasFixAllPlan, Converter={StaticResource Visible}}" />
+                <TextBlock Text="{Binding TextNothingToFix}" FontSize="13" FontWeight="Normal" TextAlignment="Center" Margin="0,4,0,0"
+                           Visibility="{Binding NothingToFix, Converter={StaticResource Visible}}" />
+              </StackPanel>
+            </Button>
+            <Border Visibility="{Binding IsFixingAll, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}"
+                    CornerRadius="16" Padding="20,14" MinHeight="76">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding TextFixAllProgress}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                           TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                <ProgressBar Height="10" Margin="0,10,0,6" Minimum="0" Maximum="{Binding FixAllTotal}" Value="{Binding FixAllDone, Mode=OneWay}"
+                             Foreground="{StaticResource Green}" Background="White" BorderThickness="0" />
+                <TextBlock Text="{Binding TextFixAllKeepOn}" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </Grid>
         </Grid>
       </Border>
     </Border>
@@ -309,11 +360,11 @@
               <TextBlock Text="{Binding TextIntroTitle}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource GreenDark}" />
               <TextBlock Text="{Binding TextIntro}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" />
             </StackPanel>
-            <Button Grid.Column="1" Grid.Row="1" Style="{StaticResource PrimaryButton}" Command="{Binding StartScanCommand}"
-                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinHeight="110" Margin="4,0,0,0"
+            <Button Grid.Column="1" Grid.Row="1" Style="{StaticResource HeroButton}" Command="{Binding StartScanCommand}"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinHeight="120" Margin="4,0,0,0"
                     AutomationProperties.Name="{Binding TextStart}">
               <StackPanel>
-                <TextBlock Text="{Binding TextStart}" FontSize="20" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextStart}" FontSize="24" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding TextDuration}" FontSize="13" FontWeight="Normal" TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
               </StackPanel>
             </Button>

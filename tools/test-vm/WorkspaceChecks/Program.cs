@@ -75,6 +75,18 @@ internal static class Program
                     vm.Software.SelectGroupCommand.Execute(group);
                     await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
                 }
+                // Read-only scan so the Fix it all hero renders with real findings. No repair is started here.
+                vm.NavigateCommand.Execute(vm.Modules.First(m => m.IsOverview));
+                vm.StartScanCommand.Execute(null);
+                await WaitForAsync(() => vm.HasResults, TimeSpan.FromMinutes(4));
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                window.UpdateLayout();
+                if (!vm.ShowRepairReview || vm.IsFixingAll || !vm.ShowFixAllButton || vm.TextProblemCount.Length == 0)
+                {
+                    throw new InvalidOperationException("The Fix it all hero did not render after a scan.");
+                }
+
+                Console.WriteLine("PASS: read-only scan and Fix it all hero (" + vm.FixAllPlan.Count.ToString(CultureInfo.InvariantCulture) + " one-click repairs offered)");
                 window.Width = 760;
                 window.Height = 560;
                 window.UpdateLayout();
@@ -98,12 +110,14 @@ internal static class Program
         return app.Run();
     }
 
-    private static async Task WaitForAsync(Func<bool> ready)
+    private static Task WaitForAsync(Func<bool> ready) => WaitForAsync(ready, TimeSpan.FromSeconds(40));
+
+    private static async Task WaitForAsync(Func<bool> ready, TimeSpan timeout)
     {
         var elapsed = Stopwatch.StartNew();
         while (!ready())
         {
-            if (elapsed.Elapsed > TimeSpan.FromSeconds(40))
+            if (elapsed.Elapsed > timeout)
             {
                 throw new TimeoutException("Read-only workspace load timed out.");
             }

@@ -70,6 +70,7 @@ public static class RepairCatalogue
     public const string UninstallSoftware = "SOFTWARE.PROGRAM.UNINSTALL";
     public const string CleanSoftwareLeftovers = "SOFTWARE.LEFTOVERS.CLEAN";
     public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
+    public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -235,6 +236,16 @@ public static class RepairCatalogue
             VerifiesFinding = "PERF-STARTUP-001",
             IsUndo = true,
         },
+        new()
+        {
+            Id = ResetPrintSpooler,
+            Name = "Restart printing and clear stuck print jobs",
+            Description = "Restarts the Windows print service (Print Spooler) and removes print jobs that are stuck in the queue. Your documents are not affected: print them again afterwards. If the print service was switched off, it is set to start automatically again.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 2),
+            VerifiesFinding = PrintCheck.FindingId,
+        },
     ];
 
     /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
@@ -266,6 +277,7 @@ public static class RepairCatalogue
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
+            PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };
