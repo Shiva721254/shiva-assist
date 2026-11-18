@@ -284,7 +284,11 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border Grid.RowSpan="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
                     CornerRadius="14" Padding="16" Margin="0,0,12,0">
             <StackPanel>
               <TextBlock Text="{Binding TextAreasTitle}" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" TextWrapping="Wrap" />
@@ -301,14 +305,18 @@
             </StackPanel>
           </Border>
 
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,0,0">
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,0,10">
               <TextBlock Text="{Binding TextIntroTitle}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource GreenDark}" />
-              <TextBlock Text="{Binding TextIntro}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,14" />
-              <Button Style="{StaticResource PrimaryButton}" Command="{Binding StartScanCommand}" HorizontalAlignment="Left">
-                <TextBlock Text="{Binding TextStart}" TextWrapping="Wrap" />
-              </Button>
-              <TextBlock Text="{Binding TextDuration}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" />
+              <TextBlock Text="{Binding TextIntro}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" />
             </StackPanel>
+            <Button Grid.Column="1" Grid.Row="1" Style="{StaticResource PrimaryButton}" Command="{Binding StartScanCommand}"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinHeight="110" Margin="4,0,0,0"
+                    AutomationProperties.Name="{Binding TextStart}">
+              <StackPanel>
+                <TextBlock Text="{Binding TextStart}" FontSize="20" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextDuration}" FontSize="13" FontWeight="Normal" TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
+              </StackPanel>
+            </Button>
           </Grid>
 
           <Border Visibility="{Binding ShowAdminHint, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="16,10" Margin="0,14,0,0">
