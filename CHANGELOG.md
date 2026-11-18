@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- 0.1.5: UI/UX and robustness.
+  - Finding cards: severity icon (not colour alone), larger title, advice in normal text colour, and the repair
+    buttons visible on the card itself instead of hidden under Details (Details keeps cause and evidence).
+  - Overview shows the customer journey: 1 Check-up → 2 Fix it all → 3 Review the result, with the current step
+    highlighted and finished steps ticked.
+  - Larger sidebar entries (48 px, bigger icons) with the version number at the bottom; busy indicator in the
+    footer while a check-up or repair runs; keyboard shortcuts F5 (check-up) and F1 (help).
+  - Robustness: only one Shiva Assist window at a time; closing during a check-up or repair asks first (default
+    No); unexpected errors are written to `%LOCALAPPDATA%\Shiva Assist\crash-log.txt` and the app keeps running
+    instead of closing.
 - 0.1.4: Fix it all hero. After a scan a large card shows the problem count in the severity colour, what one click
   will do (expandable list), the biggest button in the app, live progress during the batch ("Repair 2 of 5: …")
   and the last outcome (fixed / improved / needs attention). Buttons are larger throughout (minimum 46 px for main

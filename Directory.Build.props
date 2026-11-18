@@ -11,7 +11,7 @@
     <!-- Real culture data: Dutch and later languages format numbers their own way (7,0 GB) -->
     <InvariantGlobalization>false</InvariantGlobalization>
     
-    <Version>0.1.4</Version>
+    <Version>0.1.5</Version>
     <Company>Shiva Computers</Company>
     <Product>Shiva Assist</Product>
     <Copyright>© Shiva Computers</Copyright>

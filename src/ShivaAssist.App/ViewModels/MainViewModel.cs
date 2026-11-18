@@ -262,6 +262,22 @@ public sealed partial class MainViewModel : Observable
 
     public RelayCommand FixAllCommand { get; }
 
+    /// <summary>A check-up or repair is running: closing asks first, and the footer shows activity.</summary>
+    public bool IsBusy => repairing || reviewingRepairs || State == ScreenState.Scanning;
+
+    public string TextCloseWhileBusy => T("Shiva Assist is still working on your PC. If you close it now, a check-up or repair can stop halfway. Do you want to close anyway?");
+
+    public string TextVersion => product;
+
+    // ---- The customer journey shown on Overview: 1 check-up → 2 Fix it all → 3 review ----
+
+    public IReadOnlyList<JourneyStep> Journey =>
+    [
+        new("1", T("Check-up"), HasResults, !HasResults),
+        new("2", T("Fix it all"), HasRepairSummary, HasResults && !HasRepairSummary),
+        new("3", T("Review the result"), false, HasRepairSummary),
+    ];
+
     public bool ShowRepairReview => HasResults;
 
     public string TextFixAll => T("Fix it all");
@@ -945,3 +961,9 @@ internal static class Settings
 }
 
 public sealed record RepairSummaryBar(string Label, int Count, int Total, Brush Color);
+
+/// <summary>One step of the Overview journey; a finished step shows a tick, the current step is highlighted.</summary>
+public sealed record JourneyStep(string Number, string Label, bool Done, bool Current)
+{
+    public string Mark => Done ? "\u2713" : Number;
+}

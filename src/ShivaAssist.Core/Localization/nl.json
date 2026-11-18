@@ -553,6 +553,11 @@
     "Last Fix it all: {fixed} fixed · {improved} improved · {other} need attention": "Laatste keer Alles repareren: {fixed} opgelost · {improved} verbeterd · {other} vragen aandacht",
     "Keep the PC switched on. Shiva Assist checks every repair afterwards.": "Laat de pc aan staan. Shiva Assist controleert elke reparatie achteraf.",
     "What Fix it all will do": "Wat Alles repareren gaat doen",
-    "Nothing to fix automatically": "Niets om automatisch te herstellen"
+    "Nothing to fix automatically": "Niets om automatisch te herstellen",
+    "Shiva Assist is still working on your PC. If you close it now, a check-up or repair can stop halfway. Do you want to close anyway?": "Shiva Assist is nog bezig met uw pc. Als u nu afsluit, kan een controle of reparatie halverwege stoppen. Wilt u toch afsluiten?",
+    "Check-up": "Controle",
+    "Review the result": "Resultaat bekijken",
+    "Shiva Assist is already open. Use the window that is already running.": "Shiva Assist is al geopend. Gebruik het venster dat al openstaat.",
+    "Something unexpected went wrong. Shiva Assist keeps running. If this happens again, please send the file crash-log.txt from the Shiva Assist folder in your AppData\\Local folder to Shiva Computers.": "Er ging iets onverwachts mis. Shiva Assist blijft gewoon werken. Gebeurt dit opnieuw? Stuur dan het bestand crash-log.txt uit de map Shiva Assist in uw map AppData\\Local naar Shiva Computers."
   }
 }

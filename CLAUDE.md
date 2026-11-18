@@ -25,6 +25,8 @@ The working branch also includes installed app inventory and supported uninstall
 - Printing check `PRINT-SPOOLER-001` (`Core/Modules/PrintCheck.cs`, `Windows/Sources/PrintSource.cs`) and repair `PRINT.SPOOLER.RESET` (included in Fix it all). VM test: stop the Print Spooler (`Stop-Service Spooler`) or pause a printer with a queued job older than 30 minutes, scan, Fix it all, expect Fixed.
 - WorkspaceChecks (CI) now also runs a read-only scan and checks the hero.
 
+- 0.1.5 UI/UX: finding cards with severity icons and directly visible repair buttons, Overview journey (Check-up → Fix it all → Review), larger sidebar, footer busy indicator, F5/F1. Robustness: single instance (mutex `Local\ShivaAssist.App`), close confirmation while busy, global crash guard writing `crash-log.txt` (`App/CrashLog.cs`).
+
 ## Next development work
 
 Prioritize repair and maintenance functionality. Review the current checks and repair catalog, then extend a useful Windows problem that can be detected, repaired, and verified. Use automated checks where practical so minor UI changes do not require repeated manual VM reinstalls. Public distribution on ShivaComputers.nl is a later milestone and still requires code signing, hosting, and an end-to-end download test.
