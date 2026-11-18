@@ -143,9 +143,14 @@
                        Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level1" />
             <TextBlock Text="{Binding TextRepairCoverage}" TextWrapping="Wrap" Margin="0,4,0,0" />
           </StackPanel>
-          <Button Grid.Column="1" Content="{Binding TextFixAll}" Command="{Binding FixAllCommand}"
+          <Button Grid.Column="1" Command="{Binding FixAllCommand}" AutomationProperties.Name="{Binding TextFixAll}"
                   Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" MinWidth="132"
-                  VerticalAlignment="Center" ToolTip="{Binding TextRepairCoverage}" />
+                  VerticalAlignment="Center" ToolTip="{Binding TextRepairCoverage}">
+            <StackPanel>
+              <TextBlock Text="{Binding TextFixAll}" FontSize="16" FontWeight="Bold" TextAlignment="Center" />
+              <TextBlock Text="{Binding TextRepairAndCleanup}" FontSize="14" FontWeight="Normal" TextAlignment="Center" />
+            </StackPanel>
+          </Button>
         </Grid>
       </Border>
     </Border>

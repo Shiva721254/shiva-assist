@@ -10,7 +10,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         var version = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
-        var technician = Environment.GetCommandLineArgs().Skip(1).Any(a => a.Equals("--technician", StringComparison.OrdinalIgnoreCase));
+        var technician = !Environment.GetCommandLineArgs().Skip(1).Any(a => a.Equals("--read-only", StringComparison.OrdinalIgnoreCase));
         DataContext = new MainViewModel($"Shiva Assist {version}", technician);
     }
 }

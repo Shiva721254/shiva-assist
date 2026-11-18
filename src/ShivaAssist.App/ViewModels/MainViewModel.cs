@@ -150,7 +150,7 @@ public sealed partial class MainViewModel : Observable
 
     public bool ShowAdminHint => !IsElevated;
 
-    /// <summary>Repairs are offered only in technician mode (start with --technician) during stage 3.</summary>
+    /// <summary>Repair actions are available unless the desktop app was opened in read-only mode.</summary>
     public bool TechnicianMode { get; }
 
     public bool ShowReadOnlyBadge => !TechnicianMode;
@@ -223,6 +223,7 @@ public sealed partial class MainViewModel : Observable
     public bool ShowRepairReview => HasResults;
 
     public string TextFixAll => T("Fix it all");
+    public string TextRepairAndCleanup => T("Repair and cleanup");
 
     public string TextProblemCount => new Message("{count} problems found", ("count", CountOf(Severity.Critical) + CountOf(Severity.Warning))).Render(catalog);
 
@@ -475,7 +476,7 @@ public sealed partial class MainViewModel : Observable
     private void ApplyFilter()
     {
         Findings.Clear();
-        foreach (var item in AllFindings.Where(f => MatchesSection(f.Finding) && (IsModulePage
+        foreach (var item in AllFindings.Where(f => MatchesSection(f.Finding) && (IsModulePage || IsRepairSection
             ? f.Repairs.Count > 0
             : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category))))
         {
@@ -778,7 +779,7 @@ public sealed partial class MainViewModel : Observable
     {
         try
         {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", Arguments = technicianMode ? "--technician" : string.Empty });
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", Arguments = technicianMode ? "--technician" : "--read-only" });
             Application.Current.Shutdown();
         }
         catch (Win32Exception)
