@@ -90,6 +90,8 @@ public sealed partial class MainViewModel : Observable
         }
 
         StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning && !repairing && !reviewingRepairs);
+        CleanTemporaryFilesCommand = new RelayCommand(async _ => await CleanTemporaryFilesAsync(),
+            _ => TechnicianMode && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
         FixAllCommand = new RelayCommand(async _ => await FixAllAsync(),
             _ => TechnicianMode && HasResults && AutomaticRepairs.Any() && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
         ConfigureScanCommand = new RelayCommand(_ => Navigate(Modules.First(module => module.IsOverview)));
@@ -217,6 +219,46 @@ public sealed partial class MainViewModel : Observable
     public string TextScanAgain => T("Scan again");
 
     public RelayCommand ConfigureScanCommand { get; }
+
+    public RelayCommand CleanTemporaryFilesCommand { get; }
+    public string TextCleanTemporaryFiles => T("Clean old temporary files");
+    public string TextTemporaryCleanupScope => T("Remove temporary files older than 7 days. Files in use are skipped.");
+    public string? TemporaryCleanupStatus { get; private set; }
+
+    private async Task CleanTemporaryFilesAsync()
+    {
+        repairing = true;
+        TemporaryCleanupStatus = T("Cleaning old temporary files…");
+        RefreshAll();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            var job = new RepairJob
+            {
+                JobId = Guid.NewGuid().ToString("N"),
+                OperationId = RepairCatalogue.CleanTempFiles,
+                ApprovedAt = DateTimeOffset.UtcNow,
+                Items = [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp")],
+            };
+            var result = await Task.Run(() => new WindowsRepairExecutor(IsElevated).ExecuteAsync(job, CancellationToken.None));
+            RepairAudit.Append(result);
+            TemporaryCleanupStatus = !result.Completed
+                ? T("Temporary file cleanup could not finish.")
+                : result.BytesFreed > 0
+                    ? new Message("Temporary files cleaned. Space recovered: {freed:gb}.", ("freed", result.BytesFreed)).Render(catalog)
+                    : T("Cleanup finished. No disk space was recovered.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            TemporaryCleanupStatus = T("Temporary file cleanup could not finish.");
+        }
+        finally
+        {
+            repairing = false;
+            RefreshAll();
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
 
     public RelayCommand FixAllCommand { get; }
 

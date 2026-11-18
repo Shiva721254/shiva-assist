@@ -350,6 +350,16 @@
           <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,16,0" />
         </StackPanel>
       </DockPanel>
+      <Border DockPanel.Dock="Top" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
+              Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+              CornerRadius="12" Padding="16" Margin="0,0,0,12">
+        <StackPanel>
+          <Button Content="{Binding TextCleanTemporaryFiles}" Command="{Binding CleanTemporaryFilesCommand}"
+                  Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" />
+          <TextBlock Text="{Binding TextTemporaryCleanupScope}" TextWrapping="Wrap" Margin="0,8,0,0" />
+          <TextBlock Text="{Binding TemporaryCleanupStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+      </Border>
       <Border DockPanel.Dock="Top" Visibility="{Binding ModuleNeedsScan, Converter={StaticResource Visible}}"
               Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
         <TextBlock Text="{Binding TextModuleNeedsScan}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
