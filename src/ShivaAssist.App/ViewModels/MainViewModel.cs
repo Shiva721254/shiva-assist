@@ -575,9 +575,9 @@ public sealed partial class MainViewModel : Observable
 
     // ---- Repairs (stage 3a): explain → ask → repair → verify → log ----
 
-    private IReadOnlyList<(RepairOperation Operation, RepairResult? Result)> lastRepairBatch = [];
+    private (RepairOperation Operation, RepairResult? Result)[] lastRepairBatch = [];
 
-    public bool HasRepairSummary => lastRepairBatch.Count > 0;
+    public bool HasRepairSummary => lastRepairBatch.Length > 0;
     public string TextScanResultsTitle => CountOf(Severity.Critical) + CountOf(Severity.Warning) == 0
         ? TextHeadline : T("Scan results");
     public string TextRepairSummary => T("Last repair summary");
@@ -590,12 +590,12 @@ public sealed partial class MainViewModel : Observable
         {
             var fixedCount = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Fixed });
             var improved = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Improved });
-            var remaining = lastRepairBatch.Count - fixedCount - improved;
+            var remaining = lastRepairBatch.Length - fixedCount - improved;
             return
             [
-                new(T("Fixed"), fixedCount, lastRepairBatch.Count, Palette.For(Severity.Healthy)),
-                new(T("Improved"), improved, lastRepairBatch.Count, Palette.For(Severity.Information)),
-                new(T("Needs attention or verification"), remaining, lastRepairBatch.Count, Palette.For(Severity.Warning)),
+                new(T("Fixed"), fixedCount, lastRepairBatch.Length, Palette.For(Severity.Healthy)),
+                new(T("Improved"), improved, lastRepairBatch.Length, Palette.For(Severity.Information)),
+                new(T("Needs attention or verification"), remaining, lastRepairBatch.Length, Palette.For(Severity.Warning)),
             ];
         }
     }
@@ -638,7 +638,7 @@ public sealed partial class MainViewModel : Observable
         }
     }
 
-    private Task RepairAsync(RepairButton button) => RepairAsync(button, null);
+    private Task<RepairResult?> RepairAsync(RepairButton button) => RepairAsync(button, null);
 
     private async Task<RepairResult?> RepairAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
