@@ -365,7 +365,7 @@ public sealed partial class MainViewModel : Observable
     public string TextIntroTitle => T("Let's give your PC a quick check-up");
 
     public string TextIntro => TechnicianMode
-        ? T("In about a minute, Shiva Assist looks at how this PC is doing (storage, updates, security, internet and more). The check itself changes nothing. For each problem it finds, you can start a repair; every repair is explained and asked first.")
+        ? T("Check your PC for problems. The scan makes no changes. Afterward, use Fix it all to run supported repairs.")
         : T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
 
     public string TextStart => T("Start the check-up");
@@ -575,6 +575,31 @@ public sealed partial class MainViewModel : Observable
 
     // ---- Repairs (stage 3a): explain → ask → repair → verify → log ----
 
+    private IReadOnlyList<(RepairOperation Operation, RepairResult? Result)> lastRepairBatch = [];
+
+    public bool HasRepairSummary => lastRepairBatch.Count > 0;
+    public string TextScanResultsTitle => CountOf(Severity.Critical) + CountOf(Severity.Warning) == 0
+        ? TextHeadline : T("Scan results");
+    public string TextRepairSummary => T("Last repair summary");
+    public IEnumerable<string> RepairSummaryDetails => lastRepairBatch.Select(entry =>
+        entry.Operation.Name.Render(catalog) + " — " + (entry.Result is { } result ? VerdictText(result) : T("The repair did not complete")));
+
+    public IReadOnlyList<RepairSummaryBar> RepairSummaryBars
+    {
+        get
+        {
+            var fixedCount = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Fixed });
+            var improved = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Improved });
+            var remaining = lastRepairBatch.Count - fixedCount - improved;
+            return
+            [
+                new(T("Fixed"), fixedCount, lastRepairBatch.Count, Palette.For(Severity.Healthy)),
+                new(T("Improved"), improved, lastRepairBatch.Count, Palette.For(Severity.Information)),
+                new(T("Needs attention or verification"), remaining, lastRepairBatch.Count, Palette.For(Severity.Warning)),
+            ];
+        }
+    }
+
     private async Task FixAllAsync()
     {
         if (repairing || reviewingRepairs || !TechnicianMode)
@@ -583,6 +608,7 @@ public sealed partial class MainViewModel : Observable
         }
 
         var batch = AutomaticRepairs.ToArray();
+        var completed = new List<(RepairOperation Operation, RepairResult? Result)>();
         reviewingRepairs = true;
         Status = T("Working on your PC…");
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
@@ -598,10 +624,12 @@ public sealed partial class MainViewModel : Observable
                     IReadOnlyList<string> approvedItems = repair.Operation.Id == RepairCatalogue.CleanTempFiles
                         ? [Path.GetTempPath().TrimEnd('\\')]
                         : [];
-                    await RepairAsync(repair, approvedItems);
+                    completed.Add((repair.Operation, await RepairAsync(repair, approvedItems)));
                 }
             }
-            Status = T("Repairs finished. Check the results for anything that still needs attention.");
+            lastRepairBatch = completed.ToArray();
+            Status = T("Repairs finished. See the summary in Overview.");
+            RefreshAll();
         }
         finally
         {
@@ -612,11 +640,11 @@ public sealed partial class MainViewModel : Observable
 
     private Task RepairAsync(RepairButton button) => RepairAsync(button, null);
 
-    private async Task RepairAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
+    private async Task<RepairResult?> RepairAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
         try
         {
-            await RepairCoreAsync(button, approvedItems);
+            return await RepairCoreAsync(button, approvedItems);
         }
 #pragma warning disable CA1031 // A failed repair must end in a message, never in a crashed window.
         catch (Exception ex)
@@ -624,17 +652,18 @@ public sealed partial class MainViewModel : Observable
         {
             repairing = false;
             Status = new Message("The repair did not complete: {reason}", ("reason", ex.Message)).Render(catalog);
+            return null;
         }
     }
 
-    private async Task RepairCoreAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
+    private async Task<RepairResult?> RepairCoreAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
         var operation = button.Operation;
         var before = button.Item.Finding;
         var items = approvedItems ?? await ChooseItemsAsync(operation);
         if (items is null)
         {
-            return;
+            return null;
         }
 
         if (approvedItems is null)
@@ -647,7 +676,7 @@ public sealed partial class MainViewModel : Observable
                 T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
             if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             {
-                return;
+                return null;
             }
         }
 
@@ -671,6 +700,7 @@ public sealed partial class MainViewModel : Observable
             Status = OutcomeText(before.Id);
         }
         ShowResults();
+        return result;
     }
 
     /// <summary>Items the repair needs: the temp folder, or the startup programs the technician selects.</summary>
@@ -850,3 +880,5 @@ internal static class Settings
         key.SetValue("Language", code);
     }
 }
+
+public sealed record RepairSummaryBar(string Label, int Count, int Total, Brush Color);

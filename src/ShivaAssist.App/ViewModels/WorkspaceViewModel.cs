@@ -14,6 +14,7 @@ public sealed partial class MainViewModel
     public StartupViewModel Startup { get; }
     public RelayCommand SectionCommand { get; }
     public string ActiveSection => sectionByModule.GetValueOrDefault(selectedModule.Module.Key, "all");
+    public bool ShowWorkspaceSections => !IsOverviewPage;
     public bool IsRepairSection => IsResultsPage && ActiveSection == "repairs";
     public bool IsStartupSection => IsResultsPage && ActiveSection == "startup";
     public bool ShowFindingResults => HasResults && !IsStartupSection;
@@ -32,10 +33,10 @@ public sealed partial class MainViewModel
         void Add(string key, string title, string description, string glyph, string? target = null)
         {
             var status = string.Empty;
-            if ((IsResultsPage || IsModulePage) && target is null && key != "startup")
+            if ((IsResultsPage || IsModulePage) && target is null && key != "startup" && (key != "all" || IsModulePage))
             {
                 var findings = AllFindings.Where(item => MatchesSection(key, item.Finding, IsModulePage));
-                status = !HasResults ? T("Not checked yet") : IsModulePage
+                status = !HasResults ? T("Not checked yet") : IsModulePage || key == "repairs"
                     ? new Message("{count} available repairs", ("count", findings.Sum(item => item.Repairs.Count))).Render(catalog)
                     : new Message("{count} problems · {unknown} unknown", ("count", findings.Count(item => item.Severity is Severity.Warning or Severity.Critical)),
                         ("unknown", findings.Count(item => item.Severity == Severity.Unknown))).Render(catalog);
@@ -46,12 +47,6 @@ public sealed partial class MainViewModel
 
         switch (selectedModule.Module.Key)
         {
-            case AppModules.OverviewKey:
-                Add("all", "PC check-up", "Choose areas and start a scan", "\uE9D9");
-                Add("startup", "Startup apps", "Recorded timings and startup controls", "\uE768", AppModules.ResultsKey);
-                Add("all", "Installed apps", "Browse applications by category", "\uE71D", "software");
-                Add("help", "Get help", "Contact Shiva Computers", "\uE77B", AppModules.HistoryKey);
-                break;
             case AppModules.ResultsKey:
                 Add("all", "All findings", "Results across all checked areas", "\uE9D9");
                 Add("repairs", "Repair and cleanup", "Supported actions from your latest scan", "\uE90F");

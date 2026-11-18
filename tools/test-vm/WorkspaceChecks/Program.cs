@@ -44,7 +44,7 @@ internal static class Program
                         await WaitForAsync(() => vm.Software.Groups.Count > 0);
                     }
                     var sections = vm.Sections.ToArray();
-                    if (sections.Length == 0 || sections.Any(s => !vm.Modules.Any(m => m.Module.Key == s.TargetModule)))
+                    if ((sections.Length == 0 && !vm.IsOverviewPage) || sections.Any(s => !vm.Modules.Any(m => m.Module.Key == s.TargetModule)))
                     {
                         throw new InvalidOperationException("Missing section or invalid shortcut target.");
                     }
