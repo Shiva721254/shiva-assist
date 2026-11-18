@@ -14,10 +14,9 @@ No scheduled tasks, startup services or automatic background application updates
 ## Test the unsigned lab build in a disposable Windows VM
 
 Download the **shiva-assist-installer-lab** artifact from the branch's successful GitHub CI run.
-Extract all files into one folder. Open **ShivaAssistSetupLab.exe**, approve UAC, select the MSI
-matching the VM's architecture, and leave its matching `.msi.sha256` file alongside it.
+Extract all files into one folder. Open **ShivaAssistSetupLab.exe**, approve UAC, and wait for setup to install the bundled MSI for the VM’s architecture. Keep the extracted directory structure intact.
 Confirm progress, Start menu shortcut, app opening, Windows installed-apps entry and uninstall.
-Try cancelling the file picker/download, reopening setup, and installing again.
+Try reopening setup and installing again.
 Use a VM snapshot before testing; this test installs Shiva Assist itself.
 
 The lab build is explicitly labelled, permits a local MSI with a supplied hash and intentionally

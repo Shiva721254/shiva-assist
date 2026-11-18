@@ -44,6 +44,12 @@ internal static class Program
                     && WindowsInstallerApi.TrustedPublisher(args[1], file, InstallPipeline.PublisherPin) ? 0 : 1;
             }
 #if SETUP_LAB
+            if (args.Length == 1 && args[0] == "--bundled-test-install")
+            {
+                var (package, hash) = BundledLabPackage();
+                var result = Task.Run(() => InstallPipeline.RunAsync(_ => { }, CancellationToken.None, package, hash, quiet: true)).GetAwaiter().GetResult();
+                return result.RestartRequired ? 3010 : 0;
+            }
             if (args.Length == 5 && args[0] == "--local-package" && args[2] == "--sha256" && args[4] == "--test-install")
             {
                 var result = Task.Run(() => InstallPipeline.RunAsync(_ => { }, CancellationToken.None, args[1], args[3], quiet: true)).GetAwaiter().GetResult();
@@ -59,6 +65,17 @@ internal static class Program
                 timer.Tick += (_, _) => { timer.Stop(); window.Close(); };
                 window.Loaded += (_, _) => timer.Start();
             }
+#if SETUP_LAB
+            else
+            {
+                window.ContentRendered += StartLabInstall;
+                async void StartLabInstall(object? sender, EventArgs e)
+                {
+                    window.ContentRendered -= StartLabInstall;
+                    await window.InstallAsync();
+                }
+            }
+#endif
             return app.Run(window);
         }
         catch (Exception ex) when (Expected(ex))
@@ -68,6 +85,30 @@ internal static class Program
             return 1;
         }
     }
+
+#if SETUP_LAB
+    internal static (string Package, string Hash) BundledLabPackage()
+    {
+        var architecture = WindowsInstallerApi.Architecture();
+        var folder = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\..\installer-output"));
+        InstallerPolicy.EnsureNoLinks(folder);
+        var packages = Directory.Exists(folder)
+            ? Directory.GetFiles(folder, "ShivaAssist-*-" + architecture + ".msi")
+            : Array.Empty<string>();
+        if (packages.Length != 1 || !File.Exists(packages[0] + ".sha256"))
+        {
+            throw new InvalidOperationException("Extract the complete test ZIP into a fresh folder and open setup from there.");
+        }
+
+        var hashPath = packages[0] + ".sha256";
+        InstallerPolicy.EnsureNoLinks(hashPath);
+        if (new FileInfo(hashPath).Length > 256)
+        {
+            throw new InvalidOperationException("The bundled package verification file is invalid.");
+        }
+        return (packages[0], File.ReadAllText(hashPath).Trim());
+    }
+#endif
 
     public static bool Expected(Exception exception) => exception is IOException || exception is UnauthorizedAccessException
         || exception is InvalidOperationException || exception is ArgumentException || exception is System.ComponentModel.Win32Exception
@@ -114,8 +155,8 @@ internal sealed class SetupWindow : Window
         panel.Children.Add(new TextBlock { Text = "Shiva Assist", FontSize = 27, FontWeight = FontWeights.SemiBold, Foreground = green });
         panel.Children.Add(new TextBlock { Text = Program.T("Download, verify and install the correct version for this PC."), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 8) });
 #if SETUP_LAB
-        status.Text = Program.T("LOCAL TEST BUILD. Choose the MSI and its matching .sha256 file from the test download. Do not distribute this installer to customers.");
-        install.Content = Program.T("Choose test package");
+        status.Text = Program.T("LOCAL TEST BUILD. Setup installs the package bundled in the test ZIP.");
+        install.Content = Program.T("Install test build");
 #else
         status.Text = Program.T("Setup needs an internet connection. You can cancel the download. Windows Installer handles installation and rollback.");
 #endif
@@ -128,26 +169,27 @@ internal sealed class SetupWindow : Window
         Closing += (_, e) => { if (running) { e.Cancel = true; if (!installing) cancellation?.Cancel(); } };
     }
 
-    private async Task InstallAsync()
+    internal async Task InstallAsync()
     {
+        if (running) return;
         if (result != null && !result.RestartRequired)
         {
             try { InstallPipeline.Open(result); Close(); }
             catch (Exception ex) when (Program.Expected(ex)) { status.Text = Program.T(ex.Message); }
             return;
         }
-        string? local = null, expected = null;
-#if SETUP_LAB
-        var picker = new Microsoft.Win32.OpenFileDialog { Filter = "Windows Installer (*.msi)|*.msi", CheckFileExists = true };
-        if (picker.ShowDialog(this) != true) return;
-        local = picker.FileName;
-        try { expected = File.ReadAllText(local + ".sha256").Trim(); }
-        catch (IOException) { status.Text = Program.T("Place the matching .sha256 file beside the local test package."); return; }
-#endif
         running = true; installing = false; install.IsEnabled = false; open.IsEnabled = false;
         cancellation = new CancellationTokenSource();
         try
         {
+            string? local = null, expected = null;
+            const bool quiet =
+#if SETUP_LAB
+                true;
+            (local, expected) = Program.BundledLabPackage();
+#else
+                false;
+#endif
             result = await Task.Run(() => InstallPipeline.RunAsync(update => Dispatcher.Invoke(() =>
             {
                 installing = update.Installing;
@@ -155,7 +197,7 @@ internal sealed class SetupWindow : Window
                 status.Text = Program.T(update.Text);
                 progress.IsIndeterminate = installing;
                 progress.Value = update.Percent;
-            }), cancellation.Token, local, expected));
+            }), cancellation.Token, local, expected, quiet));
             status.Text = Program.T(result.RestartRequired
                 ? "Shiva Assist is installed. Restart Windows before opening it. Setup will not restart your PC automatically."
                 : "Shiva Assist was installed and verified. Your shortcut is available in the Start menu.");

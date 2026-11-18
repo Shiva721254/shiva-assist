@@ -30,7 +30,12 @@ try {
     # Wrong hash must fail without installing anything.
     $bad = Start-Process $setup -ArgumentList "--local-package `"$((Resolve-Path $msi).Path)`" --sha256 $('0' * 64) --test-install" -Wait -PassThru
     if ($bad.ExitCode -eq 0 -or (Test-Path $application)) { throw 'Changed package was not rejected' }
-    Run-Setup $msi
+    if ((Resolve-Path $PackageRoot).Path -eq (Join-Path (Get-Location).Path 'installer-output')) {
+        $bundled = Start-Process $setup -ArgumentList '--bundled-test-install' -Wait -PassThru
+        if ($bundled.ExitCode -notin 0, 3010) { throw "Bundled setup integration failed: $($bundled.ExitCode)" }
+    } else {
+        Run-Setup $msi
+    }
     foreach ($name in 'ShivaAssist.exe', 'ShivaAssistAgent.exe', 'ShivaAssistCli.exe') {
         $installed = Join-Path (Split-Path $application) $name
         if ((Get-FileHash $installed).Hash -ne (Get-FileHash "publish/win-x64/$name").Hash) { throw "Installed file mismatch: $name" }
