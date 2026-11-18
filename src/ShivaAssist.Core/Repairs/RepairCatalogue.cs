@@ -71,6 +71,7 @@ public static class RepairCatalogue
     public const string CleanSoftwareLeftovers = "SOFTWARE.LEFTOVERS.CLEAN";
     public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
     public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
+    public const string SyncClock = "TIME.SYNC.REPAIR";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -246,6 +247,16 @@ public static class RepairCatalogue
             Minutes = (1, 2),
             VerifiesFinding = PrintCheck.FindingId,
         },
+        new()
+        {
+            Id = SyncClock,
+            Name = "Set the clock right",
+            Description = "Switches automatic time synchronisation back on and sets the clock to the exact time from Microsoft's internet time server (time.windows.com).",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ClockCheck.FindingId,
+        },
     ];
 
     /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
@@ -278,6 +289,7 @@ public static class RepairCatalogue
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
             PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
+            ClockCheck.FindingId when finding.Severity == Severity.Warning => [Find(SyncClock)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };

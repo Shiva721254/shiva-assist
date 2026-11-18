@@ -22,7 +22,16 @@ public enum DiskHealth
     Unknown,
 }
 
-public sealed record PhysicalDisk(string Model, string MediaType, string BusType, long SizeBytes, DiskHealth Health);
+public sealed record PhysicalDisk(string Model, string MediaType, string BusType, long SizeBytes, DiskHealth Health, DiskReliability? Reliability = null);
+
+/// <summary>
+/// The disk's own reliability counters (SMART / NVMe health log via MSFT_StorageReliabilityCounter). Every value is
+/// optional: many disks and USB enclosures report only some of them, and reading them needs administrator rights.
+/// </summary>
+public sealed record DiskReliability(int? WearPercent, int? TemperatureC, long? PowerOnHours, long? UncorrectedErrors)
+{
+    public bool HasAny => WearPercent is not null || TemperatureC is not null || PowerOnHours is not null || UncorrectedErrors is not null;
+}
 
 public sealed record StorageSnapshot(IReadOnlyList<Volume> Volumes, IReadOnlyList<PhysicalDisk>? Disks);
 
@@ -120,3 +129,19 @@ public sealed record NetworkSnapshot(
     LayerResult Internet,
     bool CaptivePortal,
     bool ProxyConfigured);
+
+/// <summary>State of the Windows Time service (W32Time).</summary>
+public enum TimeServiceState
+{
+    Running,
+    Stopped,
+    Disabled,
+    Missing,
+}
+
+/// <summary>
+/// The PC clock compared with an internet time server (w32tm /stripchart, one sample). A wrong clock breaks
+/// secure websites ("your clock is ahead"), sign-ins and updates. Offset is null when no server answered.
+/// </summary>
+public sealed record TimeSnapshot(TimeServiceState Service, double? OffsetSeconds, string Server);
+

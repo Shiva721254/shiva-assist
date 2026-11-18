@@ -27,6 +27,8 @@ The working branch also includes installed app inventory and supported uninstall
 
 - 0.1.5 UI/UX: finding cards with severity icons and directly visible repair buttons, Overview journey (Check-up → Fix it all → Review), larger sidebar, footer busy indicator, F5/F1. Robustness: single instance (mutex `Local\ShivaAssist.App`), close confirmation while busy, global crash guard writing `crash-log.txt` (`App/CrashLog.cs`).
 
+- 0.1.6: Fix it all skips repairs that already ran on a finding since the last scan (`triedRepairs`) and says when nothing safe is left; "already clean" bucket for cleanups that removed nothing. New checks: clock (`ClockCheck`, `TimeSource`, repair `TIME.SYNC.REPAIR`) and disk wear (`STORAGE-WEAR-001` from `Get-StorageReliabilityCounter`, no repair by design). VM tests: `Set-Date (Get-Date).AddMinutes(-30)` then scan → Fix it all → expect Fixed; `Stop-Service Spooler` likewise.
+
 ## Next development work
 
 Prioritize repair and maintenance functionality. Review the current checks and repair catalog, then extend a useful Windows problem that can be detected, repaired, and verified. Use automated checks where practical so minor UI changes do not require repeated manual VM reinstalls. Public distribution on ShivaComputers.nl is a later milestone and still requires code signing, hosting, and an end-to-end download test.

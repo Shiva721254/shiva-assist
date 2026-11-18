@@ -311,7 +311,7 @@ public sealed partial class MainViewModel : Observable
 
     public string TextFixAllPlanTitle => T("What Fix it all will do");
 
-    public string TextNothingToFix => T("Nothing to fix automatically");
+    public string TextNothingToFix => FixAllExhausted ? T("Nothing more to fix automatically") : T("Nothing to fix automatically");
 
     public bool NothingToFix => HasResults && !HasFixAllPlan && !IsFixingAll;
 
@@ -328,20 +328,32 @@ public sealed partial class MainViewModel : Observable
         {
             var bars = RepairSummaryBars;
             return lastRepairBatch.Length == 0 ? string.Empty
-                : new Message("Last Fix it all: {fixed} fixed · {improved} improved · {other} need attention",
-                    ("fixed", bars[0].Count), ("improved", bars[1].Count), ("other", bars[2].Count)).Render(catalog);
+                : new Message("Last Fix it all: {fixed} fixed · {improved} improved · {other} need attention · {clean} already clean",
+                    ("fixed", bars[0].Count), ("improved", bars[1].Count), ("other", bars[2].Count), ("clean", bars[3].Count)).Render(catalog);
         }
     }
     public string TextRepairAndCleanup => T("Repair and cleanup");
 
-    public string TextProblemCount => new Message("{count} problems found", ("count", CountOf(Severity.Critical) + CountOf(Severity.Warning))).Render(catalog);
+    public string TextProblemCount => HasRepairSummary
+        ? new Message("{count} problems remain", ("count", ProblemCount)).Render(catalog)
+        : new Message("{count} problems found", ("count", ProblemCount)).Render(catalog);
 
     public bool RepairsEmpty => IsModulePage && HasResults && Findings.Count == 0;
 
     private IEnumerable<RepairButton> AutomaticRepairs => AllFindings.SelectMany(item => item.Repairs)
-        .Where(repair => !repair.Operation.NeedsSelection && !repair.Operation.RestartRequired && !repair.Operation.IsUndo);
+        .Where(repair => !repair.Operation.NeedsSelection && !repair.Operation.RestartRequired && !repair.Operation.IsUndo
+            && !triedRepairs.Contains(repair.Item.Id + "|" + repair.Operation.Id));
 
-    public string TextRepairCoverage => !AutomaticRepairs.Any()
+    private int ProblemCount => CountOf(Severity.Critical) + CountOf(Severity.Warning);
+
+    /// <summary>Fix it all ran, and every remaining problem needs a choice, a restart or a technician.</summary>
+    public bool FixAllExhausted => HasRepairSummary && !AutomaticRepairs.Any() && ProblemCount > 0;
+
+    public string TextRepairCoverage => FixAllExhausted
+        ? T("Fix it all has done everything it can safely do automatically. The remaining problems need your choice on their card below, or a Shiva technician.")
+        : ProblemCount == 0 && HasResults
+            ? T("No problems need attention. Your PC looks good.")
+        : !AutomaticRepairs.Any()
         ? T("No one-click repairs are available. Open a finding to see its options.")
         : AutomaticRepairs.Any(repair => repair.Operation.Id == RepairCatalogue.EmptyRecycleBin)
             ? T("Fix it all starts supported repairs now and may permanently empty the Recycle Bin.")
@@ -503,6 +515,7 @@ public sealed partial class MainViewModel : Observable
         }
 
         Navigate(Modules[0]);
+        triedRepairs.Clear();
         ProgressMax = checks.Count;
         Progress = 0;
         Status = null;
@@ -644,6 +657,12 @@ public sealed partial class MainViewModel : Observable
 
     private (RepairOperation Operation, RepairResult? Result)[] lastRepairBatch = [];
 
+    /// <summary>
+    /// Repairs that already ran on a finding since the last scan ("findingId|operationId"). Fix it all never offers
+    /// them again: repeating a cleanup that could not solve the problem only looks like progress.
+    /// </summary>
+    private readonly HashSet<string> triedRepairs = new(StringComparer.Ordinal);
+
     public bool HasRepairSummary => lastRepairBatch.Length > 0;
     public string TextScanResultsTitle => CountOf(Severity.Critical) + CountOf(Severity.Warning) == 0
         ? TextHeadline : T("Scan results");
@@ -651,18 +670,25 @@ public sealed partial class MainViewModel : Observable
     public IEnumerable<string> RepairSummaryDetails => lastRepairBatch.Select(entry =>
         entry.Operation.Name.Render(catalog) + " — " + (entry.Result is { } result ? VerdictText(result) : T("The repair did not complete")));
 
+    /// <summary>A cleanup that completed but found nothing to remove is not a failure: the area was already clean.</summary>
+    private static bool AlreadyClean((RepairOperation Operation, RepairResult? Result) entry) =>
+        entry.Result is { Completed: true, BytesFreed: 0, Verdict: RepairVerdict.Unresolved or RepairVerdict.Inconclusive }
+        && entry.Operation.Id.StartsWith("DISK.", StringComparison.Ordinal);
+
     public IReadOnlyList<RepairSummaryBar> RepairSummaryBars
     {
         get
         {
-            var fixedCount = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Fixed });
+            var fixedCount = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Fixed or RepairVerdict.Pending });
             var improved = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Improved });
-            var remaining = lastRepairBatch.Length - fixedCount - improved;
+            var clean = lastRepairBatch.Count(AlreadyClean);
+            var remaining = lastRepairBatch.Length - fixedCount - improved - clean;
             return
             [
                 new(T("Fixed"), fixedCount, lastRepairBatch.Length, Palette.For(Severity.Healthy)),
                 new(T("Improved"), improved, lastRepairBatch.Length, Palette.For(Severity.Information)),
                 new(T("Needs attention or verification"), remaining, lastRepairBatch.Length, Palette.For(Severity.Warning)),
+                new(T("Already clean, nothing to remove"), clean, lastRepairBatch.Length, Palette.For(Severity.Unknown)),
             ];
         }
     }
@@ -704,7 +730,7 @@ public sealed partial class MainViewModel : Observable
                 OnPropertyChanged(nameof(TextFixAllProgress));
             }
             lastRepairBatch = completed.ToArray();
-            Status = T("Repairs finished. See the summary in Overview.");
+            Status = TextLastBatch;
             RefreshAll();
         }
         finally
@@ -769,6 +795,7 @@ public sealed partial class MainViewModel : Observable
         repairing = false;
 
         outcomes[before.Id] = result;
+        triedRepairs.Add(before.Id + "|" + operation.Id);
         if (after is not null && report is not null)
         {
             report = report with { Findings = [.. report.Findings.Select(f => f.Id == after.Id ? ScanRunner.WithRepairs(after) : f)] };
@@ -807,6 +834,12 @@ public sealed partial class MainViewModel : Observable
 
     private string VerdictText(RepairResult result)
     {
+        if (result is { Completed: true, BytesFreed: 0, Verdict: RepairVerdict.Unresolved or RepairVerdict.Inconclusive }
+            && result.OperationId.StartsWith("DISK.", StringComparison.Ordinal))
+        {
+            return T("Already clean: there was nothing to remove here.");
+        }
+
         var verdict = result.Verdict switch
         {
             RepairVerdict.Fixed => T("Fixed"),

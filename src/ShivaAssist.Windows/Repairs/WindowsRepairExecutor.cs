@@ -51,6 +51,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.CleanSoftwareLeftovers => UninstallerService.Clean(job),
             RepairCatalogue.RestoreSoftwareLeftovers => UninstallerService.Restore(job),
             RepairCatalogue.ResetPrintSpooler => await ResetPrintSpoolerAsync(job, cancellationToken),
+            RepairCatalogue.SyncClock => await SyncClockAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
@@ -179,6 +180,41 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             Completed = running,
             Detail = string.Create(CultureInfo.InvariantCulture,
                 $"Print Spooler {(running ? "running again" : "did not start")}; removed {PowerShell.Long(json, "removed")} queued job file(s); start type was {PowerShell.Str(json, "previous")}"),
+        };
+    }
+
+    /// <summary>
+    /// Re-enables W32Time (manual start, as Windows ships it) when disabled, starts it and forces a resync. Only when
+    /// Windows has no time source at all is the standard Microsoft server configured. Verified by measuring again.
+    /// </summary>
+    private static async Task<RepairResult> SyncClockAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $w32tm = "$env:SystemRoot\System32\w32tm.exe"
+            $svc = Get-Service -Name W32Time -ErrorAction Stop
+            $previous = "$($svc.StartType)"
+            if ($previous -eq 'Disabled') { Set-Service -Name W32Time -StartupType Manual }
+            if ($svc.Status -ne 'Running') { Start-Service -Name W32Time -ErrorAction Stop }
+            $out = & $w32tm /resync /force 2>&1
+            $ok = $LASTEXITCODE -eq 0
+            $configured = $false
+            if (-not $ok) {
+                & $w32tm /config /manualpeerlist:time.windows.com,0x9 /syncfromflags:manual /update 2>&1 | Out-Null
+                $configured = $true
+                Start-Sleep -Seconds 2
+                $out = & $w32tm /resync /force 2>&1
+                $ok = $LASTEXITCODE -eq 0
+            }
+            [pscustomobject]@{ ok = $ok; previous = $previous; configured = $configured } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var ok = PowerShell.Bool(json, "ok");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = string.Create(CultureInfo.InvariantCulture,
+                $"w32tm /resync {(ok ? "succeeded" : "failed")}; service start type was {PowerShell.Str(json, "previous")}{(PowerShell.Bool(json, "configured") ? "; time source set to time.windows.com" : string.Empty)}"),
         };
     }
 

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- 0.1.6: honest Fix it all, clock and disk wear.
+  - Fix it all no longer offers the same repairs again after they ran on a finding (until the next scan). When
+    nothing safe is left, the card says so ("{n} problems remain · Nothing more to fix automatically") and points
+    to the cards or a technician. Cleanups that found nothing count as "already clean", not as failures, and the
+    footer shows the real outcome instead of "Repairs finished".
+  - New check CLOCK-SYNC-001: compares the clock with time.windows.com (w32tm, one sample); two minutes or more
+    off, or time sync switched off, is repaired by TIME.SYNC.REPAIR (re-enable W32Time, resync) and verified by
+    measuring again. Included in Fix it all.
+  - New finding STORAGE-WEAR-001 from the disk's own SMART/NVMe counters (wear, temperature, power-on hours,
+    uncorrectable errors). Critical for uncorrectable errors or SSD wear >= 90 %, warning for >= 70 % or >= 70 °C.
+    No automatic repair: back up first and get a technician.
 - 0.1.5: UI/UX and robustness.
   - Finding cards: severity icon (not colour alone), larger title, advice in normal text colour, and the repair
     buttons visible on the card itself instead of hidden under Details (Details keeps cause and evidence).
