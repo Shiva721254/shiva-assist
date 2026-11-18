@@ -1,7 +1,7 @@
 # Run after publishing the three self-contained executables for both architectures.
 [CmdletBinding()]
 param(
-    [string]$Version = '0.1.0',
+    [string]$Version = ([xml](Get-Content (Join-Path $PSScriptRoot '../../Directory.Build.props') -Raw)).Project.PropertyGroup.Version,
     [string]$PayloadRoot = 'publish',
     [string]$OutputRoot = 'installer-output'
 )

@@ -25,7 +25,8 @@ $marker = Join-Path $markerFolder "setup-test-$([guid]::NewGuid()).txt"
 Set-Content $marker 'Preserve customer history and preferences'
 $product = $null
 try {
-    $msi = Join-Path $PackageRoot 'ShivaAssist-0.1.0-win-x64.msi'
+    $version = [version]([xml](Get-Content (Join-Path $PSScriptRoot '../../Directory.Build.props') -Raw)).Project.PropertyGroup.Version
+    $msi = Join-Path $PackageRoot "ShivaAssist-$version-win-x64.msi"
     $product = Product-Code $msi
     # Wrong hash must fail without installing anything.
     $bad = Start-Process $setup -ArgumentList "--local-package `"$((Resolve-Path $msi).Path)`" --sha256 $('0' * 64) --test-install" -Wait -PassThru
@@ -42,8 +43,9 @@ try {
     }
     if (-not (Test-Path $shortcut)) { throw 'Missing Start menu shortcut' }
     Run-Setup $msi # Same release can be run again / repaired.
-    & "$PSScriptRoot/Build-Packages.ps1" -Version '0.1.1' -OutputRoot "$PackageRoot/upgrade"
-    $upgrade = Join-Path $PackageRoot 'upgrade/ShivaAssist-0.1.1-win-x64.msi'
+    $upgradeVersion = [version]::new($version.Major, $version.Minor, $version.Build + 1)
+    & "$PSScriptRoot/Build-Packages.ps1" -Version $upgradeVersion.ToString() -OutputRoot "$PackageRoot/upgrade"
+    $upgrade = Join-Path $PackageRoot "upgrade/ShivaAssist-$upgradeVersion-win-x64.msi"
     Run-Setup $upgrade
     $product = Product-Code $upgrade
     $uninstall = Start-Process "$env:SystemRoot/System32/msiexec.exe" -ArgumentList "/x $product /qn /norestart" -Wait -PassThru
