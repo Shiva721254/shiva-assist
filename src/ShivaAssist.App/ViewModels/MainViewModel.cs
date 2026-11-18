@@ -90,8 +90,8 @@ public sealed partial class MainViewModel : Observable
         }
 
         StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning && !repairing && !reviewingRepairs);
-        ReviewRepairsCommand = new RelayCommand(async _ => await ReviewRepairsAsync(),
-            _ => TechnicianMode && HasResults && AvailableRepairCount > 0 && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
+        FixAllCommand = new RelayCommand(async _ => await FixAllAsync(),
+            _ => TechnicianMode && HasResults && AutomaticRepairs.Any() && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
         ConfigureScanCommand = new RelayCommand(_ => Navigate(Modules.First(module => module.IsOverview)));
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
         HelpCommand = new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal)));
@@ -218,7 +218,7 @@ public sealed partial class MainViewModel : Observable
 
     public RelayCommand ConfigureScanCommand { get; }
 
-    public RelayCommand ReviewRepairsCommand { get; }
+    public RelayCommand FixAllCommand { get; }
 
     public bool ShowRepairReview => HasResults;
 
@@ -228,13 +228,14 @@ public sealed partial class MainViewModel : Observable
 
     public bool RepairsEmpty => IsModulePage && HasResults && Findings.Count == 0;
 
-    public int AvailableRepairCount => AllFindings.SelectMany(item => item.Repairs).Count();
+    private IEnumerable<RepairButton> AutomaticRepairs => AllFindings.SelectMany(item => item.Repairs)
+        .Where(repair => !repair.Operation.NeedsSelection && !repair.Operation.RestartRequired && !repair.Operation.IsUndo);
 
-    public string TextReviewRepairs => new Message("Review repairs ({count})", ("count", AvailableRepairCount)).Render(catalog);
-
-    public string TextRepairCoverage => AvailableRepairCount == 0
-        ? T("No supported automatic repairs are available for these findings. Open Details for advice. Unknown checks may need administrator permission or further investigation.")
-        : T("Review the available repairs and approve the ones you want to run together.");
+    public string TextRepairCoverage => !AutomaticRepairs.Any()
+        ? T("No one-click repairs are available. Open a finding to see its options.")
+        : AutomaticRepairs.Any(repair => repair.Operation.Id == RepairCatalogue.EmptyRecycleBin)
+            ? T("Fix it all starts supported repairs now and may permanently empty the Recycle Bin.")
+            : T("Fix it all starts supported repairs now. Actions that need a choice or restart are available on their findings.");
 
     public bool IsModulePage => selectedModule.Module.Key == AppModules.RepairsKey;
 
@@ -531,45 +532,29 @@ public sealed partial class MainViewModel : Observable
 
     // ---- Repairs (stage 3a): explain → ask → repair → verify → log ----
 
-    private async Task ReviewRepairsAsync()
+    private async Task FixAllAsync()
     {
         if (repairing || reviewingRepairs || !TechnicianMode)
         {
             return;
         }
 
-        var available = AllFindings.SelectMany(item => item.Repairs).ToArray();
-        var picker = new RepairPicker(available, catalog) { Owner = Application.Current.MainWindow };
-        if (picker.ShowDialog() != true)
-        {
-            return;
-        }
-
+        var batch = AutomaticRepairs.ToArray();
         reviewingRepairs = true;
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         try
         {
-            var batch = new List<(RepairButton Repair, IReadOnlyList<string> Items)>();
-            foreach (var selected in picker.Selected.OrderBy(repair => repair.Operation.RestartRequired))
-            {
-                // Gather any required choices before the first repair changes the PC.
-                var items = await ChooseItemsAsync(selected.Operation);
-                if (items is null)
-                {
-                    Status = T("Repair batch cancelled before any repairs started.");
-                    return;
-                }
-
-                batch.Add((selected, items));
-            }
-
-            foreach (var (selected, items) in batch)
+            foreach (var selected in batch)
             {
                 // Earlier repairs can resolve a finding, so recheck that each operation still applies.
                 var current = AllFindings.FirstOrDefault(item => item.Id == selected.Item.Id);
                 var repair = current?.Repairs.FirstOrDefault(button => button.Operation.Id == selected.Operation.Id);
                 if (repair is not null)
                 {
-                    await RepairAsync(repair, items);
+                    IReadOnlyList<string> approvedItems = repair.Operation.Id == RepairCatalogue.CleanTempFiles
+                        ? [Path.GetTempPath().TrimEnd('\\')]
+                        : [];
+                    await RepairAsync(repair, approvedItems);
                 }
             }
         }

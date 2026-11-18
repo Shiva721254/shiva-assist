@@ -133,7 +133,7 @@
     <Border DockPanel.Dock="Top" Visibility="{Binding ShowRepairReview, Converter={StaticResource Visible}}"
             Background="{StaticResource GreenSoft}" Padding="28,12">
       <DockPanel>
-        <Button DockPanel.Dock="Right" Content="{Binding TextFixAll}" Command="{Binding ReviewRepairsCommand}"
+        <Button DockPanel.Dock="Right" Content="{Binding TextFixAll}" Command="{Binding FixAllCommand}"
                 Style="{StaticResource PrimaryButton}" Margin="18,0,0,0" ToolTip="{Binding TextRepairCoverage}" />
         <StackPanel>
           <TextBlock Text="{Binding TextProblemCount}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
