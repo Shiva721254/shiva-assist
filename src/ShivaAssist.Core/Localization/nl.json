@@ -133,6 +133,8 @@
     "No one-click repairs are available. Open a finding to see its options.": "Er zijn geen reparaties die u met één klik kunt starten. Open een bevinding om de opties te bekijken.",
     "Fix it all starts supported repairs now and may permanently empty the Recycle Bin.": "Alles herstellen start nu de ondersteunde reparaties en kan de Prullenbak definitief legen.",
     "Fix it all starts supported repairs now. Actions that need a choice or restart are available on their findings.": "Alles herstellen start nu de ondersteunde reparaties. Acties waarvoor een keuze of herstart nodig is, vindt u bij de betreffende bevinding.",
+    "Working on your PC…": "Bezig met uw pc…",
+    "Repairs finished. Check the results for anything that still needs attention.": "De reparaties zijn afgerond. Bekijk de resultaten voor eventuele resterende problemen.",
     "Fix it all": "Alles repareren",
     "{count} problems found": "{count} problemen gevonden",
     "Windows Update": "Windows Update",

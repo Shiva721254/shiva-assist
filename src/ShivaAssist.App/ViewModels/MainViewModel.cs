@@ -541,6 +541,7 @@ public sealed partial class MainViewModel : Observable
 
         var batch = AutomaticRepairs.ToArray();
         reviewingRepairs = true;
+        Status = T("Working on your PC…");
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         try
         {
@@ -557,6 +558,7 @@ public sealed partial class MainViewModel : Observable
                     await RepairAsync(repair, approvedItems);
                 }
             }
+            Status = T("Repairs finished. Check the results for anything that still needs attention.");
         }
         finally
         {
@@ -607,7 +609,10 @@ public sealed partial class MainViewModel : Observable
         }
 
         repairing = true;
-        Status = new Message("Running: {repair}… This can take up to {max} minutes; keep the PC switched on.", ("repair", operation.Name.Render(catalog)), ("max", operation.Minutes.Max)).Render(catalog);
+        if (approvedItems is null)
+        {
+            Status = new Message("Running: {repair}… This can take up to {max} minutes; keep the PC switched on.", ("repair", operation.Name.Render(catalog)), ("max", operation.Minutes.Max)).Render(catalog);
+        }
         var job = new RepairJob { JobId = Guid.NewGuid().ToString("N"), OperationId = operation.Id, ApprovedAt = DateTimeOffset.UtcNow, Items = items };
         var (result, after) = await Task.Run(() => new RepairRunner(IsElevated).RunAsync(operation, job, before, CancellationToken.None));
         repairing = false;
@@ -618,7 +623,10 @@ public sealed partial class MainViewModel : Observable
             report = report with { Findings = [.. report.Findings.Select(f => f.Id == after.Id ? ScanRunner.WithRepairs(after) : f)] };
         }
 
-        Status = OutcomeText(before.Id);
+        if (approvedItems is null)
+        {
+            Status = OutcomeText(before.Id);
+        }
         ShowResults();
     }
 
