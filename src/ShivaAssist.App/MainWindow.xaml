@@ -17,7 +17,7 @@
               </Border>
               <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
             </DockPanel>
-            <TextBlock Text="{Binding Advice, StringFormat='→ {0}'}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
+            <TextBlock Text="{Binding Advice}" Foreground="{StaticResource Muted}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
                        TextWrapping="Wrap" Margin="0,8,0,0" />
             <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,10,0,0">
               <ItemsControl.ItemsPanel>
@@ -129,24 +129,32 @@
       </DockPanel>
     </Border>
 
-    <!-- Persistent result summary on every page. -->
+    <!-- The scan outcome and repair action remain visible while navigating. -->
     <Border DockPanel.Dock="Top" Visibility="{Binding ShowRepairReview, Converter={StaticResource Visible}}"
-            Background="{StaticResource GreenSoft}" Padding="28,12">
-      <DockPanel>
-        <Button DockPanel.Dock="Right" Content="{Binding TextFixAll}" Command="{Binding FixAllCommand}"
-                Style="{StaticResource PrimaryButton}" Margin="18,0,0,0" ToolTip="{Binding TextRepairCoverage}" />
-        <StackPanel>
-          <TextBlock Text="{Binding TextProblemCount}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
-          <TextBlock Text="{Binding TextRepairCoverage}" TextWrapping="Wrap" Margin="0,4,0,0" />
-        </StackPanel>
-      </DockPanel>
+            Background="{StaticResource Page}" Padding="18,14,18,10">
+      <Border Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="18,12">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="{Binding TextProblemCount}" FontSize="18" FontWeight="SemiBold"
+                       Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock Text="{Binding TextRepairCoverage}" TextWrapping="Wrap" Margin="0,4,0,0" />
+          </StackPanel>
+          <Button Grid.Column="1" Content="{Binding TextFixAll}" Command="{Binding FixAllCommand}"
+                  Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" MinWidth="132"
+                  VerticalAlignment="Center" ToolTip="{Binding TextRepairCoverage}" />
+        </Grid>
+      </Border>
     </Border>
 
     <!-- Footer: status, help -->
     <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="28,10">
       <DockPanel>
         <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="{Binding TextHelp}" Command="{Binding HelpCommand}" />
-        <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0" AutomationProperties.LiveSetting="Polite" />
       </DockPanel>
     </Border>
 
@@ -296,21 +304,21 @@
       </StackPanel>
       <DockPanel Visibility="{Binding ShowFindingResults, Converter={StaticResource Visible}}">
 
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-            <Button Style="{StaticResource QuietButton}" Content="{Binding TextSave}" Command="{Binding SaveReportCommand}" Margin="0,0,8,0" />
-            <Button Style="{StaticResource PrimaryButton}" Content="{Binding TextScanAgain}" Command="{Binding ConfigureScanCommand}" Padding="16,7" FontSize="13" />
-          </StackPanel>
+        <Border DockPanel.Dock="Top" Margin="0,0,0,14" Padding="16,12"
+                Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12">
           <StackPanel>
-            <TextBlock Text="{Binding TextHeadline}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
-            <TextBlock Text="{Binding TextSummary}" Foreground="{StaticResource Muted}" Margin="0,4,0,0" />
-            <TextBlock Text="{Binding TextSystem}" Foreground="{StaticResource Muted}" FontSize="12" />
+            <TextBlock Text="{Binding TextHeadline}" FontSize="21" FontWeight="SemiBold"
+                       Foreground="{StaticResource GreenDark}" TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level2" />
+            <TextBlock Text="{Binding TextSummary}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <TextBlock Text="{Binding TextSystem}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="12" Margin="0,2,0,0" />
           </StackPanel>
-        </DockPanel>
+        </Border>
 
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-          <CheckBox Content="{Binding TextShowHealthy}" IsChecked="{Binding ShowHealthy}" VerticalAlignment="Center" />
-        </DockPanel>
+        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+          <CheckBox Content="{Binding TextShowHealthy}" IsChecked="{Binding ShowHealthy}" VerticalAlignment="Center" Margin="0,0,16,6" />
+          <Button Style="{StaticResource QuietButton}" Content="{Binding TextSave}" Command="{Binding SaveReportCommand}" Margin="0,0,8,6" />
+          <Button Style="{StaticResource QuietButton}" Content="{Binding TextScanAgain}" Command="{Binding ConfigureScanCommand}" Margin="0,0,0,6" />
+        </WrapPanel>
         <TextBlock DockPanel.Dock="Top" Text="{Binding TextSectionEmpty}" TextWrapping="Wrap" Margin="0,0,0,12"
                    Visibility="{Binding SectionHasNoFindings, Converter={StaticResource Visible}}" />
 
