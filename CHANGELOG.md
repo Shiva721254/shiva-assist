@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 0.1.9: Get help page and monthly check-up.
+  - History and help → Get help now has five cards: contact, monthly check-up (switch on/off), battery report,
+    "Windows does not start any more?" (Shiva Rescue) and remote help (request; consent per job is explained).
+  - Monthly check-up (optional, off by default): a scheduled task "\\Shiva Computers\\Shiva Assist monthly
+    check-up" runs the read-only CLI scan every four weeks in the background (S4U, normal rights) and saves
+    `monthly-report.json`; Overview shows its result until a new scan is made. Nothing is repaired automatically.
+  - Battery report: Windows' powercfg /batteryreport, opened in the browser.
 - 0.1.8: four more problems that are detected, repaired and verified.
   - No sound: AUDIO-SERVICE-001 when the Windows audio services are stopped or disabled; AUDIO.SERVICE.REPAIR
     switches them back to automatic and restarts them (in Fix it all).

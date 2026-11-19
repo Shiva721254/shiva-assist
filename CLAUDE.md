@@ -35,6 +35,8 @@ The working branch also includes installed app inventory and supported uninstall
 
 - Test machine from 19 Nov 2026: Windows 11 in Parallels Desktop on the owner's 2019 Intel MacBook Pro (10-day trial; x64 Windows, so the x64 build/MSI applies). `tools/test-vm/Inject-Faults.ps1` supports Parallels, has a `Services` scenario (spooler, time, audio, search, clock 30 min back) and `-Undo`. In Parallels set Options → More Options → Time to "Do not sync" before the clock test.
 
+- 0.1.9: Get help section (`HelpViewModel.cs` partial): contact, monthly check-up (`Windows/Maintenance/MonthlyCheckup.cs`, scheduled task, CLI writes monthly-report.json, Overview note), battery report (`BatteryReport.cs`), Shiva Rescue link, remote-help request. Remote control itself (MeshCentral) is not integrated yet.
+
 ## Next development work
 
 Prioritize repair and maintenance functionality. Review the current checks and repair catalog, then extend a useful Windows problem that can be detected, repaired, and verified. Use automated checks where practical so minor UI changes do not require repeated manual VM reinstalls. Public distribution on ShivaComputers.nl is a later milestone and still requires code signing, hosting, and an end-to-end download test.

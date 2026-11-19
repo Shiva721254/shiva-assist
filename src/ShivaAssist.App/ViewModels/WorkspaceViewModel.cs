@@ -25,7 +25,7 @@ public sealed partial class MainViewModel
     public string TextSectionEmpty => IsRepairSection ? T("No supported repairs are available for this scan.") : T("No findings to show in this section. Show OK results or include this area in your next scan.");
     public string TextRepairSectionEmpty => T("No supported optimization actions match this section.");
     public string TextSectionHint => T("Choose a section");
-    public string TextSupportScope => T("Contact Shiva Computers for help interpreting a result or arranging support. Remote control and emergency recovery are not yet integrated into this application.");
+    public string TextSupportScope => T("Contact Shiva Computers for help with a result, a repair or anything else about your PC.");
 
     private void RebuildSections()
     {
@@ -90,6 +90,10 @@ public sealed partial class MainViewModel
         {
             Software.ActivePanel = section.Key;
             await Software.EnsureLoadedAsync();
+        }
+        if (IsHelpSection)
+        {
+            await LoadMonthlyStateAsync();
         }
         if (IsStartupSection)
         {
