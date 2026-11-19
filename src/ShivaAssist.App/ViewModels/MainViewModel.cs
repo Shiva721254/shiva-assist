@@ -311,7 +311,9 @@ public sealed partial class MainViewModel : Observable
 
     public bool HasFixAllPlan => FixAllPlan.Count > 0;
 
-    public string TextFixAllReady => new Message("{count} repairs ready · one click", ("count", FixAllPlan.Count)).Render(catalog);
+    public string TextFixAllReady => FixAllPlan.Count == 1
+        ? T("1 repair ready · one click")
+        : new Message("{count} repairs ready · one click", ("count", FixAllPlan.Count)).Render(catalog);
 
     public string TextFixAllPlanTitle => T("What Fix it all will do");
 

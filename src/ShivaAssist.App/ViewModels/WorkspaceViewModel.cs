@@ -36,10 +36,14 @@ public sealed partial class MainViewModel
             if ((IsResultsPage || IsModulePage) && target is null && key != "startup" && (key != "all" || IsModulePage))
             {
                 var findings = AllFindings.Where(item => MatchesSection(key, item.Finding, IsModulePage));
+                var repairs = findings.Sum(item => item.Repairs.Count);
+                var problems = findings.Count(item => item.Severity is Severity.Warning or Severity.Critical);
+                var unknown = findings.Count(item => item.Severity == Severity.Unknown);
                 status = !HasResults ? T("Not checked yet") : IsModulePage || key == "repairs"
-                    ? new Message("{count} available repairs", ("count", findings.Sum(item => item.Repairs.Count))).Render(catalog)
-                    : new Message("{count} problems · {unknown} unknown", ("count", findings.Count(item => item.Severity is Severity.Warning or Severity.Critical)),
-                        ("unknown", findings.Count(item => item.Severity == Severity.Unknown))).Render(catalog);
+                    ? (repairs == 1 ? T("1 available repair") : new Message("{count} available repairs", ("count", repairs)).Render(catalog))
+                    : (problems == 1
+                        ? new Message("1 problem · {unknown} unknown", ("unknown", unknown))
+                        : new Message("{count} problems · {unknown} unknown", ("count", problems), ("unknown", unknown))).Render(catalog);
             }
             Sections.Add(new(key, catalog.Translate(title), catalog.Translate(description), glyph,
                 target ?? selectedModule.Module.Key, key == ActiveSection && (target is null || target == selectedModule.Module.Key), status));
