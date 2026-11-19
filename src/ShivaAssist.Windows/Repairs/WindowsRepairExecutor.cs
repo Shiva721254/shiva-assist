@@ -43,7 +43,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.FlushDns => await RunToolAsync(job, ToolRunner.System32("ipconfig.exe"), ["/flushdns"], "DNS cache cleared", cancellationToken),
             RepairCatalogue.RenewAddress => await RenewAddressAsync(job, cancellationToken),
             RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
-            RepairCatalogue.RestartNow => await RunToolAsync(job, ToolRunner.System32("shutdown.exe"), ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken),
+            RepairCatalogue.RestartNow => await ScheduleRestartAsync(job, cancellationToken),
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
             RepairCatalogue.RestoreStartupPrograms => RestoreStartupPrograms(job),
             RepairCatalogue.UpdateSoftware => await UpdateSoftwareAsync(job, cancellationToken),
@@ -126,6 +126,20 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             Completed = dismOk,
             Detail = string.Create(CultureInfo.InvariantCulture, $"DISM RestoreHealth: {(dismOk ? "completed" : $"exit code {dismExit}")}; SFC: {sfc}"),
         };
+    }
+
+    /// <summary>
+    /// Restart in two minutes. Exit code 1190 (ERROR_SHUTDOWN_IS_SCHEDULED) means a restart is already on its way, from an
+    /// earlier click or from Windows Update itself: that is the outcome the customer asked for, not a failure.
+    /// </summary>
+    private static async Task<RepairResult> ScheduleRestartAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        const int ShutdownAlreadyScheduled = 1190;
+        var result = await RunToolAsync(job, ToolRunner.System32("shutdown.exe"),
+            ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken);
+        return result.Completed || !result.Detail.Contains("exit code " + ShutdownAlreadyScheduled.ToString(CultureInfo.InvariantCulture) + ":", StringComparison.Ordinal)
+            ? result
+            : result with { Completed = true, Detail = "A restart was already scheduled. Windows restarts within a few minutes; save your work." };
     }
 
     /// <summary>Runs one Microsoft tool; exit code 0 means done.</summary>

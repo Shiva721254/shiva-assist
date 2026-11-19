@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 0.1.13: "Restart the PC to finish updates" no longer reports a failure when a restart is already scheduled
+  (shutdown.exe exit code 1190, from an earlier click or from Windows Update); it says the restart is on its way.
 - 0.1.12: fixes from the Parallels test.
   - Printer check: printers are now counted from the registry. Windows cannot list printers while the Print Spooler is
     stopped, so a stopped spooler was reported as "No printers are set up" and PRINT-SPOOLER-001 never appeared.
