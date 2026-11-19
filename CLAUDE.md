@@ -33,7 +33,7 @@ The working branch also includes installed app inventory and supported uninstall
 
 - 0.1.8: `ServicesCheck` (sound AUDIO-SERVICE-001, search SEARCH-SERVICE-001) with service repairs, UPDATE-FAILED-001 from WindowsUpdateClient events 19/20, NET.STACK.RESET. VM tests: `Stop-Service Audiosrv -Force; Set-Service Audiosrv -StartupType Disabled`, `Set-Service WSearch -StartupType Disabled; Stop-Service WSearch -Force`, then scan → Fix it all → expect Fixed.
 
-- Test machine from 19 Nov 2026: Windows 11 in Parallels Desktop on the owner's Mac (10-day trial; on Apple silicon this is Windows on ARM, so the lab setup installs the ARM64 MSI). `tools/test-vm/Inject-Faults.ps1` supports Parallels, has a `Services` scenario (spooler, time, audio, search, clock 30 min back) and `-Undo`. In Parallels set Options → More Options → Time to "Do not sync" before the clock test.
+- Test machine from 19 Nov 2026: Windows 11 in Parallels Desktop on the owner's 2019 Intel MacBook Pro (10-day trial; x64 Windows, so the x64 build/MSI applies). `tools/test-vm/Inject-Faults.ps1` supports Parallels, has a `Services` scenario (spooler, time, audio, search, clock 30 min back) and `-Undo`. In Parallels set Options → More Options → Time to "Do not sync" before the clock test.
 
 ## Next development work
 
