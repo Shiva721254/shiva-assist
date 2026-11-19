@@ -153,6 +153,8 @@
     "Check your PC for problems. The scan makes no changes. Afterward, use Fix it all to run supported repairs.": "Controleer uw pc op problemen. De scan brengt geen wijzigingen aan. Kies daarna Alles herstellen voor ondersteunde reparaties.",
     "Fix it all": "Alles repareren",
     "{count} problems found": "{count} problemen gevonden",
+    "1 problem found": "1 probleem gevonden",
+    "1 problem remains": "Er blijft 1 probleem over",
     "Windows Update": "Windows Update",
     "Driver updates": "Stuurprogramma-updates",
     "Uninstaller": "Programma’s verwijderen",

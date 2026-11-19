@@ -338,9 +338,13 @@ public sealed partial class MainViewModel : Observable
     }
     public string TextRepairAndCleanup => T("Repair and cleanup");
 
-    public string TextProblemCount => HasRepairSummary
-        ? new Message("{count} problems remain", ("count", ProblemCount)).Render(catalog)
-        : new Message("{count} problems found", ("count", ProblemCount)).Render(catalog);
+    public string TextProblemCount => (HasRepairSummary, ProblemCount == 1) switch
+    {
+        (true, true) => T("1 problem remains"),
+        (true, false) => new Message("{count} problems remain", ("count", ProblemCount)).Render(catalog),
+        (false, true) => T("1 problem found"),
+        (false, false) => new Message("{count} problems found", ("count", ProblemCount)).Render(catalog),
+    };
 
     public bool RepairsEmpty => IsModulePage && HasResults && Findings.Count == 0;
 

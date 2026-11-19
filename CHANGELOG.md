@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 0.1.12: fixes from the Parallels test.
+  - Printer check: printers are now counted from the registry. Windows cannot list printers while the Print Spooler is
+    stopped, so a stopped spooler was reported as "No printers are set up" and PRINT-SPOOLER-001 never appeared.
+  - Overview headline: "1 problem found" / "1 problem remains" instead of "1 problems".
 - 0.1.11: release pipeline for the website download.
   - New workflow `Release` (`.github/workflows/release.yml`): builds, tests, signs with Azure Artifact Signing (OIDC),
     packages both MSIs and the setup, and produces the `website-upload` folder for assist.shivacomputers.nl plus the entry
