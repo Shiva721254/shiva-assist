@@ -15,6 +15,12 @@ public sealed partial class MainViewModel
 {
     public const string RescueUrl = "https://rescue.shivacomputers.nl/";
 
+    /// <summary>Windows 11's built-in Quick Assist (also on updated Windows 10).</summary>
+    public const string QuickAssistUri = "ms-quick-assist:";
+
+    /// <summary>Microsoft Store page of Quick Assist, for PCs where it was removed.</summary>
+    public const string QuickAssistStoreUri = "ms-windows-store://pdp/?productid=9P7BP5VNWKX5";
+
     private bool monthlyEnabled;
     private bool monthlyBusy;
     private string? helpStatus;
@@ -24,6 +30,7 @@ public sealed partial class MainViewModel
     private RelayCommand? batteryReportCommand;
     private RelayCommand? rescueCommand;
     private RelayCommand? remoteHelpCommand;
+    private RelayCommand? quickAssistCommand;
 
     public RelayCommand ToggleMonthlyCommand => toggleMonthlyCommand ??= new RelayCommand(async _ => await ToggleMonthlyAsync(), _ => !monthlyBusy && MonthlyCheckup.Available);
 
@@ -32,6 +39,8 @@ public sealed partial class MainViewModel
     public RelayCommand RescueCommand => rescueCommand ??= new RelayCommand(_ => Open(RescueUrl));
 
     public RelayCommand RemoteHelpCommand => remoteHelpCommand ??= new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal) + "?topic=remote-help"));
+
+    public RelayCommand QuickAssistCommand => quickAssistCommand ??= new RelayCommand(_ => StartQuickAssist());
 
     public string? HelpStatus => helpStatus;
 
@@ -62,6 +71,10 @@ public sealed partial class MainViewModel
     public string TextRemoteScope => T("A Shiva Computers technician can look at this PC with you over the internet. You approve every session yourself, it is only for that one job, and you can stop it at any moment.");
 
     public string TextRemoteOpen => T("Request remote help");
+
+    public string TextQuickAssist => T("Start Quick Assist");
+
+    public string TextQuickAssistSteps => T("Already on the phone with Shiva Computers? Click Start Quick Assist, choose \"Get help\" and type the security code the technician gives you. You see everything the technician does and can stop at any moment.");
 
     /// <summary>The last automatic check-up, shown on Overview until a new scan is made.</summary>
     public string? MonthlyNote
@@ -147,6 +160,33 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
         {
             helpStatus = new Message("The battery report could not be made: {reason}", ("reason", ex.Message)).Render(catalog);
+        }
+
+        OnPropertyChanged(nameof(HelpStatus));
+    }
+
+    /// <summary>
+    /// Opens Windows' own Quick Assist. Shiva Assist does not share the screen itself: the customer enters the
+    /// technician's code and approves the session in Quick Assist, which keeps consent per job with the customer.
+    /// </summary>
+    private void StartQuickAssist()
+    {
+        try
+        {
+            Open(QuickAssistUri);
+            helpStatus = T("Quick Assist is opening. Choose \"Get help\" and type the code the technician gives you.");
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            try
+            {
+                Open(QuickAssistStoreUri);
+                helpStatus = T("Quick Assist is not installed on this PC. The Microsoft Store opens so you can install it for free; then click Start Quick Assist again.");
+            }
+            catch (Exception inner) when (inner is Win32Exception or InvalidOperationException)
+            {
+                helpStatus = new Message("Quick Assist could not be opened: {reason}", ("reason", inner.Message)).Render(catalog);
+            }
         }
 
         OnPropertyChanged(nameof(HelpStatus));

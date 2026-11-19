@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 0.1.10: Start Quick Assist from Get help.
+  - The remote help card has a green "Start Quick Assist" button that opens Windows' built-in Quick Assist
+    (`ms-quick-assist:`); the customer chooses "Get help" and types the technician's code. If Quick Assist was
+    removed, the Microsoft Store page opens instead. Shiva Assist itself never shares the screen.
 - 0.1.9: Get help page and monthly check-up.
   - History and help → Get help now has five cards: contact, monthly check-up (switch on/off), battery report,
     "Windows does not start any more?" (Shiva Rescue) and remote help (request; consent per job is explained).

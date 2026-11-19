@@ -834,8 +834,13 @@
               <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
                 <TextBlock Text="{Binding TextRemoteTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding TextRemoteScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                <TextBlock Text="{Binding TextQuickAssistSteps}" TextWrapping="Wrap" Margin="0,8,0,0" />
               </StackPanel>
-              <Button Grid.Column="2" Style="{StaticResource QuietButton}" Content="{Binding TextRemoteOpen}" Command="{Binding RemoteHelpCommand}" VerticalAlignment="Center" MinWidth="170" />
+              <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                <Button Style="{StaticResource PrimaryButton}" Content="{Binding TextQuickAssist}" Command="{Binding QuickAssistCommand}" MinWidth="200"
+                        AutomationProperties.Name="{Binding TextQuickAssist}" />
+                <Button Style="{StaticResource QuietButton}" Content="{Binding TextRemoteOpen}" Command="{Binding RemoteHelpCommand}" MinWidth="200" Margin="0,8,0,0" />
+              </StackPanel>
             </Grid>
           </Border>
           <TextBlock Text="{Binding HelpStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
