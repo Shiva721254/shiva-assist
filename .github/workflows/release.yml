@@ -1,0 +1,159 @@
+name: Release
+
+# Builds the files for assist.shivacomputers.nl/downloads/shiva-assist/. Started by hand (Actions → Release → Run workflow).
+# Nothing is uploaded to the website automatically: download the "website-upload" artifact and upload it with SFTP.
+#
+# Rehearsal (default): no signing. Practise the upload on a test folder; the public setup refuses these files by design.
+# Real release: needs Azure Artifact Signing, configured once in Settings → Secrets and variables → Actions:
+#   secrets   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID   (OIDC app registration, no password stored)
+#   variables AZURE_SIGNING_ENDPOINT (e.g. https://weu.codesigning.azure.net/), AZURE_SIGNING_ACCOUNT,
+#             AZURE_CERT_PROFILE, PUBLISHER_IDENTITY_OID (1.3.6.1.4.1.311.97.… from a signed file)
+
+on:
+  # A tag rehearsal-<anything> always runs a rehearsal (works from any branch, before this file is on main).
+  push:
+    tags: ['rehearsal-*']
+  workflow_dispatch:
+    inputs:
+      rehearsal:
+        description: Rehearsal without signing (untick only when Azure signing is configured)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    name: Build, sign and package
+    runs-on: windows-latest
+    env:
+      REHEARSAL: ${{ github.event_name == 'push' || inputs.rehearsal }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version and signing configuration
+        id: config
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version in Directory.Build.props: $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          if ($env:REHEARSAL -ne 'true') {
+            $missing = @()
+            if (-not '${{ vars.AZURE_SIGNING_ENDPOINT }}') { $missing += 'AZURE_SIGNING_ENDPOINT' }
+            if (-not '${{ vars.AZURE_SIGNING_ACCOUNT }}') { $missing += 'AZURE_SIGNING_ACCOUNT' }
+            if (-not '${{ vars.AZURE_CERT_PROFILE }}') { $missing += 'AZURE_CERT_PROFILE' }
+            if (-not '${{ vars.PUBLISHER_IDENTITY_OID }}') { $missing += 'PUBLISHER_IDENTITY_OID' }
+            if ($missing) { throw "Signing is not configured. Missing repository variables: $($missing -join ', '). Run a rehearsal instead." }
+          }
+          Write-Output "::notice title=Release::Shiva Assist $version ($(if ($env:REHEARSAL -eq 'true') { 'REHEARSAL, unsigned' } else { 'signed' }))"
+
+      - name: Translations, build and tests
+        shell: pwsh
+        run: |
+          python tools/check_translations.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet build ShivaAssist.slnx --configuration Release
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet test tests/ShivaAssist.Tests --configuration Release --no-build
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Publish for x64 and ARM64 (self-contained, single file)
+        shell: pwsh
+        run: |
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            foreach ($project in 'App', 'Cli', 'Agent') {
+              dotnet publish "src/ShivaAssist.$project" --configuration Release --runtime $rid --output "publish/$rid"
+              if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            }
+            Remove-Item "publish/$rid/*.pdb" -ErrorAction SilentlyContinue
+          }
+
+      - name: Sign in to Azure (OIDC)
+        if: env.REHEARSAL != 'true'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign x64 programs
+        if: env.REHEARSAL != 'true'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\publish\win-x64
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Sign ARM64 programs
+        if: env.REHEARSAL != 'true'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\publish\win-arm64
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Build Windows Installer packages
+        shell: pwsh
+        run: ./tools/installer/Build-Packages.ps1 -Version '${{ steps.config.outputs.version }}'
+
+      - name: Sign installer packages
+        if: env.REHEARSAL != 'true'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\installer-output
+          files-folder-filter: msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Build public setup
+        shell: pwsh
+        run: |
+          dotnet build src/ShivaAssist.Setup -c Release "-p:PublisherIdentityOid=${{ vars.PUBLISHER_IDENTITY_OID }}"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Sign setup
+        if: env.REHEARSAL != 'true'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\src\ShivaAssist.Setup\bin\Release\net48
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify signatures and write the release manifests
+        shell: pwsh
+        run: |
+          $arguments = @{ Version = '${{ steps.config.outputs.version }}' }
+          if ($env:REHEARSAL -eq 'true') { $arguments.Rehearsal = $true }
+          else { $arguments.PublisherIdentityOid = '${{ vars.PUBLISHER_IDENTITY_OID }}' }
+          ./tools/installer/New-ReleaseManifest.ps1 @arguments
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: website-upload-${{ steps.config.outputs.version }}${{ env.REHEARSAL == 'true' && '-REHEARSAL' || '' }}
+          path: release-output/website-upload

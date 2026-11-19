@@ -20,13 +20,18 @@ internal sealed class SetupPackage
 /// <summary>Shared by the net48 bootstrapper and platform-neutral tests. Manifest values never become commands.</summary>
 internal static class InstallerPolicy
 {
-    public const string ManifestUrl = "https://shivacomputers.nl/downloads/shiva-assist/releases.json";
+    public const string ManifestUrl = "https://assist.shivacomputers.nl/downloads/shiva-assist/releases.json";
     public const long MaximumPackageBytes = 512L * 1024 * 1024;
     private static readonly char[] ForbiddenUrlCharacters = { '%', '\\', '\r', '\n' };
     private static readonly Regex Digest = new Regex(@"\A[0-9a-fA-F]{64}\z", RegexOptions.CultureInvariant);
+    // Azure Artifact Signing: certificates renew daily, but every certificate carries the same identity-validation EKU,
+    // 1.3.6.1.4.1.311.97.<arcs unique to the validated publisher>. That OID is pinned instead of a certificate hash.
+    private static readonly Regex IdentityOid = new Regex(@"\A1\.3\.6\.1\.4\.1\.311\.97(\.(0|[1-9][0-9]{0,9})){2,8}\z", RegexOptions.CultureInvariant);
     private static readonly Regex VersionPattern = new Regex(@"\A(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,4})\z", RegexOptions.CultureInvariant);
 
     public static bool ValidDigest(string? digest) => digest != null && Digest.IsMatch(digest);
+
+    public static bool ValidIdentityOid(string? oid) => oid != null && IdentityOid.IsMatch(oid);
 
     public static bool ValidVersion(string? version)
     {

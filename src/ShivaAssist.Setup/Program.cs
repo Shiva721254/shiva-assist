@@ -33,7 +33,7 @@ internal static class Program
                 using var abc = new MemoryStream(Encoding.ASCII.GetBytes("abc"));
                 if (InstallerDownloads.Hash(abc) != "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad") return 1;
                 using var own = File.OpenRead(typeof(Program).Assembly.Location);
-                if (WindowsInstallerApi.TrustedPublisher(typeof(Program).Assembly.Location, own, new string('0', 64))) return 1;
+                if (WindowsInstallerApi.TrustedPublisher(typeof(Program).Assembly.Location, own, "1.3.6.1.4.1.311.97.0.0")) return 1;
                 return 0;
             }
             if (args.Length == 4 && args[0] == "--verify-package" && args[2] == "--sha256")
@@ -41,7 +41,7 @@ internal static class Program
                 InstallerPolicy.EnsureNoLinks(args[1]);
                 using var file = File.OpenRead(args[1]);
                 return InstallerPolicy.ValidDigest(args[3]) && InstallerDownloads.Hash(file).Equals(args[3], StringComparison.OrdinalIgnoreCase)
-                    && WindowsInstallerApi.TrustedPublisher(args[1], file, InstallPipeline.PublisherPin) ? 0 : 1;
+                    && WindowsInstallerApi.TrustedPublisher(args[1], file, InstallPipeline.PublisherIdentity) ? 0 : 1;
             }
 #if SETUP_LAB
             if (args.Length == 1 && args[0] == "--bundled-test-install")

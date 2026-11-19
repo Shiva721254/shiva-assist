@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 0.1.11: release pipeline for the website download.
+  - New workflow `Release` (`.github/workflows/release.yml`): builds, tests, signs with Azure Artifact Signing (OIDC),
+    packages both MSIs and the setup, and produces the `website-upload` folder for assist.shivacomputers.nl plus the entry
+    for the site's `data/releases.json`. Rehearsal mode (tag `rehearsal-*`) runs everything except signing.
+  - Setup trust: pins the Artifact Signing identity EKU (`PublisherIdentityOid`) instead of one certificate's SHA-256,
+    because Artifact Signing certificates renew daily. Still requires a valid, timestamped Authenticode signature.
+  - Setup reads the release manifest from `https://assist.shivacomputers.nl/downloads/shiva-assist/releases.json`.
 - 0.1.10: Start Quick Assist from Get help.
   - The remote help card has a green "Start Quick Assist" button that opens Windows' built-in Quick Assist
     (`ms-quick-assist:`); the customer chooses "Get help" and types the technician's code. If Quick Assist was

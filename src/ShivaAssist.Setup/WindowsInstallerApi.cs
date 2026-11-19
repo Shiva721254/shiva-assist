@@ -59,9 +59,13 @@ internal static class WindowsInstallerApi
 
     public static bool Installed(string productCode) => MsiQueryProductState(productCode) == 5;
 
-    public static bool TrustedPublisher(string path, FileStream lockedFile, string expectedCertificateSha256)
+    /// <summary>
+    /// True when Windows trusts the Authenticode signature (WinVerifyTrust, timestamp-aware) and the signing certificate
+    /// carries both the code-signing EKU and the pinned Artifact Signing identity EKU of Shiva Computers.
+    /// </summary>
+    public static bool TrustedPublisher(string path, FileStream lockedFile, string expectedIdentityOid)
     {
-        if (!InstallerPolicy.ValidDigest(expectedCertificateSha256)) return false;
+        if (!InstallerPolicy.ValidIdentityOid(expectedIdentityOid)) return false;
         var file = new TrustFile { Size = (uint)Marshal.SizeOf<TrustFile>(), Path = path,
             Handle = lockedFile.SafeFileHandle.DangerousGetHandle() };
         var pointer = Marshal.AllocHGlobal(Marshal.SizeOf<TrustFile>());
@@ -78,8 +82,13 @@ internal static class WindowsInstallerApi
             if (signer.CertificateCount == 0 || signer.Certificates == IntPtr.Zero) return false;
             var certificate = Marshal.PtrToStructure<ProviderCertificate>(signer.Certificates);
             using var cert = new X509Certificate2(certificate.Certificate);
-            using var bytes = new MemoryStream(cert.RawData, writable: false);
-            return string.Equals(InstallerDownloads.Hash(bytes), expectedCertificateSha256, StringComparison.OrdinalIgnoreCase);
+            var usages = new System.Collections.Generic.List<string>();
+            foreach (var extension in cert.Extensions)
+            {
+                if (extension is X509EnhancedKeyUsageExtension eku)
+                    foreach (var oid in eku.EnhancedKeyUsages) usages.Add(oid.Value ?? string.Empty);
+            }
+            return usages.Contains("1.3.6.1.5.5.7.3.3") && usages.Contains(expectedIdentityOid);
         }
         finally
         {

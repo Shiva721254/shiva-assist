@@ -27,43 +27,44 @@ normal uninstall and preservation of a customer-data marker. UI smoke checks cov
 closing the window. Real UAC, network failures, cancellation timing, signing and ARM64 installation
 still need manual Windows tests; ARM64 is packaged but not executed on the x64 CI runner.
 
-## Produce a signed public release (Windows / PowerShell 7)
+## Produce a public release (GitHub Actions → Release)
 
-1. Obtain/configure your trusted code-signing identity. Keep its private key outside this repo.
-   Record the SHA-256 of the exact signing certificate's DER bytes (not the usual SHA-1 thumbprint).
-   The bootstrapper pins this certificate; certificate renewal needs a newly built setup.
-2. Set a new three-part MSI version in `Directory.Build.props` (0..255.0..255.0..65535).
-3. Publish App, Cli and Agent self-contained into `publish/win-x64` and `publish/win-arm64`, as CI does.
-4. Sign **all six published executables** with that identity and an RFC3161 timestamp. Verify trust.
-5. Run `./tools/installer/Build-Packages.ps1 -Version '0.1.0'` (use the version from step 2).
-6. Sign both resulting MSI files. Never modify the signed payloads or packages afterward.
-7. Build public setup, embedding the certificate digest (replace the example variable):
+The workflow `.github/workflows/release.yml` builds, signs and packages everything. It never deploys to the website.
 
-   ```powershell
-   dotnet build src/ShivaAssist.Setup -c Release -p:PublisherCertificateSha256=$certificateSha256
-   ```
+**Rehearsal (works today, no signing):** push a tag `rehearsal-<anything>` (for example `git tag rehearsal-1` then
+`git push origin rehearsal-1`), or, once the workflow is on `main`, run it from Actions with "Rehearsal" ticked. The
+artifact `website-upload-<version>-REHEARSAL` has the exact folder layout to upload, so the SFTP upload can be practised
+on a test folder. The public setup refuses these unsigned files by design: never put them on the live site.
 
-8. Sign `src/ShivaAssist.Setup/bin/Release/net48/ShivaAssistSetup.exe` with the same identity.
-9. Generate the release manifest **after signing**, so hashes include signatures:
+**Signed release:**
 
-   ```powershell
-   ./tools/installer/New-ReleaseManifest.ps1 -Version '0.1.0' -PublisherCertificateSha256 $certificateSha256
-   ```
+1. Azure Artifact Signing: paid (Pay-As-You-Go) subscription, signing account, completed **Organization** identity
+   validation and a **Public Trust** certificate profile.
+2. App registration with a federated credential for this repository (OIDC, no stored password) and the role
+   **Artifact Signing Certificate Profile Signer** on the signing account.
+3. Repository settings → Secrets and variables → Actions:
+   secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`;
+   variables `AZURE_SIGNING_ENDPOINT` (West Europe: `https://weu.codesigning.azure.net/`), `AZURE_SIGNING_ACCOUNT`,
+   `AZURE_CERT_PROFILE` and `PUBLISHER_IDENTITY_OID`.
+4. `PUBLISHER_IDENTITY_OID` is the identity-validation EKU in every certificate of the profile
+   (`1.3.6.1.4.1.311.97.` followed by numbers unique to the Shiva Computers validation). Read it once from any file signed
+   with the profile: Properties → Digital Signatures → Details → View Certificate → Details → Enhanced Key Usage.
+   It is public, not a secret. Artifact Signing certificates renew daily and are valid for 72 hours, so the setup pins this
+   durable identity value instead of a certificate hash, and requires a valid, timestamped Authenticode signature.
+5. Set the new three-part version in `Directory.Build.props`, push, then run **Release** with "Rehearsal" unticked.
+   The workflow signs the six programs, builds and signs both MSIs, builds the setup with the identity embedded, signs it,
+   and `New-ReleaseManifest.ps1` rejects anything that is unsigned, untimestamped or signed by another identity.
+6. Download the artifact `website-upload-<version>` and upload with SFTP to the assist site (document root `public/`):
+   - everything in `public/downloads/shiva-assist/` **except** `releases.json`;
+   - then `releases.json` **last** (this is the moment the setup offers the new version);
+   - add `data-releases-entry.json` to the `releases` list in the site's `data/releases.json`, run the site tests, upload.
+   Keep older versioned MSI and setup files; never overwrite a published versioned file.
+7. Test on a clean Windows PC: download from https://assist.shivacomputers.nl/en/download, install, reinstall/upgrade,
+   uninstall. Check that SmartScreen shows "Shiva Computers" as publisher.
 
-   This rejects invalid signatures, unexpected signers, or setup compiled with a different pin.
-   It does not sign on your behalf. Signing credentials/providers are deliberately not guessed.
-10. Stage the two MSIs and setup at `https://shivacomputers.nl/downloads/shiva-assist/`.
-    Upload `releases.json` **last**, replacing it atomically. Use exact HTTPS URLs without redirects,
-    authentication, HTML challenge pages or content transformation. Serve `.msi` as binary and JSON
-    as JSON, with revalidation/no-cache for the manifest. Preserve older versioned MSI URLs.
-11. Test a signed install from a clean VM, reinstall/upgrade, cancellation, broken/truncated download,
-    wrong signer/hash, uninstall and retained user data. Then link your website Download button to
-    `https://shivacomputers.nl/downloads/shiva-assist/ShivaAssistSetup.exe`.
-
-`download-page.html` is an optional bilingual static page to stage alongside the release files.
-Nothing in these scripts deploys to STRATO or creates a customer-facing live release automatically.
-The public installer depends on hosting and a trusted certificate; development artifacts alone
-are not a working website download. Offline MSI packages can be offered separately after signing.
+Files (all under `https://assist.shivacomputers.nl/downloads/shiva-assist/`): `ShivaAssistSetup.exe` (newest),
+`ShivaAssistSetup-<version>.exe`, `ShivaAssist-<version>-win-x64.msi`, `ShivaAssist-<version>-win-arm64.msi`,
+`releases.json` (read by the setup). The site's download page links the versioned setup from `data/releases.json`.
 
 ## Release format
 

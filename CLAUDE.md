@@ -37,6 +37,7 @@ The working branch also includes installed app inventory and supported uninstall
 
 - 0.1.9: Get help section (`HelpViewModel.cs` partial): contact, monthly check-up (`Windows/Maintenance/MonthlyCheckup.cs`, scheduled task, CLI writes monthly-report.json, Overview note), battery report (`BatteryReport.cs`), Shiva Rescue link, remote-help request. Remote control itself (MeshCentral) is not integrated yet.
 - 0.1.10: "Start Quick Assist" button on the remote help card (`ms-quick-assist:`, Store page fallback). Shiva Assist never shares the screen itself; consent stays in Quick Assist.
+- 0.1.11: `release.yml` (rehearsal via tag `rehearsal-*`; signed needs Azure Artifact Signing secrets/variables, see `tools/installer/README.md`). Setup pins the signing identity EKU `PublisherIdentityOid` (not a cert hash: certs renew daily); manifest on assist.shivacomputers.nl.
 
 ## Next development work
 

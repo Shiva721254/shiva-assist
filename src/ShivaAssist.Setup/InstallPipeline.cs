@@ -27,15 +27,15 @@ internal sealed class InstallProgress
 
 internal static class InstallPipeline
 {
-    public static string PublisherPin => typeof(InstallPipeline).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-        .FirstOrDefault(a => a.Key == "PublisherCertificateSha256")?.Value ?? string.Empty;
+    public static string PublisherIdentity => typeof(InstallPipeline).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(a => a.Key == "PublisherIdentityOid")?.Value ?? string.Empty;
 
     public static async Task<InstallResult> RunAsync(Action<InstallProgress> progress, CancellationToken cancellationToken,
         string? localPackage = null, string? expectedHash = null, bool quiet = false)
     {
 #if !SETUP_LAB
         if (localPackage != null || quiet) throw new InvalidOperationException("Local package installation is only available in the separate lab build.");
-        if (!InstallerPolicy.ValidDigest(PublisherPin))
+        if (!InstallerPolicy.ValidIdentityOid(PublisherIdentity))
             throw new InvalidOperationException("This setup build is not configured for a signed public release. Contact Shiva Computers for the current installer.");
 #endif
         var architecture = WindowsInstallerApi.Architecture();
@@ -82,7 +82,7 @@ internal static class InstallPipeline
             using var locked = new FileStream(downloaded, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (!string.Equals(InstallerDownloads.Hash(locked), selected.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new IOException("The package verification failed. Nothing was installed.");
-            if (localPackage == null && !WindowsInstallerApi.TrustedPublisher(downloaded, locked, PublisherPin))
+            if (localPackage == null && !WindowsInstallerApi.TrustedPublisher(downloaded, locked, PublisherIdentity))
                 throw new IOException("The package does not have the expected trusted Shiva Computers signature. Nothing was installed.");
             if (!InstallerPolicy.ValidVersion(version) || WindowsInstallerApi.Property(downloaded, "ProductVersion") != version
                 || WindowsInstallerApi.Property(downloaded, "Manufacturer") != "Shiva Computers"
@@ -110,7 +110,7 @@ internal static class InstallPipeline
                 throw new IOException("Installation finished but could not be verified. Please retry or contact Shiva Computers.");
             using var installed = new FileStream(application, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (localPackage == null && (!string.Equals(InstallerDownloads.Hash(installed), selected.AppSha256, StringComparison.OrdinalIgnoreCase)
-                || !WindowsInstallerApi.TrustedPublisher(application, installed, PublisherPin)))
+                || !WindowsInstallerApi.TrustedPublisher(application, installed, PublisherIdentity)))
                 throw new IOException("The installed application could not be verified. It was not opened.");
             return new InstallResult { Application = application, ApplicationHash = InstallerDownloads.Hash(installed),
                 RestartRequired = exit == 3010 || exit == 1641 };

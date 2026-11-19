@@ -17,6 +17,21 @@ public sealed class SetupTests
     public void Rejects_32_bit_machine() => Assert.Throws<InvalidOperationException>(() => InstallerPolicy.Architecture(0x14c));
 
     [Theory]
+    [InlineData("1.3.6.1.4.1.311.97.990309390.766961637.194916062.941502583", true)]
+    [InlineData("1.3.6.1.4.1.311.97.1.0.990309390", true)]
+    [InlineData("1.3.6.1.4.1.311.97", false)]
+    [InlineData("1.3.6.1.4.1.311.97.1", false)]
+    [InlineData("1.3.6.1.5.5.7.3.3", false)]
+    [InlineData("1.3.6.1.4.1.311.97.01.2", false)]
+    [InlineData("1.3.6.1.4.1.311.97.1.2\n", false)]
+    [InlineData("", false)]
+    public void Validates_publisher_identity_oid(string oid, bool valid) => Assert.Equal(valid, InstallerPolicy.ValidIdentityOid(oid));
+
+    [Fact]
+    public void Manifest_is_fetched_from_the_assist_site() =>
+        Assert.Equal("https://assist.shivacomputers.nl/downloads/shiva-assist/releases.json", InstallerPolicy.ManifestUrl);
+
+    [Theory]
     [InlineData("0.1.0", true)]
     [InlineData("255.255.65535", true)]
     [InlineData("256.1.0", false)]
