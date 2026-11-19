@@ -80,7 +80,7 @@ function Add-StorageFaults {
     $part = 0
     while ($part -lt 1000 -and (Get-PSDrive $drive).Free - 3 * $GB -gt 0.2 * $GB) {
         $free = (Get-PSDrive $drive).Free
-        $size = [long][math]::Min($GB, $free - 3 * $GB)
+        $size = [long][math]::Min([double]$GB, [double]$free - 3 * [double]$GB)
         $part++
         $file = Join-Path $work ("disk-filler-{0:D3}.bin" -f $part)
         if (Test-Path $file) { continue }
@@ -145,9 +145,21 @@ if ($Undo) {
     return
 }
 
-if ($Scenario -in 'Storage', 'All') { Add-StorageFaults }
-if ($Scenario -in 'Startup', 'All') { Add-StartupFaults }
-if ($Scenario -in 'Services', 'All') { Add-ServiceFaults }
+# Each part runs on its own: an error in one part is shown in red and the other parts still run.
+$failed = @()
+foreach ($part in @(
+        @{ Name = 'Storage'; Run = ${function:Add-StorageFaults} },
+        @{ Name = 'Startup'; Run = ${function:Add-StartupFaults} },
+        @{ Name = 'Services'; Run = ${function:Add-ServiceFaults} })) {
+    if ($Scenario -notin $part.Name, 'All') { continue }
+    try { & $part.Run }
+    catch {
+        $failed += $part.Name
+        Write-Host ("{0} part failed: {1}" -f $part.Name, $_.Exception.Message) -ForegroundColor Red
+        Write-Host ("  at line {0}: {1}" -f $_.InvocationInfo.ScriptLineNumber, $_.InvocationInfo.Line.Trim()) -ForegroundColor Red
+    }
+}
+if ($failed) { Write-Host ("Not created: {0}. Send a screenshot of this window." -f ($failed -join ', ')) -ForegroundColor Red }
 
 Write-Host ''
 Write-Host 'Done. Now open Shiva Assist, start the check-up and click Fix it all.' -ForegroundColor Green
