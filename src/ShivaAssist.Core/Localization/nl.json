@@ -9,6 +9,8 @@
     "No supported repairs match this section. Choose Available repairs to review the other sections.": "Er zijn geen ondersteunde reparaties voor dit onderdeel. Kies Beschikbare reparaties om de andere onderdelen te bekijken.",
     "{count} available repairs": "{count} beschikbare reparaties",
     "1 available repair": "1 beschikbare reparatie",
+    "{size:gb} can be freed": "{size:gb} kan worden vrijgemaakt",
+    "Check again": "Opnieuw controleren",
     "1 problem · {unknown} unknown": "1 probleem · {unknown} onbekend",
     "1 repair ready · one click": "1 reparatie klaar · één klik",
     "{count} problems · {unknown} unknown": "{count} problemen · {unknown} onbekend",

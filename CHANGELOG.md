@@ -4,6 +4,12 @@
 
 - 0.1.13: "Restart the PC to finish updates" no longer reports a failure when a restart is already scheduled
   (shutdown.exe exit code 1190, from an earlier click or from Windows Update); it says the restart is on its way.
+  - Network check retries each layer once (router ping, DNS lookup, internet probe) after a short pause, so one lost
+    packet or slow answer is no longer reported as "no internet" or "DNS broken".
+  - Optimize: the "Free up space" card shows the measured total ("5.7 GB can be freed" / "Already clean") instead of
+    "0 available repairs". The start button reads "Check again" once there are results.
+  - Test script: 16 startup programs (the warning starts above 15); the disk is filled in 1 GB parts and the script says
+    clearly whether free space really dropped below 4 GB.
 - 0.1.12: fixes from the Parallels test.
   - Printer check: printers are now counted from the registry. Windows cannot list printers while the Print Spooler is
     stopped, so a stopped spooler was reported as "No printers are set up" and PRINT-SPOOLER-001 never appeared.

@@ -39,7 +39,11 @@ public sealed partial class MainViewModel
                 var repairs = findings.Sum(item => item.Repairs.Count);
                 var problems = findings.Count(item => item.Severity is Severity.Warning or Severity.Critical);
                 var unknown = findings.Count(item => item.Severity == Severity.Unknown);
-                status = !HasResults ? T("Not checked yet") : IsModulePage || key == "repairs"
+                status = key == "cleanup" && Cleanup.Items.Count > 0
+                    ? (Cleanup.Items.Sum(i => i.Bytes) is > 0 and var freeable
+                        ? new Message("{size:gb} can be freed", ("size", freeable)).Render(catalog)
+                        : T("Already clean"))
+                    : !HasResults ? T("Not checked yet") : IsModulePage || key == "repairs"
                     ? (repairs == 1 ? T("1 available repair") : new Message("{count} available repairs", ("count", repairs)).Render(catalog))
                     : (problems == 1
                         ? new Message("1 problem · {unknown} unknown", ("unknown", unknown))

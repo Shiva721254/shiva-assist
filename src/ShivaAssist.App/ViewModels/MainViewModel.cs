@@ -61,7 +61,13 @@ public sealed partial class MainViewModel : Observable
             value => { repairing = value; RefreshAll(); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); });
         Cleanup = new CleanupViewModel(() => catalog, technicianMode,
             () => repairing || reviewingRepairs || State == ScreenState.Scanning,
-            value => { repairing = value; OnPropertyChanged(nameof(IsBusy)); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); });
+            value =>
+            {
+                repairing = value;
+                OnPropertyChanged(nameof(IsBusy));
+                if (!value) RebuildSections(); // the "Free up space" card shows the measured total
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            });
         PropertyChanged += (_, _) => Software.RefreshBusyState();
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
@@ -457,7 +463,7 @@ public sealed partial class MainViewModel : Observable
         ? T("Check your PC for problems. The scan makes no changes. Afterward, use Fix it all to run supported repairs.")
         : T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
 
-    public string TextStart => T("Start the check-up");
+    public string TextStart => HasResults ? T("Check again") : T("Start the check-up");
 
     public string TextDuration => T("It takes about a minute.");
 
