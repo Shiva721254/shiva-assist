@@ -31,6 +31,8 @@ The working branch also includes installed app inventory and supported uninstall
 
 - 0.1.7: Optimize page "Free up space" (`CleanupViewModel`, `Core/Cleanup/CleanupAreas.cs`, `Windows/Repairs/CleanupMeasurement.cs`): measured preview per area, checkboxes, one big clean button; browser cache cleanup limited to fixed cache folders (`BrowserCaches`).
 
+- 0.1.8: `ServicesCheck` (sound AUDIO-SERVICE-001, search SEARCH-SERVICE-001) with service repairs, UPDATE-FAILED-001 from WindowsUpdateClient events 19/20, NET.STACK.RESET. VM tests: `Stop-Service Audiosrv -Force; Set-Service Audiosrv -StartupType Disabled`, `Set-Service WSearch -StartupType Disabled; Stop-Service WSearch -Force`, then scan → Fix it all → expect Fixed.
+
 ## Next development work
 
 Prioritize repair and maintenance functionality. Review the current checks and repair catalog, then extend a useful Windows problem that can be detected, repaired, and verified. Use automated checks where practical so minor UI changes do not require repeated manual VM reinstalls. Public distribution on ShivaComputers.nl is a later milestone and still requires code signing, hosting, and an end-to-end download test.

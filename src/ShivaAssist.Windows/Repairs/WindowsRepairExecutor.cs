@@ -53,6 +53,9 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.ResetPrintSpooler => await ResetPrintSpoolerAsync(job, cancellationToken),
             RepairCatalogue.SyncClock => await SyncClockAsync(job, cancellationToken),
             RepairCatalogue.CleanBrowserCache => CleanBrowserCache(job),
+            RepairCatalogue.RepairAudioService => await RepairServicesAsync(job, ["AudioEndpointBuilder", "Audiosrv"], "Automatic", cancellationToken),
+            RepairCatalogue.RepairSearchService => await RepairServicesAsync(job, ["WSearch"], "AutomaticDelayed", cancellationToken),
+            RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
@@ -216,6 +219,58 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             Completed = ok,
             Detail = string.Create(CultureInfo.InvariantCulture,
                 $"w32tm /resync {(ok ? "succeeded" : "failed")}; service start type was {PowerShell.Str(json, "previous")}{(PowerShell.Bool(json, "configured") ? "; time source set to time.windows.com" : string.Empty)}"),
+        };
+    }
+
+    /// <summary>
+    /// Switches fixed, built-in Windows services back on (start type as Windows ships it) and (re)starts them in the
+    /// given order. The service names come from the catalogue switch above, never from the job file.
+    /// </summary>
+    private static async Task<RepairResult> RepairServicesAsync(RepairJob job, string[] services, string startType, CancellationToken cancellationToken)
+    {
+        var list = string.Join(",", services.Select(name => "'" + name + "'"));
+        var json = await PowerShell.QueryAsync($$"""
+            $previous = @()
+            foreach ($name in @({{list}})) {
+                $svc = Get-Service -Name $name -ErrorAction Stop
+                $previous += "$($name)=$($svc.StartType)"
+                if ("$($svc.StartType)" -eq 'Disabled') {
+                    if ('{{startType}}' -eq 'AutomaticDelayed') { & "$env:SystemRoot\System32\sc.exe" config $name start= delayed-auto | Out-Null }
+                    else { Set-Service -Name $name -StartupType Automatic }
+                }
+            }
+            foreach ($name in @({{list}})) {
+                $svc = Get-Service -Name $name
+                if ($svc.Status -eq 'Running') { Restart-Service -Name $name -Force -ErrorAction SilentlyContinue } else { Start-Service -Name $name -ErrorAction SilentlyContinue }
+                try { (Get-Service -Name $name).WaitForStatus('Running', [TimeSpan]::FromSeconds(20)) } catch { }
+            }
+            $running = @(foreach ($name in @({{list}})) { (Get-Service -Name $name).Status -eq 'Running' }) -notcontains $false
+            [pscustomobject]@{ running = $running; previous = ($previous -join '; ') } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var running = PowerShell.Bool(json, "running");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = running,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"{string.Join(", ", services)} {(running ? "running" : "did not start")}; previous start types: {PowerShell.Str(json, "previous")}"),
+        };
+    }
+
+    /// <summary>netsh winsock reset + netsh int ip reset (Microsoft's documented network reset). Takes effect after a restart.</summary>
+    private static async Task<RepairResult> ResetNetworkStackAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var netsh = ToolRunner.System32("netsh.exe");
+        var (winsockExit, winsockOutput, _) = await ToolRunner.RunAsync(netsh, ["winsock", "reset"], cancellationToken);
+        var (ipExit, ipOutput, _) = await ToolRunner.RunAsync(netsh, ["int", "ip", "reset"], cancellationToken);
+        var ok = winsockExit == 0 && ipExit == 0;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = string.Create(CultureInfo.InvariantCulture,
+                $"netsh winsock reset: exit {winsockExit}; netsh int ip reset: exit {ipExit}; restart needed. {Shorten(winsockOutput + " " + ipOutput)}"),
         };
     }
 

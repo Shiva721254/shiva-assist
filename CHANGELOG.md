@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- 0.1.8: four more problems that are detected, repaired and verified.
+  - No sound: AUDIO-SERVICE-001 when the Windows audio services are stopped or disabled; AUDIO.SERVICE.REPAIR
+    switches them back to automatic and restarts them (in Fix it all).
+  - Search finds nothing: SEARCH-SERVICE-001 when Windows Search is stopped or disabled; SEARCH.SERVICE.REPAIR sets
+    it back to delayed-automatic and starts it (in Fix it all).
+  - Updates keep failing: UPDATE-FAILED-001 from Windows Update events (failed twice or more in 30 days and never
+    installed afterwards); offers the existing Windows Update reset (in Fix it all).
+  - Network: NET.STACK.RESET (netsh winsock reset + int ip reset, Medium with restore point, restart needed)
+    offered after the quick network repairs; stays out of Fix it all because it needs a restart.
 - 0.1.7: Free up space with a preview (roadmap step 3). The Optimize page measures, read-only, what each area
   would free (old temporary files, browser cache, Recycle Bin, Windows Update downloads and crash dumps), shows
   the size per area with a checkbox, and cleans only the ticked areas with one large button, then measures again.

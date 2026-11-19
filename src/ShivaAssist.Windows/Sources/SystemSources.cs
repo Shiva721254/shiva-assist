@@ -89,10 +89,21 @@ public sealed class UpdateSource : ISnapshotSource<UpdateSnapshot>
 {
     private const string Script = """
         $last = Get-HotFix | Where-Object { $_.InstalledOn } | Sort-Object InstalledOn -Descending | Select-Object -First 1
+        # Install results of the last 30 days: 19 = installed, 20 = failed. Property 0 is the update title.
+        $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-WindowsUpdateClient'; Id = 19, 20; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue)
+        $failedEvents = @($events | Where-Object Id -eq 20)
+        $failing = @($failedEvents | ForEach-Object {
+                $title = "$($_.Properties[0].Value)"
+                $when = $_.TimeCreated
+                $later = $events | Where-Object { $_.Id -eq 19 -and "$($_.Properties[0].Value)" -eq $title -and $_.TimeCreated -gt $when }
+                if (-not $later) { $title }
+            } | Sort-Object -Unique | Select-Object -First 5)
         [pscustomobject]@{
             id = if ($last) { "$($last.HotFixID)" } else { $null }
             date = if ($last) { $last.InstalledOn.ToString('yyyy-MM-dd') } else { $null }
-        } | ConvertTo-Json -Compress
+            failing = @($failing)
+            attempts = $failedEvents.Count
+        } | ConvertTo-Json -Compress -Depth 3
         """;
 
     private static readonly (string Path, string Reason)[] RestartMarkers =
@@ -117,7 +128,8 @@ public sealed class UpdateSource : ISnapshotSource<UpdateSnapshot>
         var date = Str(json, "date");
         DateOnly? installed = DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
         var id = Str(json, "id");
-        return new UpdateSnapshot(reasons.Count > 0, reasons, installed, id.Length > 0 ? id : null);
+        return new UpdateSnapshot(reasons.Count > 0, reasons, installed, id.Length > 0 ? id : null,
+            [.. Items(json, "failing").Select(e => e.GetString() ?? string.Empty).Where(t => t.Length > 0)], (int)Long(json, "attempts"));
     }
 }
 

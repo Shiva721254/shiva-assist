@@ -52,9 +52,9 @@ public sealed class RepairTests
         var pass = LayerResult.Passed;
         var fail = LayerResult.Failed;
         var skip = LayerResult.NotTested;
-        Assert.Equal([RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
-        Assert.Equal([RepairCatalogue.RenewAddress], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
-        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.FlushDns, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.FlushDns, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
         Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, fail, portal: true)));
         Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, pass)));
     }

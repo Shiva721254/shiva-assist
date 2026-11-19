@@ -73,6 +73,9 @@ public static class RepairCatalogue
     public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
     public const string SyncClock = "TIME.SYNC.REPAIR";
     public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
+    public const string RepairAudioService = "AUDIO.SERVICE.REPAIR";
+    public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
+    public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
@@ -267,6 +270,38 @@ public static class RepairCatalogue
             Minutes = (1, 3),
             VerifiesFinding = "STORAGE-SPACE-001",
         },
+        new()
+        {
+            Id = RepairAudioService,
+            Name = "Switch the sound service back on",
+            Description = "Switches the Windows Audio services back to automatic start and restarts them. Sound usually works again straight away; programs that were playing may need to be restarted.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.AudioId,
+        },
+        new()
+        {
+            Id = RepairSearchService,
+            Name = "Switch Windows Search back on",
+            Description = "Sets the Windows Search service back to automatic (delayed) start, as Windows ships it, and starts it. Windows then updates its search index in the background.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.SearchId,
+        },
+        new()
+        {
+            Id = ResetNetworkStack,
+            Name = "Reset the network settings of Windows",
+            Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            RestartRequired = true,
+            VerifyLater = true,
+            Minutes = (2, 5),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
     ];
 
     /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
@@ -297,9 +332,12 @@ public static class RepairCatalogue
             "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
+            "UPDATE-FAILED-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
             PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
             ClockCheck.FindingId when finding.Severity == Severity.Warning => [Find(SyncClock)!],
+            ServicesCheck.AudioId when finding.Severity == Severity.Warning => [Find(RepairAudioService)!],
+            ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };
@@ -322,6 +360,12 @@ public static class RepairCatalogue
         if (Observed(finding, "DNS failed"))
         {
             operations.Add(Find(FlushDns)!);
+        }
+
+        // The heavier reset (restart needed) comes last, for when the quick repairs did not help.
+        if (operations.Count > 0)
+        {
+            operations.Add(Find(ResetNetworkStack)!);
         }
 
         return operations;

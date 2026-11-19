@@ -48,7 +48,12 @@ public enum ComponentStoreState
 
 public sealed record IntegritySnapshot(ComponentStoreState State, string Summary);
 
-public sealed record UpdateSnapshot(bool RestartPending, IReadOnlyList<string> RestartReasons, DateOnly? LastUpdateInstalled, string? LastUpdateId);
+/// <summary>
+/// Restart markers, the last installed update and, from the Windows Update event log of the last 30 days, the updates
+/// that failed to install and were not installed successfully afterwards (FailedAttempts counts every failure event).
+/// </summary>
+public sealed record UpdateSnapshot(bool RestartPending, IReadOnlyList<string> RestartReasons, DateOnly? LastUpdateInstalled, string? LastUpdateId,
+    IReadOnlyList<string>? StillFailing = null, int FailedAttempts = 0);
 
 public sealed record AntivirusProduct(string Name, bool Enabled, bool UpToDate);
 
@@ -144,4 +149,25 @@ public enum TimeServiceState
 /// secure websites ("your clock is ahead"), sign-ins and updates. Offset is null when no server answered.
 /// </summary>
 public sealed record TimeSnapshot(TimeServiceState Service, double? OffsetSeconds, string Server);
+
+/// <summary>Whether a Windows service runs.</summary>
+public enum ServiceRunState
+{
+    Running,
+    Stopped,
+    Missing,
+}
+
+/// <summary>One Windows service: run state and start type ("automatic", "manual", "disabled", ...).</summary>
+public sealed record ServiceInfo(string Name, ServiceRunState State, string StartType)
+{
+    public bool Disabled => string.Equals(StartType, "disabled", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>The Windows services behind common "it suddenly stopped working" problems: sound and search.</summary>
+public sealed record ServicesSnapshot(IReadOnlyList<ServiceInfo> Services)
+{
+    public ServiceInfo Get(string name) =>
+        Services.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new ServiceInfo(name, ServiceRunState.Missing, "unknown");
+}
 
