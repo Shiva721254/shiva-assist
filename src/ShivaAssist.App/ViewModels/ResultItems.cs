@@ -59,6 +59,20 @@ public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog, Repa
 
     public Brush Soft => Palette.Background(Finding.Severity);
 
+    /// <summary>Segoe Fluent icon per severity, so the card reads at a glance without relying on colour alone.</summary>
+    public string SeverityGlyph => Finding.Severity switch
+    {
+        Severity.Critical or Severity.Warning => WarningGlyph,
+        Severity.Information => InfoGlyph,
+        Severity.Unknown => UnknownGlyph,
+        _ => OkGlyph,
+    };
+
+    private const string WarningGlyph = "\uE7BA";
+    private const string InfoGlyph = "\uE946";
+    private const string UnknownGlyph = "\uE897";
+    private const string OkGlyph = "\uE73E";
+
     public void Refresh() => RefreshAll();
 }
 

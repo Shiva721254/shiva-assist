@@ -13,7 +13,7 @@ import sys
 LIT=r'"((?:[^"\\]|\\.)*)"'
 def templates(root):
     out=[]
-    files=sorted(glob.glob(root+'/src/ShivaAssist.Core/**/*.cs',recursive=True)+glob.glob(root+'/src/ShivaAssist.App/**/*.cs',recursive=True))
+    files=sorted(glob.glob(root+'/src/ShivaAssist.Core/**/*.cs',recursive=True)+glob.glob(root+'/src/ShivaAssist.App/**/*.cs',recursive=True)+glob.glob(root+'/src/ShivaAssist.Setup/**/*.cs',recursive=True))
     for f in files:
         s=open(f,encoding='utf-8').read()
         for m in re.finditer(r'new Message\(\s*'+LIT,s): out.append(m.group(1))

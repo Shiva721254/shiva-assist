@@ -28,7 +28,7 @@ public enum ScreenState
 /// The dashboard (architecture 5.1): start a read-only scan, see categories at a glance, read each finding
 /// with its advice, and save the report. Every visible text goes through the translation catalog.
 /// </summary>
-public sealed class MainViewModel : Observable
+public sealed partial class MainViewModel : Observable
 {
     public const string HelpUrl = "https://shivacomputers.nl/{lang}/contact";
 
@@ -43,6 +43,7 @@ public sealed class MainViewModel : Observable
     private ScanReport? report;
     private string? status;
     private bool repairing;
+    private bool reviewingRepairs;
     private readonly Dictionary<string, RepairResult> outcomes = new(StringComparer.Ordinal);
     private readonly RepairContext? repairContext;
 
@@ -50,23 +51,45 @@ public sealed class MainViewModel : Observable
     {
         this.product = product;
         TechnicianMode = technicianMode;
-        repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || State == ScreenState.Scanning) : null;
+        repairContext = technicianMode ? new RepairContext(RepairAsync, OutcomeText, OutcomeColour, () => repairing || reviewingRepairs || State == ScreenState.Scanning) : null;
         Languages = TextCatalog.Available();
         catalog = TextCatalog.For(Settings.LoadLanguage() ?? DefaultLanguage());
+        Software = new SoftwareViewModel(() => catalog, technicianMode,
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning, value => repairing = value);
+        Startup = new StartupViewModel(() => catalog, technicianMode,
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning,
+            value => { repairing = value; RefreshAll(); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); });
+        Cleanup = new CleanupViewModel(() => catalog, technicianMode,
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning,
+            value =>
+            {
+                repairing = value;
+                OnPropertyChanged(nameof(IsBusy));
+                if (!value) RebuildSections(); // the "Free up space" card shows the measured total
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            });
+        PropertyChanged += (_, _) => Software.RefreshBusyState();
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
         {
             var item = new NavItem(module, () => catalog);
             Modules.Add(item);
-            if (!item.IsOverview)
-            {
-                ModuleTiles.Add(item);
-            }
         }
 
         selectedModule = Modules[0];
         selectedModule.Selected = true;
-        NavigateCommand = new RelayCommand(item => Navigate(item as NavItem));
+        NavigateCommand = new RelayCommand(async item =>
+        {
+            Navigate(item as NavItem);
+            if (IsSoftwarePage)
+            {
+                await Software.EnsureLoadedAsync();
+            }
+            if (IsStartupSection)
+            {
+                await Startup.EnsureLoadedAsync();
+            }
+        });
 
         foreach (var category in WindowsPlatform.CreateChecks().Select(c => c.Category).Distinct().Order())
         {
@@ -75,11 +98,19 @@ public sealed class MainViewModel : Observable
             ScanAreas.Add(area);
         }
 
-        StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning);
+        StartScanCommand = new RelayCommand(async _ => await ScanAsync(), _ => State != ScreenState.Scanning && !repairing && !reviewingRepairs);
+        CleanTemporaryFilesCommand = new RelayCommand(async _ => await CleanTemporaryFilesAsync(),
+            _ => TechnicianMode && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
+        FixAllCommand = new RelayCommand(async _ => await FixAllAsync(),
+            _ => TechnicianMode && HasResults && AutomaticRepairs.Any() && !repairing && !reviewingRepairs && State != ScreenState.Scanning);
+        ConfigureScanCommand = new RelayCommand(_ => Navigate(Modules.First(module => module.IsOverview)));
         SaveReportCommand = new RelayCommand(_ => SaveReport(), _ => report is not null);
         HelpCommand = new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal)));
-        RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode), _ => !IsElevated && State != ScreenState.Scanning);
+        RestartAsAdminCommand = new RelayCommand(_ => RestartAsAdmin(TechnicianMode),
+            _ => !IsElevated && State != ScreenState.Scanning && !repairing && !reviewingRepairs);
         SelectTileCommand = new RelayCommand(tile => SelectTile(tile as CategoryTile));
+        SectionCommand = new RelayCommand(async section => await SelectSectionAsync(section as WorkspaceSection));
+        RebuildSections();
     }
 
     public string Product => product;
@@ -119,6 +150,11 @@ public sealed class MainViewModel : Observable
             }
 
             RefreshAll();
+            Software.RefreshLanguage();
+            Startup.RefreshLanguage();
+            Cleanup.RefreshLanguage();
+            RebuildSections();
+            ApplyFilter();
         }
     }
 
@@ -126,7 +162,7 @@ public sealed class MainViewModel : Observable
 
     public bool ShowAdminHint => !IsElevated;
 
-    /// <summary>Repairs are offered only in technician mode (start with --technician) during stage 3.</summary>
+    /// <summary>Repair actions are available unless the desktop app was opened in read-only mode.</summary>
     public bool TechnicianMode { get; }
 
     public bool ShowReadOnlyBadge => !TechnicianMode;
@@ -147,7 +183,7 @@ public sealed class MainViewModel : Observable
         }
     }
 
-    public bool IsReady => State == ScreenState.Ready;
+    public bool IsReady => State != ScreenState.Scanning;
 
     public bool IsScanning => State == ScreenState.Scanning;
 
@@ -177,7 +213,6 @@ public sealed class MainViewModel : Observable
     public ObservableCollection<NavItem> Modules { get; } = [];
 
     /// <summary>Overview tiles: every module except the overview itself.</summary>
-    public ObservableCollection<NavItem> ModuleTiles { get; } = [];
 
     public RelayCommand NavigateCommand { get; }
 
@@ -185,16 +220,177 @@ public sealed class MainViewModel : Observable
 
     public bool IsOverviewPage => selectedModule.IsOverview;
 
-    public bool IsModulePage => !selectedModule.IsOverview && !selectedModule.IsSoon && !IsHistoryPage;
+    public bool IsResultsPage => selectedModule.Module.Key == AppModules.ResultsKey;
+
+    public bool ResultsEmpty => IsResultsPage && !HasResults && !IsStartupSection;
+
+    public string TextResultsEmpty => T("Start a check-up from Overview to see your results here.");
+
+    public string TextScanAgain => T("Scan again");
+
+    public RelayCommand ConfigureScanCommand { get; }
+
+    public RelayCommand CleanTemporaryFilesCommand { get; }
+    public string TextCleanTemporaryFiles => T("Clean old temporary files");
+    public string TextTemporaryCleanupScope => T("Remove temporary files older than 7 days. Files in use are skipped.");
+    public string? TemporaryCleanupStatus { get; private set; }
+
+    private async Task CleanTemporaryFilesAsync()
+    {
+        repairing = true;
+        TemporaryCleanupStatus = T("Cleaning old temporary files…");
+        RefreshAll();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            var job = new RepairJob
+            {
+                JobId = Guid.NewGuid().ToString("N"),
+                OperationId = RepairCatalogue.CleanTempFiles,
+                ApprovedAt = DateTimeOffset.UtcNow,
+                Items = [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp")],
+            };
+            var result = await Task.Run(() => new WindowsRepairExecutor(IsElevated).ExecuteAsync(job, CancellationToken.None));
+            RepairAudit.Append(result);
+            TemporaryCleanupStatus = !result.Completed
+                ? T("Temporary file cleanup could not finish.")
+                : result.BytesFreed > 0
+                    ? new Message("Temporary files cleaned. Space recovered: {freed:gb}.", ("freed", result.BytesFreed)).Render(catalog)
+                    : T("Cleanup finished. No disk space was recovered.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            TemporaryCleanupStatus = T("Temporary file cleanup could not finish.");
+        }
+        finally
+        {
+            repairing = false;
+            RefreshAll();
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    public RelayCommand FixAllCommand { get; }
+
+    /// <summary>A check-up or repair is running: closing asks first, and the footer shows activity.</summary>
+    public bool IsBusy => repairing || reviewingRepairs || State == ScreenState.Scanning;
+
+    public string TextCloseWhileBusy => T("Shiva Assist is still working on your PC. If you close it now, a check-up or repair can stop halfway. Do you want to close anyway?");
+
+    public string TextVersion => product;
+
+    // ---- The customer journey shown on Overview: 1 check-up → 2 Fix it all → 3 review ----
+
+    public IReadOnlyList<JourneyStep> Journey =>
+    [
+        new("1", T("Check-up"), HasResults, !HasResults),
+        new("2", T("Fix it all"), HasRepairSummary, HasResults && !HasRepairSummary),
+        new("3", T("Review the result"), false, HasRepairSummary),
+    ];
+
+    public bool ShowRepairReview => HasResults;
+
+    public string TextFixAll => T("Fix it all");
+
+    // ---- Fix it all hero: what will happen, live progress, and the last outcome ----
+
+    private int fixAllDone;
+    private int fixAllTotal;
+    private string? fixAllCurrent;
+
+    /// <summary>True while the one-click batch runs; the hero shows progress instead of the button.</summary>
+    public bool IsFixingAll => fixAllTotal > 0 && reviewingRepairs;
+
+    public bool ShowFixAllButton => !IsFixingAll;
+
+    public int FixAllDone => fixAllDone;
+
+    public int FixAllTotal => Math.Max(1, fixAllTotal);
+
+    public string TextFixAllProgress => new Message("Repair {done} of {total}: {repair}",
+        ("done", Math.Min(fixAllDone + 1, fixAllTotal)), ("total", fixAllTotal), ("repair", fixAllCurrent ?? string.Empty)).Render(catalog);
+
+    public string TextFixAllKeepOn => T("Keep the PC switched on. Shiva Assist checks every repair afterwards.");
+
+    /// <summary>The distinct repairs one click will run, in order, so the customer knows what happens.</summary>
+    public IReadOnlyList<string> FixAllPlan => [.. AutomaticRepairs.Select(r => r.Operation).DistinctBy(o => o.Id).Select(o => o.Name.Render(catalog))];
+
+    public bool HasFixAllPlan => FixAllPlan.Count > 0;
+
+    public string TextFixAllReady => FixAllPlan.Count == 1
+        ? T("1 repair ready · one click")
+        : new Message("{count} repairs ready · one click", ("count", FixAllPlan.Count)).Render(catalog);
+
+    public string TextFixAllPlanTitle => T("What Fix it all will do");
+
+    public string TextNothingToFix => FixAllExhausted ? T("Nothing more to fix automatically") : T("Nothing to fix automatically");
+
+    public bool NothingToFix => HasResults && !HasFixAllPlan && !IsFixingAll;
+
+    /// <summary>Hero accent: red for critical problems, amber for warnings, green when all is well.</summary>
+    public Brush HeroAccent => CountOf(Severity.Critical) > 0 ? Palette.For(Severity.Critical)
+        : CountOf(Severity.Warning) > 0 ? Palette.For(Severity.Warning)
+        : Palette.For(Severity.Healthy);
+
+    public string HeroCount => (CountOf(Severity.Critical) + CountOf(Severity.Warning)).ToString(System.Globalization.CultureInfo.CurrentCulture);
+
+    public string TextLastBatch
+    {
+        get
+        {
+            var bars = RepairSummaryBars;
+            return lastRepairBatch.Length == 0 ? string.Empty
+                : new Message("Last Fix it all: {fixed} fixed · {improved} improved · {other} need attention · {clean} already clean",
+                    ("fixed", bars[0].Count), ("improved", bars[1].Count), ("other", bars[2].Count), ("clean", bars[3].Count)).Render(catalog);
+        }
+    }
+    public string TextRepairAndCleanup => T("Repair and cleanup");
+
+    public string TextProblemCount => (HasRepairSummary, ProblemCount == 1) switch
+    {
+        (true, true) => T("1 problem remains"),
+        (true, false) => new Message("{count} problems remain", ("count", ProblemCount)).Render(catalog),
+        (false, true) => T("1 problem found"),
+        (false, false) => new Message("{count} problems found", ("count", ProblemCount)).Render(catalog),
+    };
+
+    public bool RepairsEmpty => IsModulePage && HasResults && Findings.Count == 0;
+
+    private IEnumerable<RepairButton> AutomaticRepairs => AllFindings.SelectMany(item => item.Repairs)
+        .Where(repair => !repair.Operation.NeedsSelection && !repair.Operation.RestartRequired && !repair.Operation.IsUndo
+            && !triedRepairs.Contains(repair.Item.Id + "|" + repair.Operation.Id));
+
+    private int ProblemCount => CountOf(Severity.Critical) + CountOf(Severity.Warning);
+
+    /// <summary>Fix it all ran, and every remaining problem needs a choice, a restart or a technician.</summary>
+    public bool FixAllExhausted => HasRepairSummary && !AutomaticRepairs.Any() && ProblemCount > 0;
+
+    public string TextRepairCoverage => FixAllExhausted
+        ? T("Fix it all has done everything it can safely do automatically. The remaining problems need your choice on their card below, or a Shiva technician.")
+        : ProblemCount == 0 && HasResults
+            ? T("No problems need attention. Your PC looks good.")
+        : !AutomaticRepairs.Any()
+        ? T("No one-click repairs are available. Open a finding to see its options.")
+        : AutomaticRepairs.Any(repair => repair.Operation.Id == RepairCatalogue.EmptyRecycleBin)
+            ? T("Fix it all starts supported repairs now and may permanently empty the Recycle Bin.")
+            : T("Fix it all starts supported repairs now. Actions that need a choice or restart are available on their findings.");
+
+    public bool IsModulePage => selectedModule.Module.Key == AppModules.RepairsKey;
+
+    public bool IsSoftwarePage => selectedModule.Module.Key == "software";
+
+    public SoftwareViewModel Software { get; }
 
     public bool IsHistoryPage => selectedModule.Module.Key == AppModules.HistoryKey;
 
     /// <summary>Every repair and undo from the audit log, newest first.</summary>
     public ObservableCollection<HistoryItem> History { get; } = [];
 
-    public bool HistoryEmpty => IsHistoryPage && History.Count == 0;
+    public bool HistoryEmpty => IsHistoryPage && !IsHelpSection && History.Count == 0;
 
-    public string TextHistoryEmpty => T("No repairs yet. Every repair you run appears here with its result, so you can always see what was changed.");
+    public string TextHistoryEmpty => IsUndoSection
+        ? T("No repairs currently have an available undo. All repair records remain in Repair history.")
+        : T("No repairs yet. Every repair you run appears here with its result, so you can always see what was changed.");
 
     public string TextUndo => T("Undo");
 
@@ -264,10 +460,10 @@ public sealed class MainViewModel : Observable
     public string TextIntroTitle => T("Let's give your PC a quick check-up");
 
     public string TextIntro => TechnicianMode
-        ? T("In about a minute, Shiva Assist looks at how this PC is doing (storage, updates, security, internet and more). The check itself changes nothing. For each problem it finds, you can start a repair; every repair is explained and asked first.")
+        ? T("Check your PC for problems. The scan makes no changes. Afterward, use Fix it all to run supported repairs.")
         : T("In about a minute, Shiva Assist looks at how your PC is doing (storage, updates, security, internet and more) and explains what it finds in plain language, with clear next steps. It only reads information: nothing on your PC is changed.");
 
-    public string TextStart => State == ScreenState.Results ? T("Scan again") : T("Start the check-up");
+    public string TextStart => HasResults ? T("Check again") : T("Start the check-up");
 
     public string TextDuration => T("It takes about a minute.");
 
@@ -291,6 +487,8 @@ public sealed class MainViewModel : Observable
 
     public string TextHeadline => report is null ? string.Empty : (CountOf(Severity.Critical) + CountOf(Severity.Warning)) switch
     {
+        0 when CountOf(Severity.Unknown) > 0 => T("Some checks could not be completed"),
+        0 when CountOf(Severity.Information) > 0 => T("No warnings found; review the information below"),
         0 => T("Good news: your PC looks healthy"),
         1 => T("1 thing needs your attention"),
         var n => new Message("{count} things need your attention", ("count", n)).Render(catalog),
@@ -333,6 +531,7 @@ public sealed class MainViewModel : Observable
         }
 
         Navigate(Modules[0]);
+        triedRepairs.Clear();
         ProgressMax = checks.Count;
         Progress = 0;
         Status = null;
@@ -349,6 +548,7 @@ public sealed class MainViewModel : Observable
 
         report = await Task.Run(() => runner.RunAsync(WindowsPlatform.DescribeEnvironment(product)));
         ShowResults();
+        Navigate(Modules.First(module => module.Module.Key == AppModules.ResultsKey));
     }
 
     private void ShowResults()
@@ -367,13 +567,14 @@ public sealed class MainViewModel : Observable
             Tiles.Add(new CategoryTile(group.Key, [.. group], () => catalog));
         }
 
-        foreach (var module in Modules.Where(m => !m.IsOverview))
+        foreach (var module in Modules.Where(m => m.Module.Key is AppModules.ResultsKey or AppModules.RepairsKey))
         {
-            module.Update([.. report.Findings.Where(f => AppModules.KeyFor(f) == module.Module.Key)]);
+            module.Update([.. report.Findings.Where(f => module.Module.Key == AppModules.ResultsKey || RepairCatalogue.For(f).Count > 0)]);
         }
 
         selectedTile = null;
         State = ScreenState.Results;
+        RebuildSections();
         ApplyFilter();
         RefreshAll();
     }
@@ -399,26 +600,41 @@ public sealed class MainViewModel : Observable
         selectedModule.Selected = false;
         selectedModule = item;
         item.Selected = true;
+        RebuildSections();
         if (IsHistoryPage)
         {
             LoadHistory();
+        }
+
+        if (IsModulePage && TechnicianMode)
+        {
+            _ = Cleanup.EnsureLoadedAsync(); // measures in the background; the page shows "Measuring…" meanwhile
         }
 
         ApplyFilter();
         RefreshAll();
     }
 
+    /// <summary>Cleanup with preview on the Optimize page.</summary>
+    public CleanupViewModel Cleanup { get; }
+
     /// <summary>Overview: problems (and, on request, what is OK). Module page: everything the module found.</summary>
     private void ApplyFilter()
     {
         Findings.Clear();
-        var key = selectedModule.Module.Key;
-        foreach (var item in AllFindings.Where(f => IsModulePage
-            ? AppModules.KeyFor(f.Finding) == key
-            : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category)))
+        foreach (var item in AllFindings.Where(f => MatchesSection(f.Finding) && (IsModulePage || IsRepairSection
+            ? f.Repairs.Count > 0
+            : (ShowHealthy || f.Severity != Severity.Healthy) && (selectedTile is null || f.Category == selectedTile.Category))))
         {
             Findings.Add(item);
         }
+        FindingGroups.Clear();
+        foreach (var group in Findings.GroupBy(f => f.Category).OrderBy(g => g.Key))
+        {
+            FindingGroups.Add(new(ReportText.CategoryName(group.Key).Render(catalog), group.ToArray()));
+        }
+        OnPropertyChanged(nameof(SectionHasNoFindings));
+        OnPropertyChanged(nameof(RepairsEmpty));
     }
 
     private void SaveReport()
@@ -463,11 +679,101 @@ public sealed class MainViewModel : Observable
 
     // ---- Repairs (stage 3a): explain → ask → repair → verify → log ----
 
-    private async Task RepairAsync(RepairButton button)
+    private (RepairOperation Operation, RepairResult? Result)[] lastRepairBatch = [];
+
+    /// <summary>
+    /// Repairs that already ran on a finding since the last scan ("findingId|operationId"). Fix it all never offers
+    /// them again: repeating a cleanup that could not solve the problem only looks like progress.
+    /// </summary>
+    private readonly HashSet<string> triedRepairs = new(StringComparer.Ordinal);
+
+    public bool HasRepairSummary => lastRepairBatch.Length > 0;
+    public string TextScanResultsTitle => CountOf(Severity.Critical) + CountOf(Severity.Warning) == 0
+        ? TextHeadline : T("Scan results");
+    public string TextRepairSummary => T("Last repair summary");
+    public IEnumerable<string> RepairSummaryDetails => lastRepairBatch.Select(entry =>
+        entry.Operation.Name.Render(catalog) + " — " + (entry.Result is { } result ? VerdictText(result) : T("The repair did not complete")));
+
+    /// <summary>A cleanup that completed but found nothing to remove is not a failure: the area was already clean.</summary>
+    private static bool AlreadyClean((RepairOperation Operation, RepairResult? Result) entry) =>
+        entry.Result is { Completed: true, BytesFreed: 0, Verdict: RepairVerdict.Unresolved or RepairVerdict.Inconclusive }
+        && entry.Operation.Id.StartsWith("DISK.", StringComparison.Ordinal);
+
+    public IReadOnlyList<RepairSummaryBar> RepairSummaryBars
+    {
+        get
+        {
+            var fixedCount = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Fixed or RepairVerdict.Pending });
+            var improved = lastRepairBatch.Count(entry => entry.Result is { Completed: true, Verdict: RepairVerdict.Improved });
+            var clean = lastRepairBatch.Count(AlreadyClean);
+            var remaining = lastRepairBatch.Length - fixedCount - improved - clean;
+            return
+            [
+                new(T("Fixed"), fixedCount, lastRepairBatch.Length, Palette.For(Severity.Healthy)),
+                new(T("Improved"), improved, lastRepairBatch.Length, Palette.For(Severity.Information)),
+                new(T("Needs attention or verification"), remaining, lastRepairBatch.Length, Palette.For(Severity.Warning)),
+                new(T("Already clean, nothing to remove"), clean, lastRepairBatch.Length, Palette.For(Severity.Unknown)),
+            ];
+        }
+    }
+
+    private async Task FixAllAsync()
+    {
+        if (repairing || reviewingRepairs || !TechnicianMode)
+        {
+            return;
+        }
+
+        var batch = AutomaticRepairs.ToArray();
+        var completed = new List<(RepairOperation Operation, RepairResult? Result)>();
+        reviewingRepairs = true;
+        fixAllTotal = batch.Length;
+        fixAllDone = 0;
+        Status = T("Working on your PC…");
+        RefreshAll();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            foreach (var selected in batch)
+            {
+                fixAllCurrent = selected.Operation.Name.Render(catalog);
+                OnPropertyChanged(nameof(TextFixAllProgress));
+                // Earlier repairs can resolve a finding, so recheck that each operation still applies.
+                var current = AllFindings.FirstOrDefault(item => item.Id == selected.Item.Id);
+                var repair = current?.Repairs.FirstOrDefault(button => button.Operation.Id == selected.Operation.Id);
+                if (repair is not null)
+                {
+                    IReadOnlyList<string> approvedItems = repair.Operation.Id == RepairCatalogue.CleanTempFiles
+                        ? [Path.GetTempPath().TrimEnd('\\')]
+                        : [];
+                    completed.Add((repair.Operation, await RepairAsync(repair, approvedItems)));
+                }
+
+                fixAllDone++;
+                OnPropertyChanged(nameof(FixAllDone));
+                OnPropertyChanged(nameof(TextFixAllProgress));
+            }
+            lastRepairBatch = completed.ToArray();
+            Status = TextLastBatch;
+            RefreshAll();
+        }
+        finally
+        {
+            reviewingRepairs = false;
+            fixAllTotal = 0;
+            fixAllCurrent = null;
+            RefreshAll();
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    private Task<RepairResult?> RepairAsync(RepairButton button) => RepairAsync(button, null);
+
+    private async Task<RepairResult?> RepairAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
         try
         {
-            await RepairCoreAsync(button);
+            return await RepairCoreAsync(button, approvedItems);
         }
 #pragma warning disable CA1031 // A failed repair must end in a message, never in a crashed window.
         catch (Exception ex)
@@ -475,44 +781,56 @@ public sealed class MainViewModel : Observable
         {
             repairing = false;
             Status = new Message("The repair did not complete: {reason}", ("reason", ex.Message)).Render(catalog);
+            return null;
         }
     }
 
-    private async Task RepairCoreAsync(RepairButton button)
+    private async Task<RepairResult?> RepairCoreAsync(RepairButton button, IReadOnlyList<string>? approvedItems)
     {
         var operation = button.Operation;
         var before = button.Item.Finding;
-        var items = await ChooseItemsAsync(operation);
+        var items = approvedItems ?? await ChooseItemsAsync(operation);
         if (items is null)
         {
-            return;
+            return null;
         }
 
-        var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
-        var question = string.Join(Environment.NewLine + Environment.NewLine,
-            operation.Description.Render(catalog),
-            operation.NeedsRestorePoint ? T("A restore point is made before the repair starts. If System Protection is off, it is switched on first.") : string.Empty,
-            new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
-            T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
-        if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (approvedItems is null)
         {
-            return;
+            var risk = operation.Risk switch { RiskClass.Low => T("Low"), RiskClass.Medium => T("Medium"), _ => T("High") };
+            var question = string.Join(Environment.NewLine + Environment.NewLine,
+                operation.Description.Render(catalog),
+                operation.NeedsRestorePoint ? T("A restore point is made before the repair starts. If System Protection is off, it is switched on first.") : string.Empty,
+                new Message("Risk: {risk} · Takes {min}–{max} minutes", ("risk", risk), ("min", operation.Minutes.Min), ("max", operation.Minutes.Max)).Render(catalog),
+                T("Do you want to run this repair now?")).Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine, StringComparison.Ordinal);
+            if (MessageBox.Show(question, operation.Name.Render(catalog), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            {
+                return null;
+            }
         }
 
         repairing = true;
-        Status = new Message("Running: {repair}… This can take up to {max} minutes; keep the PC switched on.", ("repair", operation.Name.Render(catalog)), ("max", operation.Minutes.Max)).Render(catalog);
+        if (approvedItems is null)
+        {
+            Status = new Message("Running: {repair}… This can take up to {max} minutes; keep the PC switched on.", ("repair", operation.Name.Render(catalog)), ("max", operation.Minutes.Max)).Render(catalog);
+        }
         var job = new RepairJob { JobId = Guid.NewGuid().ToString("N"), OperationId = operation.Id, ApprovedAt = DateTimeOffset.UtcNow, Items = items };
         var (result, after) = await Task.Run(() => new RepairRunner(IsElevated).RunAsync(operation, job, before, CancellationToken.None));
         repairing = false;
 
         outcomes[before.Id] = result;
+        triedRepairs.Add(before.Id + "|" + operation.Id);
         if (after is not null && report is not null)
         {
             report = report with { Findings = [.. report.Findings.Select(f => f.Id == after.Id ? ScanRunner.WithRepairs(after) : f)] };
         }
 
-        Status = OutcomeText(before.Id);
+        if (approvedItems is null)
+        {
+            Status = OutcomeText(before.Id);
+        }
         ShowResults();
+        return result;
     }
 
     /// <summary>Items the repair needs: the temp folder, or the startup programs the technician selects.</summary>
@@ -540,6 +858,12 @@ public sealed class MainViewModel : Observable
 
     private string VerdictText(RepairResult result)
     {
+        if (result is { Completed: true, BytesFreed: 0, Verdict: RepairVerdict.Unresolved or RepairVerdict.Inconclusive }
+            && result.OperationId.StartsWith("DISK.", StringComparison.Ordinal))
+        {
+            return T("Already clean: there was nothing to remove here.");
+        }
+
         var verdict = result.Verdict switch
         {
             RepairVerdict.Fixed => T("Fixed"),
@@ -586,6 +910,10 @@ public sealed class MainViewModel : Observable
         var culture = System.Globalization.CultureInfo.GetCultureInfo(catalog.Language.Code);
         foreach (var entry in entries)
         {
+            if (IsUndoSection && !RepairHistory.CanUndo(entry, entries))
+            {
+                continue;
+            }
             var operation = RepairCatalogue.Find(entry.OperationId);
             var name = operation?.Name.Render(catalog) ?? entry.OperationId;
             var outcome = operation?.IsUndo == true
@@ -659,7 +987,7 @@ public sealed class MainViewModel : Observable
     {
         try
         {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", Arguments = technicianMode ? "--technician" : string.Empty });
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", Arguments = technicianMode ? "--technician" : "--read-only" });
             Application.Current.Shutdown();
         }
         catch (Win32Exception)
@@ -687,4 +1015,12 @@ internal static class Settings
         using var key = Registry.CurrentUser.CreateSubKey(Key);
         key.SetValue("Language", code);
     }
+}
+
+public sealed record RepairSummaryBar(string Label, int Count, int Total, Brush Color);
+
+/// <summary>One step of the Overview journey; a finished step shows a tick, the current step is highlighted.</summary>
+public sealed record JourneyStep(string Number, string Label, bool Done, bool Current)
+{
+    public string Mark => Done ? "\u2713" : Number;
 }

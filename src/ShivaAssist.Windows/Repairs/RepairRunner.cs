@@ -52,7 +52,8 @@ public sealed class RepairRunner(bool isElevated)
         else
         {
             after = result.Completed ? await RecheckAsync(before, cancellationToken) : null;
-            result = result with { Verdict = RepairVerification.Judge(before, after, result) };
+            result = result with { Verdict = result.Verdict == RepairVerdict.Inconclusive
+                ? RepairVerdict.Inconclusive : RepairVerification.Judge(before, after, result) };
         }
 
         RepairAudit.Append(result);

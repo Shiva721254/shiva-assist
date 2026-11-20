@@ -4,22 +4,42 @@
         Title="{Binding Product}" Width="1060" Height="780" MinWidth="760" MinHeight="560"
         WindowStartupLocation="CenterScreen" Background="{StaticResource Page}"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}">
+  <!-- Keyboard: F5 starts a check-up, F1 opens help -->
+  <Window.InputBindings>
+    <KeyBinding Key="F5" Command="{Binding StartScanCommand}" />
+    <KeyBinding Key="F1" Command="{Binding HelpCommand}" />
+  </Window.InputBindings>
+
   <Window.Resources>
     <!-- One finding card: layer 1 always, layers 2-3 under Details. Used on the overview and on every module page. -->
     <DataTemplate x:Key="FindingCard">
-      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,10">
-        <DockPanel>
-          <Border DockPanel.Dock="Left" Width="5" Background="{Binding Accent}" CornerRadius="12,0,0,12" />
-          <StackPanel Margin="16,12,16,12">
+      <!-- Severity icon on the left, plain-language title and advice, the repair buttons directly visible,
+           and the technical cause/evidence only under Details. -->
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Margin="0,0,0,12">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Border Background="{Binding Accent}" CornerRadius="14,0,0,14" />
+          <Grid Grid.Column="1" Width="44" Height="44" Margin="16,16,0,0" VerticalAlignment="Top">
+            <Ellipse Fill="{Binding Soft}" />
+            <TextBlock Text="{Binding SeverityGlyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20"
+                       Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Grid>
+          <StackPanel Grid.Column="2" Margin="14,14,18,14">
             <DockPanel>
-              <Border DockPanel.Dock="Left" Background="{Binding Accent}" CornerRadius="10" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Top">
+              <Border DockPanel.Dock="Left" Background="{Binding Accent}" CornerRadius="10" Padding="9,2" Margin="0,2,10,0" VerticalAlignment="Top">
                 <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
               </Border>
-              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="16" TextWrapping="Wrap" />
             </DockPanel>
-            <TextBlock Text="{Binding Advice, StringFormat='→ {0}'}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
+            <TextBlock Text="{Binding Advice}" Foreground="{StaticResource Ink}" Visibility="{Binding HasAdvice, Converter={StaticResource Visible}}"
                        TextWrapping="Wrap" Margin="0,8,0,0" />
-            <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,10,0,0">
+            <TextBlock Text="{Binding Outcome}" Visibility="{Binding HasOutcome, Converter={StaticResource Visible}}"
+                       Foreground="{Binding OutcomeColour}" FontWeight="SemiBold" Margin="0,8,0,0" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,12,0,0">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <WrapPanel />
@@ -27,14 +47,17 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Button Style="{StaticResource QuietButton}" Content="{Binding Label}" ToolTip="{Binding Tooltip}"
-                          Command="{Binding Command}" Margin="0,0,8,6" Padding="12,5" FontSize="13" />
+                  <Button Style="{StaticResource QuietButton}" ToolTip="{Binding Tooltip}" Command="{Binding Command}" Margin="0,0,8,8"
+                          AutomationProperties.Name="{Binding Label}">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="&#xE90F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Text="{Binding Outcome}" Visibility="{Binding HasOutcome, Converter={StaticResource Visible}}"
-                       Foreground="{Binding OutcomeColour}" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap" />
-            <Expander IsExpanded="{Binding Expanded}" Margin="0,8,0,0" Foreground="{StaticResource Green}"
+            <Expander IsExpanded="{Binding Expanded}" Margin="0,6,0,0" Foreground="{StaticResource GreenDark}"
                       Header="{Binding DataContext.TextDetails, RelativeSource={RelativeSource AncestorType=Window}}">
               <StackPanel Margin="20,6,0,0">
                 <TextBlock Text="{Binding Cause}" Visibility="{Binding HasCause, Converter={StaticResource Visible}}"
@@ -52,8 +75,49 @@
               </StackPanel>
             </Expander>
           </StackPanel>
-        </DockPanel>
+        </Grid>
       </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="FindingGroup">
+      <StackPanel Margin="0,0,0,14">
+        <TextBlock Text="{Binding Name}" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" Margin="2,4,0,10" AutomationProperties.HeadingLevel="Level2" />
+        <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource FindingCard}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="StartupPanel">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,12">
+            <Button DockPanel.Dock="Right" Content="{Binding TextRefresh}" Command="{Binding RefreshCommand}" Style="{StaticResource QuietButton}" Margin="12,0,0,0" />
+            <TextBlock Text="{Binding TextTitle}" FontSize="23" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource GreenDark}" />
+          </DockPanel>
+          <TextBlock Text="{Binding TextScope}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,10" />
+          <TextBlock Text="{Binding TextBoot}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8" />
+          <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,12" AutomationProperties.LiveSetting="Polite" />
+          <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,8">
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="30" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource Green}" FontSize="18" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding State}" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,3,0,4" />
+                      <ProgressBar Value="{Binding Duration, Mode=OneWay}" Maximum="{Binding Maximum}" Height="7" Foreground="{Binding BarColour}"
+                                   Background="{StaticResource GreenSoft}" BorderThickness="0" Visibility="{Binding HasTiming, Converter={StaticResource Visible}}" AutomationProperties.Name="{Binding Timing}" />
+                      <TextBlock Text="{Binding Timing}" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,5,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="{Binding DataContext.TextDisable, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            Command="{Binding DisableCommand}" CommandParameter="{Binding}" Style="{StaticResource QuietButton}" VerticalAlignment="Center"
+                            Visibility="{Binding ShowAction, Converter={StaticResource Visible}}" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
     </DataTemplate>
   </Window.Resources>
 
@@ -88,16 +152,101 @@
       </DockPanel>
     </Border>
 
+    <!-- Fix it all hero: the scan outcome and the one big repair action stay visible on every page after a scan.
+         Left: problem count in the severity colour. Middle: what one click does. Right: the big button, or live progress. -->
+    <Border DockPanel.Dock="Top" Visibility="{Binding ShowRepairReview, Converter={StaticResource Visible}}"
+            Background="{StaticResource Page}" Padding="20,16,20,6">
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="16">
+        <Border.Effect>
+          <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.10" Color="#2F3B33" />
+        </Border.Effect>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Border Background="{Binding HeroAccent}" CornerRadius="16,0,0,16" />
+
+          <!-- Problem count -->
+          <Grid Grid.Column="1" Width="64" Height="64" Margin="18,16,16,16" VerticalAlignment="Center">
+            <Ellipse Fill="{Binding HeroAccent}" />
+            <TextBlock Text="{Binding HeroCount}" Foreground="White" FontSize="26" FontWeight="Bold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Grid>
+
+          <!-- What one click does -->
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,14,16,14">
+            <TextBlock Text="{Binding TextProblemCount}" FontSize="22" FontWeight="SemiBold"
+                       Foreground="{StaticResource Ink}" TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock Text="{Binding TextRepairCoverage}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding TextLastBatch}" Foreground="{StaticResource GreenDark}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Visibility="{Binding HasRepairSummary, Converter={StaticResource Visible}}" />
+            <Expander Header="{Binding TextFixAllPlanTitle}" Margin="0,8,0,0" Foreground="{StaticResource GreenDark}"
+                      Visibility="{Binding HasFixAllPlan, Converter={StaticResource Visible}}">
+              <ItemsControl ItemsSource="{Binding FixAllPlan}" Margin="20,6,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,2">
+                      <TextBlock DockPanel.Dock="Left" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                                 Foreground="{StaticResource Green}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <TextBlock Text="{Binding}" Foreground="{StaticResource Ink}" TextWrapping="Wrap" />
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Expander>
+          </StackPanel>
+
+          <!-- The big button, or progress while the batch runs -->
+          <Grid Grid.Column="3" Margin="0,16,20,16" VerticalAlignment="Center" MinWidth="300">
+            <Button Style="{StaticResource HeroButton}" Command="{Binding FixAllCommand}" AutomationProperties.Name="{Binding TextFixAll}"
+                    ToolTip="{Binding TextRepairCoverage}" Visibility="{Binding ShowFixAllButton, Converter={StaticResource Visible}}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <TextBlock Text="&#xE90F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                  <TextBlock Text="{Binding TextFixAll}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding TextFixAllReady}" FontSize="13" FontWeight="Normal" TextAlignment="Center" Margin="0,4,0,0"
+                           Visibility="{Binding HasFixAllPlan, Converter={StaticResource Visible}}" />
+                <TextBlock Text="{Binding TextNothingToFix}" FontSize="13" FontWeight="Normal" TextAlignment="Center" Margin="0,4,0,0"
+                           Visibility="{Binding NothingToFix, Converter={StaticResource Visible}}" />
+              </StackPanel>
+            </Button>
+            <Border Visibility="{Binding IsFixingAll, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}"
+                    CornerRadius="16" Padding="20,14" MinHeight="76">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding TextFixAllProgress}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                           TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                <ProgressBar Height="10" Margin="0,10,0,6" Minimum="0" Maximum="{Binding FixAllTotal}" Value="{Binding FixAllDone, Mode=OneWay}"
+                             Foreground="{StaticResource Green}" Background="White" BorderThickness="0" />
+                <TextBlock Text="{Binding TextFixAllKeepOn}" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Grid>
+      </Border>
+    </Border>
+
     <!-- Footer: status, help -->
     <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="28,10">
       <DockPanel>
         <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="{Binding TextHelp}" Command="{Binding HelpCommand}" />
-        <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <ProgressBar DockPanel.Dock="Left" IsIndeterminate="True" Width="90" Height="5" Margin="0,0,14,0" VerticalAlignment="Center"
+                     Foreground="{StaticResource Green}" Background="{StaticResource GreenSoft}" BorderThickness="0"
+                     Visibility="{Binding IsBusy, Converter={StaticResource Visible}}" AutomationProperties.Name="{Binding TextScanning}" />
+        <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0" AutomationProperties.LiveSetting="Polite" />
       </DockPanel>
     </Border>
 
     <!-- Menu: one entry per module (blueprint: twelve modules); a dot shows the worst result, "Soon" marks later phases -->
-    <Border DockPanel.Dock="Left" Width="230" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+    <Border DockPanel.Dock="Left" Width="240" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+      <DockPanel>
+      <StackPanel DockPanel.Dock="Bottom" Margin="22,10,16,16">
+        <TextBlock Text="{Binding TextVersion}" FontSize="12" Foreground="{StaticResource Muted}" />
+        <TextBlock Text="F5 · F1" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,2,0,0" ToolTip="F5 = check-up, F1 = help" />
+      </StackPanel>
       <ScrollViewer VerticalScrollBarVisibility="Auto">
         <ItemsControl ItemsSource="{Binding Modules}" Margin="10,14" KeyboardNavigation.TabNavigation="Continue">
           <ItemsControl.ItemTemplate>
@@ -106,9 +255,9 @@
                       Cursor="Hand" Margin="0,0,0,2" AutomationProperties.Name="{Binding Name}">
                 <Button.Template>
                   <ControlTemplate TargetType="Button">
-                    <Border x:Name="Row" Background="Transparent" CornerRadius="10" Padding="12,9">
+                    <Border x:Name="Row" Background="Transparent" CornerRadius="12" Padding="14,12" MinHeight="48">
                       <DockPanel>
-                        <TextBlock DockPanel.Dock="Left" x:Name="Icon" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16"
+                        <TextBlock DockPanel.Dock="Left" x:Name="Icon" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19"
                                    Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0" />
                         <Ellipse DockPanel.Dock="Right" Width="8" Height="8" Fill="{Binding Dot}" VerticalAlignment="Center"
                                  Visibility="{Binding HasDot, Converter={StaticResource Visible}}" />
@@ -116,7 +265,7 @@
                                 Visibility="{Binding IsSoon, Converter={StaticResource Visible}}">
                           <TextBlock Text="{Binding Status}" FontSize="11" Foreground="{StaticResource Muted}" />
                         </Border>
-                        <TextBlock x:Name="Label" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="Label" Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                       </DockPanel>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -141,35 +290,142 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
       </ScrollViewer>
+      </DockPanel>
     </Border>
 
+    <DockPanel>
+      <ScrollViewer DockPanel.Dock="Top" Visibility="{Binding ShowWorkspaceSections, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto" MaxHeight="194" Margin="28,16,18,0">
+        <StackPanel>
+          <TextBlock Text="{Binding TextSectionHint}" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,0,0,7" />
+          <ItemsControl ItemsSource="{Binding Sections}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Command="{Binding DataContext.SectionCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+                        Width="166" MinHeight="82" Margin="0,0,8,8" HorizontalContentAlignment="Stretch" AutomationProperties.Name="{Binding Title}" ToolTip="{Binding Description}">
+                  <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                      <Border x:Name="SectionCard" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="12,10">
+                        <StackPanel>
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17" Foreground="{StaticResource Green}" Margin="0,0,8,0" />
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                          </DockPanel>
+                          <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel>
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Selected}" Value="True"><Setter TargetName="SectionCard" Property="Background" Value="{StaticResource GreenSoft}" /><Setter TargetName="SectionCard" Property="BorderBrush" Value="{StaticResource Green}" /></DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SectionCard" Property="BorderBrush" Value="{StaticResource Green}" /></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SectionCard" Property="BorderBrush" Value="{StaticResource Ink}" /><Setter TargetName="SectionCard" Property="BorderThickness" Value="2" /></Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Button.Template>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
     <Grid>
 
-    <!-- Overview page: start, scanning and results -->
+    <!-- Overview page: persistent scan setup and active scan progress. -->
     <Grid Margin="28,22" Visibility="{Binding IsOverviewPage, Converter={StaticResource Visible}}">
 
       <!-- 1. Ready: welcome, the big round button, and the areas the check-up covers -->
       <ScrollViewer Visibility="{Binding IsReady, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="760" VerticalAlignment="Center" HorizontalAlignment="Center">
-          <TextBlock Text="{Binding TextIntroTitle}" FontSize="27" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" Foreground="{StaticResource GreenDark}" />
-          <TextBlock Text="{Binding TextIntro}" FontSize="14.5" Foreground="{StaticResource Muted}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,18" LineHeight="21" />
-          <Button Style="{StaticResource ScanButton}" Command="{Binding StartScanCommand}" HorizontalAlignment="Center" AutomationProperties.Name="{Binding TextStart}">
-            <TextBlock Text="{Binding TextStart}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="130" />
-          </Button>
-          <TextBlock Text="{Binding TextDuration}" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,10,0,20" />
-
-          <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="22,16">
+        <StackPanel MaxWidth="850">
+          <!-- Result of the automatic monthly check-up, until a new scan replaces it -->
+          <Border Visibility="{Binding HasMonthlyNote, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}"
+                  CornerRadius="14" Padding="16,12" Margin="0,0,0,14">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left" Text="&#xE787;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
+                         Foreground="{StaticResource GreenDark}" VerticalAlignment="Center" Margin="0,0,12,0" />
+              <TextBlock Text="{Binding MonthlyNote}" TextWrapping="Wrap" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </DockPanel>
+          </Border>
+          <!-- Journey: where the customer is in "check-up → Fix it all → review" -->
+          <ItemsControl ItemsSource="{Binding Journey}" Margin="0,0,0,18" Focusable="False">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Rows="1" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border x:Name="Step" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                        CornerRadius="14" Padding="14,10" Margin="0,0,10,0">
+                  <StackPanel Orientation="Horizontal">
+                    <Grid Width="34" Height="34" Margin="0,0,12,0">
+                      <Ellipse x:Name="Dot" Fill="{StaticResource Page}" Stroke="{StaticResource Line}" StrokeThickness="1.5" />
+                      <TextBlock x:Name="Mark" Text="{Binding Mark}" FontWeight="Bold" FontSize="15" Foreground="{StaticResource Muted}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock x:Name="Label" Text="{Binding Label}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource Muted}"
+                               VerticalAlignment="Center" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+                <DataTemplate.Triggers>
+                  <DataTrigger Binding="{Binding Done}" Value="True">
+                    <Setter TargetName="Dot" Property="Fill" Value="{StaticResource Green}" />
+                    <Setter TargetName="Dot" Property="Stroke" Value="{StaticResource Green}" />
+                    <Setter TargetName="Mark" Property="Foreground" Value="White" />
+                    <Setter TargetName="Label" Property="Foreground" Value="{StaticResource GreenDark}" />
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding Current}" Value="True">
+                    <Setter TargetName="Step" Property="BorderBrush" Value="{StaticResource Green}" />
+                    <Setter TargetName="Step" Property="BorderThickness" Value="2" />
+                    <Setter TargetName="Step" Property="Background" Value="{StaticResource GreenSoft}" />
+                    <Setter TargetName="Dot" Property="Stroke" Value="{StaticResource Green}" />
+                    <Setter TargetName="Mark" Property="Foreground" Value="{StaticResource GreenDark}" />
+                    <Setter TargetName="Label" Property="Foreground" Value="{StaticResource Ink}" />
+                  </DataTrigger>
+                </DataTemplate.Triggers>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Border Visibility="{Binding HasRepairSummary, Converter={StaticResource Visible}}" Background="{StaticResource Surface}"
+                  BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="16" Margin="0,0,0,16">
             <StackPanel>
-              <DockPanel Margin="0,0,0,12">
-                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AreaCheck}" Content="{Binding TextSelectAll}" IsChecked="{Binding AllAreasSelected}" FontSize="13" />
-                <TextBlock Text="{Binding TextAreasTitle}" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" VerticalAlignment="Center" />
-              </DockPanel>
+              <TextBlock Text="{Binding TextRepairSummary}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+              <ItemsControl ItemsSource="{Binding RepairSummaryBars}" Margin="0,8,0,8">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Margin="0,3">
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" FontWeight="SemiBold" Margin="10,0,0,0" />
+                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                      </DockPanel>
+                      <ProgressBar Height="6" Margin="0,3,0,0" Minimum="0" Maximum="{Binding Total}" Value="{Binding Count, Mode=OneWay}"
+                                   Foreground="{Binding Color}" AutomationProperties.Name="{Binding Label}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Expander Header="{Binding TextDetails}">
+                <ItemsControl ItemsSource="{Binding RepairSummaryDetails}" Margin="0,6,0,0">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,3" /></DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Expander>
+            </StackPanel>
+          </Border>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border Grid.RowSpan="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="14" Padding="16" Margin="0,0,12,0">
+            <StackPanel>
+              <TextBlock Text="{Binding TextAreasTitle}" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" TextWrapping="Wrap" />
+              <CheckBox Style="{StaticResource AreaCheck}" Content="{Binding TextSelectAll}" IsChecked="{Binding AllAreasSelected}" FontSize="13" Margin="0,8" />
               <ItemsControl ItemsSource="{Binding ScanAreas}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <UniformGrid Columns="4" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <CheckBox Style="{StaticResource AreaCheck}" IsChecked="{Binding IsChecked}" Margin="0,6,12,6" AutomationProperties.Name="{Binding Name}">
@@ -180,6 +436,20 @@
               </ItemsControl>
             </StackPanel>
           </Border>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,0,10">
+              <TextBlock Text="{Binding TextIntroTitle}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource GreenDark}" />
+              <TextBlock Text="{Binding TextIntro}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" />
+            </StackPanel>
+            <Button Grid.Column="1" Grid.Row="1" Style="{StaticResource HeroButton}" Command="{Binding StartScanCommand}"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinHeight="120" Margin="4,0,0,0"
+                    AutomationProperties.Name="{Binding TextStart}">
+              <StackPanel>
+                <TextBlock Text="{Binding TextStart}" FontSize="24" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextDuration}" FontSize="13" FontWeight="Normal" TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
+              </StackPanel>
+            </Button>
+          </Grid>
 
           <Border Visibility="{Binding ShowAdminHint, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="16,10" Margin="0,14,0,0">
             <DockPanel>
@@ -198,68 +468,37 @@
         <TextBlock Text="{Binding TextProgress}" Foreground="{StaticResource Muted}" />
       </StackPanel>
 
-      <!-- 3. Results -->
-      <DockPanel Visibility="{Binding HasResults, Converter={StaticResource Visible}}">
+    </Grid>
 
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-            <Button Style="{StaticResource QuietButton}" Content="{Binding TextSave}" Command="{Binding SaveReportCommand}" Margin="0,0,8,0" />
-            <Button Style="{StaticResource PrimaryButton}" Content="{Binding TextStart}" Command="{Binding StartScanCommand}" Padding="16,7" FontSize="13" />
-          </StackPanel>
+    <Grid Margin="28,22" Visibility="{Binding IsResultsPage, Converter={StaticResource Visible}}">
+      <ContentControl Content="{Binding Startup}" ContentTemplate="{StaticResource StartupPanel}" Visibility="{Binding IsStartupSection, Converter={StaticResource Visible}}" />
+      <StackPanel Visibility="{Binding ResultsEmpty, Converter={StaticResource Visible}}" VerticalAlignment="Center">
+        <TextBlock Text="{Binding TextResultsEmpty}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,16" />
+        <Button Content="{Binding TextStart}" Command="{Binding ConfigureScanCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" />
+      </StackPanel>
+      <DockPanel Visibility="{Binding ShowFindingResults, Converter={StaticResource Visible}}">
+
+        <Border DockPanel.Dock="Top" Margin="0,0,0,14" Padding="16,12"
+                Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12">
           <StackPanel>
-            <TextBlock Text="{Binding TextHeadline}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
-            <TextBlock Text="{Binding TextSummary}" Foreground="{StaticResource Muted}" Margin="0,4,0,0" />
-            <TextBlock Text="{Binding TextSystem}" Foreground="{StaticResource Muted}" FontSize="12" />
+            <TextBlock Text="{Binding TextScanResultsTitle}" FontSize="21" FontWeight="SemiBold"
+                       Foreground="{StaticResource GreenDark}" TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level2" />
+            <TextBlock Text="{Binding TextSummary}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <TextBlock Text="{Binding TextSystem}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="12" Margin="0,2,0,0" />
           </StackPanel>
-        </DockPanel>
+        </Border>
 
-        <!-- Module tiles: worst severity colours the bar; click to open the module page -->
-        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ModuleTiles}" Margin="0,0,0,12">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Button Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
-                      Margin="0,0,10,10" Cursor="Hand" AutomationProperties.Name="{Binding Name}">
-                <Button.Template>
-                  <ControlTemplate TargetType="Button">
-                    <Border x:Name="Tile" Width="176" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="0">
-                      <StackPanel>
-                        <Border Height="8" Background="{Binding Accent}" CornerRadius="12,12,0,0" />
-                        <StackPanel Margin="14,10,14,12">
-                          <DockPanel>
-                            <TextBlock DockPanel.Dock="Left" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="{StaticResource Green}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                          </DockPanel>
-                          <TextBlock Text="{Binding Status}" Foreground="{Binding Accent}" FontSize="13" Margin="0,2,0,0" />
-                        </StackPanel>
-                      </StackPanel>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Tile" Property="Background" Value="{StaticResource GreenSoft}" />
-                      </Trigger>
-                      <Trigger Property="IsKeyboardFocused" Value="True">
-                        <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Ink}" />
-                      </Trigger>
-                    </ControlTemplate.Triggers>
-                  </ControlTemplate>
-                </Button.Template>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-          <CheckBox Content="{Binding TextShowHealthy}" IsChecked="{Binding ShowHealthy}" VerticalAlignment="Center" />
-        </DockPanel>
+        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+          <CheckBox Content="{Binding TextShowHealthy}" IsChecked="{Binding ShowHealthy}" VerticalAlignment="Center" Margin="0,0,16,6" />
+          <Button Style="{StaticResource QuietButton}" Content="{Binding TextSave}" Command="{Binding SaveReportCommand}" Margin="0,0,8,6" />
+          <Button Style="{StaticResource QuietButton}" Content="{Binding TextScanAgain}" Command="{Binding ConfigureScanCommand}" Margin="0,0,0,6" />
+        </WrapPanel>
+        <TextBlock DockPanel.Dock="Top" Text="{Binding TextSectionEmpty}" TextWrapping="Wrap" Margin="0,0,0,12"
+                   Visibility="{Binding SectionHasNoFindings, Converter={StaticResource Visible}}" />
 
         <!-- Findings: layer 1 always, layers 2-3 under Details -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource FindingCard}" />
+          <ItemsControl ItemsSource="{Binding FindingGroups}" ItemTemplate="{StaticResource FindingGroup}" />
         </ScrollViewer>
       </DockPanel>
 
@@ -280,14 +519,228 @@
           <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,16,0" />
         </StackPanel>
       </DockPanel>
+      <!-- Free up space: measured preview per area, tick what to clean, one big button -->
+      <Border DockPanel.Dock="Top" DataContext="{Binding Cleanup}" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
+              Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+              CornerRadius="16" Padding="20,16" Margin="0,0,0,14">
+        <StackPanel>
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="{Binding TextMeasure}" Command="{Binding MeasureCommand}" VerticalAlignment="Top" />
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="{Binding TextTitle}" FontSize="21" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level2" />
+              <TextBlock Text="{Binding TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+            </StackPanel>
+          </DockPanel>
+          <ItemsControl ItemsSource="{Binding Items}" Margin="0,12,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,10">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Style="{StaticResource AreaCheck}" IsChecked="{Binding IsChecked}" IsEnabled="{Binding CanClean}"
+                              VerticalAlignment="Center" AutomationProperties.Name="{Binding Name}" />
+                    <Grid Grid.Column="1" Width="38" Height="38" Margin="4,0,12,0" VerticalAlignment="Center">
+                      <Ellipse Fill="{StaticResource GreenSoft}" />
+                      <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17"
+                                 Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="3" Text="{Binding Size}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                               VerticalAlignment="Center" Margin="16,0,0,0" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <DockPanel Margin="0,14,0,0">
+            <Button DockPanel.Dock="Right" Style="{StaticResource HeroButton}" Command="{Binding CleanCommand}" MinWidth="260" MinHeight="60"
+                    AutomationProperties.Name="{Binding TextClean}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Text="{Binding TextClean}" FontSize="17" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="{Binding TextTotal}" FontSize="15" FontWeight="SemiBold" />
+              <ProgressBar IsIndeterminate="True" Height="5" Width="140" HorizontalAlignment="Left" Margin="0,6,0,0"
+                           Foreground="{StaticResource Green}" Background="{StaticResource GreenSoft}" BorderThickness="0"
+                           Visibility="{Binding Working, Converter={StaticResource Visible}}" />
+              <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,12,0" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+          </DockPanel>
+        </StackPanel>
+      </Border>
       <Border DockPanel.Dock="Top" Visibility="{Binding ModuleNeedsScan, Converter={StaticResource Visible}}"
               Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
         <TextBlock Text="{Binding TextModuleNeedsScan}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
       </Border>
+      <TextBlock DockPanel.Dock="Top" Text="{Binding TextRepairSectionEmpty}" TextWrapping="Wrap"
+                 Visibility="{Binding RepairsEmpty, Converter={StaticResource Visible}}" Margin="0,0,0,12" />
       <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding ModuleHasResults, Converter={StaticResource Visible}}">
-        <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource FindingCard}" />
+        <ItemsControl ItemsSource="{Binding FindingGroups}" ItemTemplate="{StaticResource FindingGroup}" />
       </ScrollViewer>
     </DockPanel>
+
+    <ScrollViewer Margin="28,22" Visibility="{Binding IsSoftwarePage, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto">
+     <StackPanel>
+      <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+        <TextBlock Text="{Binding Software.TextPanelTitle}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" />
+        <StackPanel Visibility="{Binding Software.ShowUpdateAction, Converter={StaticResource Visible}}" Margin="0,12,0,0">
+          <Button Content="{Binding Software.TextInstallWindowsAndApps}" Command="{Binding Software.InstallWindowsAndAppsCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" />
+          <TextBlock Text="{Binding Software.InstallStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Margin="0,6,0,0" />
+        </StackPanel>
+        <StackPanel Visibility="{Binding Software.ShowWindowsTools, Converter={StaticResource Visible}}" Margin="0,12,0,0">
+          <TextBlock Text="{Binding Software.TextWindowsTools}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,12" />
+          <Button Content="{Binding Software.TextInstallWindows}" Command="{Binding Software.InstallWindowsUpdatesCommand}" Visibility="{Binding Software.ShowWindowsUpdate, Converter={StaticResource Visible}}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" />
+          <Button Content="{Binding Software.TextDriverUpdates}" Command="{Binding Software.OpenDriverUpdatesCommand}" Visibility="{Binding Software.ShowDriverUpdates, Converter={StaticResource Visible}}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" />
+        </StackPanel>
+        <TextBlock Text="{Binding Software.TextScope}" Visibility="{Binding Software.ShowInventory, Converter={StaticResource Visible}}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,12" />
+        <DockPanel Visibility="{Binding Software.ShowInventory, Converter={StaticResource Visible}}">
+          <Button DockPanel.Dock="Right" Content="{Binding Software.TextRefresh}" Command="{Binding Software.RefreshCommand}"
+                  Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" />
+          <StackPanel>
+            <TextBlock Text="{Binding Software.TextSearch}" Margin="0,0,0,4" />
+            <TextBox Text="{Binding Software.Search, UpdateSourceTrigger=PropertyChanged}" Padding="8" />
+          </StackPanel>
+        </DockPanel>
+        <TextBlock Text="{Binding Software.Status}" Visibility="{Binding Software.ShowInventory, Converter={StaticResource Visible}}" Foreground="{StaticResource Muted}" Margin="0,10,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+        <Expander Header="{Binding Software.TextUninstaller}" IsExpanded="True" Visibility="{Binding Software.ShowUninstaller, Converter={StaticResource Visible}}" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="{Binding Software.TextUninstallScope}" TextWrapping="Wrap" Margin="0,8" />
+            <TextBlock Text="{Binding Software.TextSelectedProgram}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <WrapPanel>
+              <Button Content="{Binding Software.TextUninstall}" Command="{Binding Software.UninstallCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8" />
+              <Button Content="{Binding Software.TextWindowsUninstall}" Command="{Binding Software.WindowsUninstallCommand}" Margin="0,0,0,8" />
+            </WrapPanel>
+            <TextBlock Text="{Binding Software.UninstallStatus}" TextWrapping="Wrap" Margin="0,4,0,8" AutomationProperties.LiveSetting="Polite" />
+            <StackPanel Visibility="{Binding Software.HasUninstallSessions, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding Software.TextRemovalSession}" Margin="0,4" />
+              <ComboBox ItemsSource="{Binding Software.UninstallSessions}" SelectedItem="{Binding Software.SelectedSession}" DisplayMemberPath="Label"
+                        IsEnabled="{Binding Software.CanManagePrograms}" AutomationProperties.Name="{Binding Software.TextRemovalSession}" />
+              <WrapPanel Margin="0,8,0,0">
+                <Button Content="{Binding Software.TextScanLeftovers}" Command="{Binding Software.ScanLeftoversCommand}" Margin="0,0,8,8" />
+                <Button Content="{Binding Software.TextCleanLeftovers}" Command="{Binding Software.CleanLeftoversCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" />
+              </WrapPanel>
+              <TextBlock Text="{Binding Software.TextLeftoverScope}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8" />
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding Software.Leftovers}" Visibility="{Binding Software.HasLeftovers, Converter={StaticResource Visible}}"
+                      IsEnabled="{Binding Software.CanManagePrograms}" MaxHeight="220" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Width="65">
+                  <DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextSelect, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
+                  <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" AutomationProperties.Name="{Binding PathLabel}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Binding="{Binding PathLabel}" Width="*" IsReadOnly="True">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextPath, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Kind}" Width="80" IsReadOnly="True">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextType, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Size}" Width="90" IsReadOnly="True">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextSize, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Expander>
+        <Expander Header="{Binding Software.TextCheckUpdates}" IsExpanded="True" Visibility="{Binding Software.ShowProgramUpdates, Converter={StaticResource Visible}}" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="{Binding Software.TextUpdateScope}" TextWrapping="Wrap" Margin="0,8" />
+            <StackPanel Orientation="Horizontal">
+              <Button Content="{Binding Software.TextCheckUpdates}" Command="{Binding Software.CheckUpdatesCommand}" Style="{StaticResource PrimaryButton}" />
+              <Button Content="{Binding Software.TextUpdateSelected}" Command="{Binding Software.UpdateCommand}" Margin="8,0,0,0"
+                      Visibility="{Binding Software.ShowUpdateAction, Converter={StaticResource Visible}}" />
+            </StackPanel>
+            <TextBlock Text="{Binding Software.UpdateStatus}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite" />
+            <DataGrid ItemsSource="{Binding Software.Updates}" SelectedItem="{Binding Software.SelectedUpdate}" MaxHeight="190"
+                      SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowHeaderWidth="0">
+              <DataGrid.Columns>
+                <DataGridTextColumn Binding="{Binding Name}" Width="2*">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextName, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*" />
+                <DataGridTextColumn Binding="{Binding InstalledVersion}" Width="*">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding AvailableVersion}" Width="*">
+                  <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextAvailableVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Expander>
+      </StackPanel>
+      <StackPanel Visibility="{Binding Software.ShowInventory, Converter={StaticResource Visible}}">
+        <TextBlock Text="{Binding Software.TextGroupScope}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,0,8" />
+        <ItemsControl ItemsSource="{Binding Software.Groups}" Margin="0,0,0,8">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Command="{Binding DataContext.Software.SelectGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,6,6" Padding="10,6" ToolTip="{Binding Name}">
+                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource QuietButton}"><Style.Triggers><DataTrigger Binding="{Binding Selected}" Value="True"><Setter Property="FontWeight" Value="Bold" /><Setter Property="Background" Value="{StaticResource GreenSoft}" /></DataTrigger></Style.Triggers></Style></Button.Style>
+                <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Margin="0,0,6,0" /><TextBlock Text="{Binding Name}" /><TextBlock Text="{Binding Count, StringFormat=' · {0}'}" /></StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      <DataGrid ItemsSource="{Binding Software.Items}" SelectedItem="{Binding Software.SelectedProgram}" SelectionMode="Single" MaxHeight="400" MinHeight="160"
+                AutoGenerateColumns="False" IsReadOnly="True" IsEnabled="{Binding Software.CanManagePrograms}"
+                CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"
+                EnableRowVirtualization="True" GridLinesVisibility="Horizontal" Background="{StaticResource Surface}"
+                BorderBrush="{StaticResource Line}" RowHeaderWidth="0">
+        <DataGrid.GroupStyle>
+          <GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><Border Background="{StaticResource GreenSoft}" Padding="10,8" Margin="0,6,0,0"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" /><TextBlock Text="{Binding ItemCount, StringFormat=' · {0}'}" Foreground="{StaticResource Muted}" /></StackPanel></Border></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle>
+        </DataGrid.GroupStyle>
+        <DataGrid.Columns>
+          <DataGridTemplateColumn SortMemberPath="Name" Width="2*" MinWidth="150">
+            <DataGridTemplateColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextName, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTemplateColumn.HeaderTemplate>
+            <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource Green}" Margin="4,0,8,0" VerticalAlignment="Center" /><TextBlock Text="{Binding Name}" VerticalAlignment="Center" /></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Binding="{Binding Publisher}" Width="*" MinWidth="100">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextPublisher, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Version}" Width="*" MinWidth="80">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Size}" Width="Auto">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextSize, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Date}" Width="Auto">
+            <DataGridTextColumn.HeaderTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DataContext.Software.TextDate, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+              </DataTemplate>
+            </DataGridTextColumn.HeaderTemplate>
+          </DataGridTextColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+      </StackPanel>
+     </StackPanel>
+    </ScrollViewer>
 
     <!-- History and undo: every repair from the audit log, with undo where the old state was recorded -->
     <DockPanel Margin="28,22" Visibility="{Binding IsHistoryPage, Converter={StaticResource Visible}}">
@@ -306,7 +759,94 @@
               Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
         <TextBlock Text="{Binding TextHistoryEmpty}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
       </Border>
-      <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <!-- Get help: contact, monthly check-up, battery report, emergency recovery and remote help -->
+      <ScrollViewer DockPanel.Dock="Top" Visibility="{Binding IsHelpSection, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,0,18">
+          <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="18,14" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Grid Width="44" Height="44" Margin="0,0,14,0" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource GreenSoft}" />
+                <TextBlock Text="&#xE77B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19" Foreground="{StaticResource GreenDark}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                <TextBlock Text="{Binding TextHelp}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextSupportScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+              </StackPanel>
+              <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="{Binding DataContext.TextHelpShort, RelativeSource={RelativeSource AncestorType=Window}}" Command="{Binding HelpCommand}" VerticalAlignment="Center" MinWidth="170" />
+            </Grid>
+          </Border>
+          <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="18,14" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Grid Width="44" Height="44" Margin="0,0,14,0" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource GreenSoft}" />
+                <TextBlock Text="&#xE787;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19" Foreground="{StaticResource GreenDark}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                <TextBlock Text="{Binding TextMonthlyTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextMonthlyScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                <TextBlock Text="{Binding TextMonthlyState}" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" Margin="0,6,0,0" />
+              </StackPanel>
+              <Button Grid.Column="2" Style="{StaticResource QuietButton}" Content="{Binding TextMonthlyToggle}" Command="{Binding ToggleMonthlyCommand}" VerticalAlignment="Center" MinWidth="170" />
+            </Grid>
+          </Border>
+          <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="18,14" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Grid Width="44" Height="44" Margin="0,0,14,0" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource GreenSoft}" />
+                <TextBlock Text="&#xEBA7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19" Foreground="{StaticResource GreenDark}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                <TextBlock Text="{Binding TextBatteryTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextBatteryScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+              </StackPanel>
+              <Button Grid.Column="2" Style="{StaticResource QuietButton}" Content="{Binding TextBatteryOpen}" Command="{Binding BatteryReportCommand}" VerticalAlignment="Center" MinWidth="170" />
+            </Grid>
+          </Border>
+          <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="18,14" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Grid Width="44" Height="44" Margin="0,0,14,0" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource GreenSoft}" />
+                <TextBlock Text="&#xE88E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19" Foreground="{StaticResource GreenDark}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                <TextBlock Text="{Binding TextRescueTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextRescueScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+              </StackPanel>
+              <Button Grid.Column="2" Style="{StaticResource QuietButton}" Content="{Binding TextRescueOpen}" Command="{Binding RescueCommand}" VerticalAlignment="Center" MinWidth="170" />
+            </Grid>
+          </Border>
+          <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="18,14" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Grid Width="44" Height="44" Margin="0,0,14,0" VerticalAlignment="Top">
+                <Ellipse Fill="{StaticResource GreenSoft}" />
+                <TextBlock Text="&#xE7F8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="19" Foreground="{StaticResource GreenDark}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                <TextBlock Text="{Binding TextRemoteTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TextRemoteScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                <TextBlock Text="{Binding TextQuickAssistSteps}" TextWrapping="Wrap" Margin="0,8,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                <Button Style="{StaticResource PrimaryButton}" Content="{Binding TextQuickAssist}" Command="{Binding QuickAssistCommand}" MinWidth="200"
+                        AutomationProperties.Name="{Binding TextQuickAssist}" />
+                <Button Style="{StaticResource QuietButton}" Content="{Binding TextRemoteOpen}" Command="{Binding RemoteHelpCommand}" MinWidth="200" Margin="0,8,0,0" />
+              </StackPanel>
+            </Grid>
+          </Border>
+          <TextBlock Text="{Binding HelpStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+      </ScrollViewer>
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding ShowHistory, Converter={StaticResource Visible}}">
         <ItemsControl ItemsSource="{Binding History}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
@@ -351,5 +891,6 @@
     </StackPanel>
 
     </Grid>
+    </DockPanel>
   </DockPanel>
 </Window>

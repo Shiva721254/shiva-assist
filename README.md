@@ -47,7 +47,10 @@ ShivaAssistCli.exe --lang nl    # results in Dutch
 ShivaAssistCli.exe --help
 ```
 
-Right-click → **Run as administrator** for the complete scan (the system file check needs it). Reports are saved as JSON in `Documents\Shiva Assist\Reports`. They contain no computer name, user name, file paths or serial numbers.
+The dashboard asks for Windows administrator permission when it starts, before opening the scan setup.
+Approve the UAC prompt to continue. The console version can still run with ordinary rights; start it as
+administrator for the complete scan. Reports are saved as JSON in `Documents\Shiva Assist\Reports`.
+They contain no computer name, user name, file paths or serial numbers.
 
 Exit codes: `0` nothing needs attention · `2` warnings or critical findings · `1` invalid option.
 
@@ -72,6 +75,73 @@ Start `ShivaAssist.exe --technician` to see repair buttons on findings that have
 | Repair Windows system files: DISM /RestoreHealth then sfc /scannow; restore point first, charger required | `WIN.SYSTEMFILES.REPAIR` | Medium | `WIN-INTEGRITY-001` (repairable) |
 
 Repairs that need administrator rights run in **`ShivaAssistAgent.exe`**: one Windows permission prompt per job, it accepts only catalogue operations and validates every input again, then exits. Every repair is logged in `%LOCALAPPDATA%\Shiva Assist\repair-log.jsonl` (no personal data).
+
+## Software manager
+
+### Workspaces and application groups
+
+The five main navigation items now have focused cards on the right. Overview has shortcuts to the check-up,
+startup apps, installed apps and help. PC health separates hardware/storage, performance, Windows/security,
+network and startup apps. Repairs has focused cleanup/Windows/network sections. Updates and apps separates
+the grouped inventory, uninstaller, program updates, Windows Update and optional driver updates. History has
+all repairs, available undo actions and help. Section selection is retained when returning to a workspace.
+Health cards show problem/unknown counts after a scan; findings are grouped below their category headings.
+
+Installed apps have suggested Internet, Office, Media, Games, Development, Security, Utilities and Other groups,
+category counts, filters, grouped rows and category icons. These are conservative name-based display suggestions;
+unrecognised programs remain Other. Categories are not safety verdicts and never authorise uninstall or updates.
+
+**PC health → Startup apps** reads Run keys/Startup folders and recent Windows Diagnostics-Performance events.
+Rows show enabled/disabled state, the latest reported application duration and its timestamp where available,
+and comparison bars. Windows-only event rows have no switch-off action. Measurements are associated with a
+registration only when its executable filename matches uniquely; shortcuts and ambiguous matches remain
+unmeasured. Missing/disabled logs, missing timings and malformed events never become estimated milliseconds or
+health scores. The last 14 days are queried with a 200-event cap; reports are historical, not live profiling or
+predicted savings, and durations must not be added together. Scheduled-task/Store/service startup is not an
+exhaustive part of the registration list. No background service is disabled or put to sleep.
+
+Technicians can turn off an enabled registered startup entry after approval. The executor revalidates the
+registration and checks the resulting marker; the existing audit/History undo restores the previous state.
+Refresh the main PC check-up afterwards to update its aggregate findings. **Refresh startup apps** updates the
+timing/registration view independently. Windows CI also opens the WPF workspaces to check navigation, grouping
+and binding errors; manual appearance and keyboard checks remain useful on the customer's display.
+
+Open **Updates and apps** to search the programs registered in Windows. Expand **Check program updates** to query
+the WinGet community source. App Installer must be available. If source agreements need review, run
+`winget list --source winget` in a normal Windows terminal and review the prompt, then check again.
+
+In technician mode, select an update and choose **Update selected program**. Approval includes the program
+name and old/new versions. Save your work and close that program before agreeing. The publisher's installer
+may show Windows permission and licence prompts. Shiva Assist verifies the installed version and writes
+the outcome in History. Missing or ambiguous WinGet results are reported as unverified. Store and portable
+programs may be absent from the registry inventory. This update check makes an explicit internet request.
+
+### Integrated uninstaller
+
+In technician mode, click **Uninstaller**, select a program in the inventory and choose **Uninstall selected
+program**. The confirmation identifies the program/publisher and executable. A restore point is required before
+running its normal registered uninstaller. MSI product GUIDs run through System32 `msiexec /x /norestart`;
+native desktop EXE uninstallers must be full, unambiguous paths inside Program Files. Scripts, network paths,
+per-user EXEs and unsupported registrations use the explicit **Open Windows uninstaller instead** fallback.
+No uninstaller is downloaded and no arbitrary shell command is executed.
+
+When removal is verified, choose **Check removal and scan leftovers**. The app reviews only a recorded,
+isolated installation folder, comparing it with a snapshot taken before uninstall. It offers unchanged
+`.exe`, `.dll`, `.pdb`, `.log`, `.tmp`, `.cache` files up to 64 MB each and eligible empty folders. Other files,
+settings, profiles, registry keys, shared locations, links and changed/new files are preserved. AppData-wide
+search and installation monitoring are not implemented. Missing, shared or overly large snapshots disable
+cleanup rather than guessing. Nothing starts selected; selecting a folder selects its listed contents.
+
+**Clean selected leftovers** asks separately, moves the files into administrator-protected recovery storage
+and removes only selected empty folders. Recovery copies still consume disk space; no reclaimed-space claim
+is made. History provides **Undo**, which verifies hashes and refuses to overwrite existing files. Undoing
+cleanup does not reinstall an application. A journal is saved before changes so interrupted cleanup can be
+recovered. Removal sessions persist across app restarts; a pending Windows restart blocks cleanup.
+
+Try the disposable VM fixture first: [Windows manual checklist](tools/test-vm/UNINSTALLER-TEST.md).
+CI also tests the native fixture's cancellation, failure, pending restart, registry verification, persistent
+session, cleanup and recovery. These integration checks bypass restore-point creation; check that separately
+in the VM using the actual application.
 
 ## Languages
 
@@ -121,3 +191,7 @@ Planned modules from the *Shiva Utilities* strategy (storage manager, network to
 5–8. Offline recovery, reinstallation, licensing, advanced features (see the architecture document)
 
 © Shiva Computers. All rights reserved.
+
+## Small web installer
+
+The new bootstrapper and signed release workflow are documented in [tools/installer/README.md](tools/installer/README.md). CI provides an unsigned **shiva-assist-installer-lab** for VM testing. Public distribution requires a configured trusted signing certificate and hosted release files; it is not yet live on the website.

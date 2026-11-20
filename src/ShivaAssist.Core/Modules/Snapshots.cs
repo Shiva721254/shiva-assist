@@ -22,7 +22,16 @@ public enum DiskHealth
     Unknown,
 }
 
-public sealed record PhysicalDisk(string Model, string MediaType, string BusType, long SizeBytes, DiskHealth Health);
+public sealed record PhysicalDisk(string Model, string MediaType, string BusType, long SizeBytes, DiskHealth Health, DiskReliability? Reliability = null);
+
+/// <summary>
+/// The disk's own reliability counters (SMART / NVMe health log via MSFT_StorageReliabilityCounter). Every value is
+/// optional: many disks and USB enclosures report only some of them, and reading them needs administrator rights.
+/// </summary>
+public sealed record DiskReliability(int? WearPercent, int? TemperatureC, long? PowerOnHours, long? UncorrectedErrors)
+{
+    public bool HasAny => WearPercent is not null || TemperatureC is not null || PowerOnHours is not null || UncorrectedErrors is not null;
+}
 
 public sealed record StorageSnapshot(IReadOnlyList<Volume> Volumes, IReadOnlyList<PhysicalDisk>? Disks);
 
@@ -39,7 +48,12 @@ public enum ComponentStoreState
 
 public sealed record IntegritySnapshot(ComponentStoreState State, string Summary);
 
-public sealed record UpdateSnapshot(bool RestartPending, IReadOnlyList<string> RestartReasons, DateOnly? LastUpdateInstalled, string? LastUpdateId);
+/// <summary>
+/// Restart markers, the last installed update and, from the Windows Update event log of the last 30 days, the updates
+/// that failed to install and were not installed successfully afterwards (FailedAttempts counts every failure event).
+/// </summary>
+public sealed record UpdateSnapshot(bool RestartPending, IReadOnlyList<string> RestartReasons, DateOnly? LastUpdateInstalled, string? LastUpdateId,
+    IReadOnlyList<string>? StillFailing = null, int FailedAttempts = 0);
 
 public sealed record AntivirusProduct(string Name, bool Enabled, bool UpToDate);
 
@@ -57,6 +71,7 @@ public sealed record SecuritySnapshot(IReadOnlyList<AntivirusProduct>? Antivirus
 /// </summary>
 public sealed record StartupEntry(string Name, string Location, string Key)
 {
+    public bool Enabled { get; init; } = true;
     /// <summary>Compact form for repair jobs: <c>Location|Key</c>.</summary>
     public string Reference => Location + "|" + Key;
 }
@@ -68,7 +83,7 @@ public sealed record StartupSnapshot(IReadOnlyList<StartupEntry> Entries)
     {
     }
 
-    public IReadOnlyList<string> EnabledEntries => [.. Entries.Select(e => e.Name).Distinct(StringComparer.OrdinalIgnoreCase)];
+    public IReadOnlyList<string> EnabledEntries => [.. Entries.Where(e => e.Enabled).Select(e => e.Name).Distinct(StringComparer.OrdinalIgnoreCase)];
 }
 
 /// <summary>Counts of reliability events in the look-back window.</summary>
@@ -83,6 +98,20 @@ public sealed record StabilitySnapshot(
 public sealed record ProblemDevice(string Name, string DeviceClass, int ProblemCode);
 
 public sealed record DeviceSnapshot(int PresentDevices, IReadOnlyList<ProblemDevice> Problems);
+
+/// <summary>State of the Windows Print Spooler service of the print queue.</summary>
+public enum SpoolerState
+{
+    Running,
+    Stopped,
+    Missing,
+}
+
+/// <summary>
+/// Printing (top-20 problem "printer does not print"): the Print Spooler service, how many printers are set up and
+/// how many jobs are stuck (error, deleting or blocked, or waiting for 30 minutes or longer).
+/// </summary>
+public sealed record PrintSnapshot(SpoolerState Spooler, string StartType, int Printers, int StuckJobs, int OldestStuckMinutes);
 
 /// <summary>Result of one network layer test.</summary>
 public enum LayerResult
@@ -105,3 +134,40 @@ public sealed record NetworkSnapshot(
     LayerResult Internet,
     bool CaptivePortal,
     bool ProxyConfigured);
+
+/// <summary>State of the Windows Time service (W32Time).</summary>
+public enum TimeServiceState
+{
+    Running,
+    Stopped,
+    Disabled,
+    Missing,
+}
+
+/// <summary>
+/// The PC clock compared with an internet time server (w32tm /stripchart, one sample). A wrong clock breaks
+/// secure websites ("your clock is ahead"), sign-ins and updates. Offset is null when no server answered.
+/// </summary>
+public sealed record TimeSnapshot(TimeServiceState Service, double? OffsetSeconds, string Server);
+
+/// <summary>Whether a Windows service runs.</summary>
+public enum ServiceRunState
+{
+    Running,
+    Stopped,
+    Missing,
+}
+
+/// <summary>One Windows service: run state and start type ("automatic", "manual", "disabled", ...).</summary>
+public sealed record ServiceInfo(string Name, ServiceRunState State, string StartType)
+{
+    public bool Disabled => string.Equals(StartType, "disabled", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>The Windows services behind common "it suddenly stopped working" problems: sound and search.</summary>
+public sealed record ServicesSnapshot(IReadOnlyList<ServiceInfo> Services, bool? WifiAdapterPresent = null, bool WifiServiceStopped = false)
+{
+    public ServiceInfo Get(string name) =>
+        Services.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new ServiceInfo(name, ServiceRunState.Missing, "unknown");
+}
+

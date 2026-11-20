@@ -5,6 +5,7 @@
     <Project Path="src/ShivaAssist.Cli/ShivaAssist.Cli.csproj" />
     <Project Path="src/ShivaAssist.App/ShivaAssist.App.csproj" />
     <Project Path="src/ShivaAssist.Agent/ShivaAssist.Agent.csproj" />
+    <Project Path="src/ShivaAssist.Setup/ShivaAssist.Setup.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ShivaAssist.Tests/ShivaAssist.Tests.csproj" />

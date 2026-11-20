@@ -22,6 +22,9 @@ public static class WindowsPlatform
         new StartupCheck(new StartupSource()),
         new NetworkCheck(new NetworkSource()),
         new DeviceCheck(new DeviceSource()),
+        new PrintCheck(new PrintSource()),
+        new ClockCheck(new TimeSource()),
+        new ServicesCheck(new ServicesSource()),
         new BatteryCheck(new BatterySource()),
         new StabilityCheck(new StabilitySource()),
     ];

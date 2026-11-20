@@ -86,14 +86,43 @@ public sealed class StartupSource : ISnapshotSource<StartupSnapshot>
     private const string Approved = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\";
 
     public Task<StartupSnapshot> ReadAsync(ScanContext context, CancellationToken cancellationToken)
+        => Task.FromResult(ReadEntries(includeDisabled: false));
+
+    public static StartupSnapshot ReadEntries(bool includeDisabled)
     {
         var entries = new List<StartupEntry>();
-        AddRunKey(Registry.CurrentUser, RunKey, "HKCU-Run", entries);
-        AddRunKey(Registry.LocalMachine, RunKey, "HKLM-Run", entries);
-        AddRunKey(Registry.LocalMachine, Run32Key, "HKLM-Run32", entries);
-        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "UserFolder", entries);
-        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "CommonFolder", entries);
-        return Task.FromResult(new StartupSnapshot([.. entries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)]));
+        AddRunKey(Registry.CurrentUser, RunKey, "HKCU-Run", entries, includeDisabled);
+        AddRunKey(Registry.LocalMachine, RunKey, "HKLM-Run", entries, includeDisabled);
+        AddRunKey(Registry.LocalMachine, Run32Key, "HKLM-Run32", entries, includeDisabled);
+        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "UserFolder", entries, includeDisabled);
+        AddFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "CommonFolder", entries, includeDisabled);
+        return new StartupSnapshot([.. entries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)]);
+    }
+
+    /// <summary>Filename only for conservative event matching; never stores or executes the command.</summary>
+    public static string? ExecutableName(StartupEntry entry)
+    {
+        var (hive, path) = entry.Location switch
+        {
+            "HKCU-Run" => (Registry.CurrentUser, RunKey), "HKLM-Run" => (Registry.LocalMachine, RunKey),
+            "HKLM-Run32" => (Registry.LocalMachine, Run32Key), _ => (null, string.Empty),
+        };
+        if (hive is null)
+        {
+            return null; // Shortcut targets are not guessed from their display names.
+        }
+
+        using var key = hive.OpenSubKey(path);
+        var command = (key?.GetValue(entry.Key) as string)?.Trim();
+        if (command is null)
+        {
+            return null;
+        }
+
+        var end = command.StartsWith('"') ? command.IndexOf('"', 1) : command.IndexOf(' ');
+        var executable = command.StartsWith('"') ? (end > 1 ? command[1..end] : string.Empty)
+            : end > 0 ? command[..end] : command;
+        return StartupMeasurements.ExecutableName(Environment.ExpandEnvironmentVariables(executable));
     }
 
     /// <summary>Where Task Manager keeps the on/off marker for an entry (<c>Location|Key</c>); null for anything else.</summary>
@@ -117,7 +146,7 @@ public sealed class StartupSource : ISnapshotSource<StartupSnapshot>
         };
     }
 
-    private static void AddRunKey(RegistryKey hive, string path, string location, List<StartupEntry> entries)
+    private static void AddRunKey(RegistryKey hive, string path, string location, List<StartupEntry> entries, bool includeDisabled)
     {
         using var key = hive.OpenSubKey(path);
         if (key is null)
@@ -127,14 +156,15 @@ public sealed class StartupSource : ISnapshotSource<StartupSnapshot>
 
         foreach (var name in key.GetValueNames().Where(n => n.Length > 0))
         {
-            if (IsEnabled(location + "|" + name))
+            var enabled = IsEnabled(location + "|" + name);
+            if (enabled || includeDisabled)
             {
-                entries.Add(new StartupEntry(name, location, name));
+                entries.Add(new StartupEntry(name, location, name) { Enabled = enabled });
             }
         }
     }
 
-    private static void AddFolder(string folder, string location, List<StartupEntry> entries)
+    private static void AddFolder(string folder, string location, List<StartupEntry> entries, bool includeDisabled)
     {
         if (folder.Length == 0 || !Directory.Exists(folder))
         {
@@ -144,9 +174,10 @@ public sealed class StartupSource : ISnapshotSource<StartupSnapshot>
         foreach (var file in Directory.EnumerateFiles(folder).Select(Path.GetFileName).OfType<string>()
             .Where(f => !string.Equals(f, "desktop.ini", StringComparison.OrdinalIgnoreCase)))
         {
-            if (IsEnabled(location + "|" + file))
+            var enabled = IsEnabled(location + "|" + file);
+            if (enabled || includeDisabled)
             {
-                entries.Add(new StartupEntry(Path.GetFileNameWithoutExtension(file), location, file));
+                entries.Add(new StartupEntry(Path.GetFileNameWithoutExtension(file), location, file) { Enabled = enabled });
             }
         }
     }

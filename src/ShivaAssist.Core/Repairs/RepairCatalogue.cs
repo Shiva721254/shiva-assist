@@ -66,9 +66,63 @@ public static class RepairCatalogue
     public const string RestartNow = "UPDATE.RESTART.NOW";
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
     public const string RestoreStartupPrograms = "STARTUP.PROGRAMS.RESTORE";
+    public const string UpdateSoftware = "SOFTWARE.PACKAGE.UPDATE";
+    public const string UninstallSoftware = "SOFTWARE.PROGRAM.UNINSTALL";
+    public const string CleanSoftwareLeftovers = "SOFTWARE.LEFTOVERS.CLEAN";
+    public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
+    public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
+    public const string SyncClock = "TIME.SYNC.REPAIR";
+    public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
+    public const string RepairAudioService = "AUDIO.SERVICE.REPAIR";
+    public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
+    public const string RepairWifiService = "NET.WIFI.START";
+    public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
+        new()
+        {
+            Id = UninstallSoftware,
+            Name = "Uninstall selected program",
+            Description = "Runs the program's registered uninstaller after creating a restore point. Save your work first. Follow the uninstaller's prompts. A restart may be required. Reinstalling the program may be needed to reverse its removal. Leftover cleanup requires separate approval.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            Minutes = (1, 30),
+            VerifiesFinding = "SOFTWARE-UNINSTALL-001",
+            NeedsSelection = true,
+        },
+        new()
+        {
+            Id = CleanSoftwareLeftovers,
+            Name = "Clean selected leftovers",
+            Description = "Moves only selected, unchanged installation-folder leftovers to recovery storage and removes selected empty folders. Personal files, settings, shared folders and registry keys are excluded. Recovery copies still use disk space. Undo is available in History.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SOFTWARE-LEFTOVERS-001",
+            NeedsSelection = true,
+        },
+        new()
+        {
+            Id = RestoreSoftwareLeftovers,
+            Name = "Restore cleaned leftovers",
+            Description = "Restores the leftover files and empty folders from this cleanup's recovery storage. Existing files are never overwritten. This does not reinstall the program.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            IsUndo = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SOFTWARE-LEFTOVERS-001",
+        },
+        new()
+        {
+            Id = UpdateSoftware,
+            Name = "Update selected program",
+            Description = "Updates one selected program through Windows Package Manager. Save your work and close that program first. Its installer may ask for permission or licence acceptance.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 20),
+            VerifiesFinding = "SOFTWARE-UPDATE-001",
+            NeedsSelection = true,
+        },
         new()
         {
             Id = EmptyRecycleBin,
@@ -188,12 +242,84 @@ public static class RepairCatalogue
             VerifiesFinding = "PERF-STARTUP-001",
             IsUndo = true,
         },
+        new()
+        {
+            Id = ResetPrintSpooler,
+            Name = "Restart printing and clear stuck print jobs",
+            Description = "Restarts the Windows print service (Print Spooler) and removes print jobs that are stuck in the queue. Your documents are not affected: print them again afterwards. If the print service was switched off, it is set to start automatically again.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 2),
+            VerifiesFinding = PrintCheck.FindingId,
+        },
+        new()
+        {
+            Id = SyncClock,
+            Name = "Set the clock right",
+            Description = "Switches automatic time synchronisation back on and sets the clock to the exact time from Microsoft's internet time server (time.windows.com).",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ClockCheck.FindingId,
+        },
+        new()
+        {
+            Id = CleanBrowserCache,
+            Name = "Clear the browser cache",
+            Description = "Deletes the stored copies of web pages that Edge, Chrome and Firefox keep. Passwords, cookies, history and bookmarks are not touched. Pages may load a little slower the first time afterwards.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 3),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = RepairAudioService,
+            Name = "Switch the sound service back on",
+            Description = "Switches the Windows Audio services back to automatic start and restarts them. Sound usually works again straight away; programs that were playing may need to be restarted.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.AudioId,
+        },
+        new()
+        {
+            Id = RepairSearchService,
+            Name = "Switch Windows Search back on",
+            Description = "Sets the Windows Search service back to automatic (delayed) start, as Windows ships it, and starts it. Windows then updates its search index in the background.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.SearchId,
+        },
+        new()
+        {
+            Id = RepairWifiService,
+            Name = "Start the Windows Wi-Fi service",
+            Description = "Starts the stopped Windows Wi-Fi service without changing network settings or startup type.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.WifiId,
+        },
+        new()
+        {
+            Id = ResetNetworkStack,
+            Name = "Reset the network settings of Windows",
+            Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            RestartRequired = true,
+            VerifyLater = true,
+            Minutes = (2, 5),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
     ];
 
     /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
     public static RepairOperation? UndoFor(string operationId) => operationId switch
     {
         DisableStartupPrograms => Find(RestoreStartupPrograms),
+        CleanSoftwareLeftovers => Find(RestoreSoftwareLeftovers),
         _ => null,
     };
 
@@ -212,12 +338,18 @@ public static class RepairCatalogue
 
         return finding.Id switch
         {
-            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
+            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanBrowserCache)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
             "NETWORK-CONNECT-001" => NetworkRepairs(finding),
             "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
+            "UPDATE-FAILED-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
+            PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
+            ClockCheck.FindingId when finding.Severity == Severity.Warning => [Find(SyncClock)!],
+            ServicesCheck.AudioId when finding.Severity == Severity.Warning => [Find(RepairAudioService)!],
+            ServicesCheck.WifiId when finding.Severity == Severity.Warning => [Find(RepairWifiService)!],
+            ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };
@@ -240,6 +372,12 @@ public static class RepairCatalogue
         if (Observed(finding, "DNS failed"))
         {
             operations.Add(Find(FlushDns)!);
+        }
+
+        // The heavier reset (restart needed) comes last, for when the quick repairs did not help.
+        if (operations.Count > 0)
+        {
+            operations.Add(Find(ResetNetworkStack)!);
         }
 
         return operations;

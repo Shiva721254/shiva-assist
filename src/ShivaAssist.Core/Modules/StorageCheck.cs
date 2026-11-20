@@ -51,6 +51,7 @@ public sealed class StorageCheck(ISnapshotSource<StorageSnapshot> source) : Snap
         }
 
         findings.Add(DiskHealthFinding(snapshot.Disks));
+        findings.Add(WearFinding(snapshot.Disks, context));
         return findings;
     }
 
@@ -131,4 +132,70 @@ public sealed class StorageCheck(ISnapshotSource<StorageSnapshot> source) : Snap
 
         return new Finding { Id = "STORAGE-HEALTH-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "All disks report that they are healthy", Evidence = evidence };
     }
+
+    /// <summary>
+    /// Wear, temperature and uncorrectable errors from the disk's own counters. Uncorrectable errors or an SSD past
+    /// 90 % of its rated life mean data is at risk: back up first, never "repair" a failing disk with cleanups.
+    /// </summary>
+    private Finding WearFinding(IReadOnlyList<PhysicalDisk>? disks, ScanContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var measured = disks?.Where(d => d.Reliability is { HasAny: true }).ToList() ?? [];
+        if (measured.Count == 0)
+        {
+            return context.IsElevated
+                ? Finding.Unknown("STORAGE-WEAR-001", Module, Category, "The disks do not report wear or error counters", UnknownReason.Unsupported, "MSFT_StorageReliabilityCounter returned no values")
+                : Finding.Unknown("STORAGE-WEAR-001", Module, Category, "Disk wear and error counters need administrator rights", UnknownReason.RequiresAdmin);
+        }
+
+        var evidence = measured.Select(d => new Evidence("MSFT_StorageReliabilityCounter", string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"{d.Model}: wear {Show(d.Reliability!.WearPercent, "%")}, temperature {Show(d.Reliability.TemperatureC, " °C")}, power-on {Show(d.Reliability.PowerOnHours, " h")}, uncorrected errors {Show(d.Reliability.UncorrectedErrors, string.Empty)}"))).ToList();
+
+        Finding Problem(Severity severity, Message title, Message cause) => new()
+        {
+            Id = WearId,
+            Module = Module,
+            Category = Category,
+            Severity = severity,
+            Title = title,
+            Evidence = evidence,
+            SuspectedCause = cause,
+            Recommendation = new("Back up your important files today, then have the disk checked or replaced by a Shiva technician."),
+        };
+
+        if (measured.FirstOrDefault(d => d.Reliability!.UncorrectedErrors > 0) is { } failing)
+        {
+            return Problem(Severity.Critical,
+                new Message("{disk} could not read or write some data (uncorrectable errors)", ("disk", failing.Model)),
+                new Message("The disk could not recover data from some areas. This is a typical early sign of a failing disk."));
+        }
+
+        if (measured.FirstOrDefault(d => d.Reliability!.WearPercent >= 90) is { } wornOut)
+        {
+            return Problem(Severity.Critical,
+                new Message("{disk} has used {wear} % of its rated life", ("disk", wornOut.Model), ("wear", wornOut.Reliability!.WearPercent!.Value)),
+                new Message("SSDs can only be written a limited number of times. Near the end of that life, errors and sudden failure become likely."));
+        }
+
+        if (measured.FirstOrDefault(d => d.Reliability!.WearPercent >= 70) is { } worn)
+        {
+            return Problem(Severity.Warning,
+                new Message("{disk} has used {wear} % of its rated life", ("disk", worn.Model), ("wear", worn.Reliability!.WearPercent!.Value)),
+                new Message("SSDs can only be written a limited number of times. Plan a replacement while the disk still works."));
+        }
+
+        if (measured.FirstOrDefault(d => d.Reliability!.TemperatureC >= 70) is { } hot)
+        {
+            return Problem(Severity.Warning,
+                new Message("{disk} is very warm ({temp} °C)", ("disk", hot.Model), ("temp", hot.Reliability!.TemperatureC!.Value)),
+                new Message("Blocked air vents, dust or heavy use can overheat a disk. Long periods of heat shorten its life."));
+        }
+
+        return new Finding { Id = WearId, Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Disk wear and error counters are normal", Evidence = evidence };
+    }
+
+    private const string WearId = "STORAGE-WEAR-001";
+
+    private static string Show<T>(T? value, string unit)
+        where T : struct => value is { } v ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{v}{unit}") : "not reported";
 }

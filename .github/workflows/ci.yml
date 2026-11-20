@@ -29,6 +29,18 @@ jobs:
       - name: Test
         run: dotnet test tests/ShivaAssist.Tests --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory test-results
 
+      - name: Windows uninstaller integration (disposable fixture only)
+        shell: pwsh
+        run: |
+          dotnet publish tools/test-vm/UninstallerFixture -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o fixture-publish
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet run --project tools/test-vm/UninstallerChecks -c Release -- "$PWD/fixture-publish/ShivaUninstallFixture.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: WPF workspace navigation and bindings (read-only)
+        shell: pwsh
+        run: dotnet run --project tools/test-vm/WorkspaceChecks -c Release -- --technician
+
       - name: Publish for x64 and ARM64 (self-contained, single file)
         shell: pwsh
         run: |
@@ -41,6 +53,34 @@ jobs:
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             Remove-Item "publish/$rid/*.pdb" -ErrorAction SilentlyContinue
           }
+
+      - name: Build Windows Installer packages
+        shell: pwsh
+        run: ./tools/installer/Build-Packages.ps1
+
+      - name: Bootstrapper self-test and window smoke test
+        shell: pwsh
+        run: |
+          $setup = "$PWD/src/ShivaAssist.Setup/bin/Release/net48/ShivaAssistSetup.exe"
+          foreach ($argument in '--self-test', '--ui-smoke') {
+            $test = Start-Process $setup -ArgumentList $argument -Wait -PassThru
+            if ($test.ExitCode) { throw "Setup $argument failed: $($test.ExitCode)" }
+          }
+          dotnet build src/ShivaAssist.Setup -c Release -p:SetupLab=true
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Install, repair, upgrade and uninstall (disposable runner only)
+        shell: pwsh
+        run: ./tools/installer/Test-Install.ps1
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: shiva-assist-installer-lab
+          path: |
+            src/ShivaAssist.Setup/bin/Release/net48/ShivaAssistSetupLab.exe
+            installer-output/*.msi
+            installer-output/*.sha256
+            tools/installer/README.md
 
       - name: Smoke test on the runner (read-only scan, report must validate)
         shell: pwsh

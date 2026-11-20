@@ -49,10 +49,18 @@ public sealed class NetworkSource : ISnapshotSource<NetworkSnapshot>
         var gateway = real.SelectMany(n => n.GetIPProperties().GatewayAddresses)
             .Select(g => g.Address)
             .FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork && !a.Equals(IPAddress.Any));
-        var gatewayResult = gateway is null ? LayerResult.NotTested : await PingAsync(gateway, cancellationToken) ? LayerResult.Passed : LayerResult.Failed;
+        var gatewayResult = gateway is null ? LayerResult.NotTested
+            : await PingAsync(gateway, cancellationToken) || await PingAsync(gateway, cancellationToken) ? LayerResult.Passed : LayerResult.Failed;
 
-        var dns = await ResolvesAsync(cancellationToken);
+        // One retry per layer: a single lost packet or slow answer (common on Wi-Fi and in virtual machines) must not
+        // be reported as a broken connection.
+        var dns = await ResolvesAsync(cancellationToken) || await RetryAfterPauseAsync(ResolvesAsync, cancellationToken);
         var (internet, captive) = dns ? await ProbeAsync(cancellationToken) : (await PingAsync(DnsIndependentProbe, cancellationToken), false);
+        if (!internet)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            (internet, captive) = dns ? await ProbeAsync(cancellationToken) : (await PingAsync(DnsIndependentProbe, cancellationToken), false);
+        }
 
         return new NetworkSnapshot(
             names,
@@ -63,6 +71,12 @@ public sealed class NetworkSource : ISnapshotSource<NetworkSnapshot>
             internet ? LayerResult.Passed : LayerResult.Failed,
             captive,
             proxy);
+    }
+
+    private static async Task<bool> RetryAfterPauseAsync(Func<CancellationToken, Task<bool>> test, CancellationToken cancellationToken)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+        return await test(cancellationToken);
     }
 
     /// <summary>169.254.x.x means Windows gave itself an address because no router answered (no DHCP).</summary>

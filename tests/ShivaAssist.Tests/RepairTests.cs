@@ -18,7 +18,7 @@ public sealed class RepairTests
     public void FullDriveOffersTheThreeCleanups()
     {
         var ids = RepairCatalogue.For(Space(3 * Gb)).Select(o => o.Id).ToList();
-        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
+        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanBrowserCache, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class RepairTests
     public void ReportListsCatalogueOperationsAndTheyValidate()
     {
         var finding = ScanRunner.WithRepairs(Space(3 * Gb));
-        Assert.Equal(4, finding.Recommendation!.Operations.Count);
+        Assert.Equal(5, finding.Recommendation!.Operations.Count);
         Assert.Empty(FindingValidator.Validate(finding));
         Assert.NotEmpty(FindingValidator.Validate(finding with { Recommendation = finding.Recommendation with { Operations = ["FORMAT.C.DRIVE"] } }));
     }
@@ -52,9 +52,9 @@ public sealed class RepairTests
         var pass = LayerResult.Passed;
         var fail = LayerResult.Failed;
         var skip = LayerResult.NotTested;
-        Assert.Equal([RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
-        Assert.Equal([RepairCatalogue.RenewAddress], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
-        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.FlushDns, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.FlushDns, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
         Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, fail, portal: true)));
         Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, pass)));
     }
