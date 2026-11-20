@@ -12,6 +12,7 @@ namespace ShivaAssist.Core.Modules;
 /// </summary>
 public sealed class ServicesCheck(ISnapshotSource<ServicesSnapshot> source) : SnapshotCheck<ServicesSnapshot>(source)
 {
+    public const string WifiId = "NETWORK-WIFI-SERVICE-001";
     public const string AudioId = "AUDIO-SERVICE-001";
     public const string SearchId = "SEARCH-SERVICE-001";
     public static readonly IReadOnlyList<string> AudioServices = ["AudioEndpointBuilder", "Audiosrv"];
@@ -28,7 +29,29 @@ public sealed class ServicesCheck(ISnapshotSource<ServicesSnapshot> source) : Sn
     public override IReadOnlyList<Finding> Evaluate(ServicesSnapshot snapshot, ScanContext context)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        return [Audio(snapshot), Search(snapshot)];
+        return [Audio(snapshot), Search(snapshot), Wifi(snapshot)];
+    }
+
+    private Finding Wifi(ServicesSnapshot snapshot)
+    {
+        var service = snapshot.Get("WlanSvc");
+        if (snapshot.WifiAdapterPresent != true || service.State == ServiceRunState.Missing)
+            return Finding.Unknown(WifiId, Module, Category.Network, "Wi-Fi service could not be assessed", UnknownReason.Unsupported, "No confirmed enabled wireless adapter or service");
+
+        if (service.Disabled)
+            return new Finding { Id = WifiId, Module = Module, Category = Category.Network, Severity = Severity.Information,
+                Title = "The Wi-Fi service is disabled", Recommendation = new("Check whether Wi-Fi was deliberately disabled before changing its settings."), Evidence = [Describe(service)] };
+
+        if (service.State == ServiceRunState.Running)
+            return new Finding { Id = WifiId, Module = Module, Category = Category.Network, Severity = Severity.Healthy,
+                Title = "The Windows Wi-Fi service is running", Evidence = [Describe(service)] };
+
+        if (!snapshot.WifiServiceStopped || !string.Equals(service.StartType, "automatic", StringComparison.OrdinalIgnoreCase))
+            return Finding.Unknown(WifiId, Module, Category.Network, "Wi-Fi service could not be assessed", UnknownReason.Error, "Service is not confirmed stopped with automatic startup");
+
+        return new Finding { Id = WifiId, Module = Module, Category = Category.Network, Severity = Severity.Warning,
+            Title = "The Windows Wi-Fi service has stopped", Recommendation = new("Start the Windows Wi-Fi service again."),
+            Evidence = [Describe(service)] };
     }
 
     private static Evidence Describe(ServiceInfo service) => new("Get-Service", string.Create(CultureInfo.InvariantCulture,

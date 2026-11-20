@@ -75,6 +75,7 @@ public static class RepairCatalogue
     public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
     public const string RepairAudioService = "AUDIO.SERVICE.REPAIR";
     public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
+    public const string RepairWifiService = "NET.WIFI.START";
     public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
@@ -292,6 +293,16 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = RepairWifiService,
+            Name = "Start the Windows Wi-Fi service",
+            Description = "Starts the stopped Windows Wi-Fi service without changing network settings or startup type.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.WifiId,
+        },
+        new()
+        {
             Id = ResetNetworkStack,
             Name = "Reset the network settings of Windows",
             Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
@@ -337,6 +348,7 @@ public static class RepairCatalogue
             PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
             ClockCheck.FindingId when finding.Severity == Severity.Warning => [Find(SyncClock)!],
             ServicesCheck.AudioId when finding.Severity == Severity.Warning => [Find(RepairAudioService)!],
+            ServicesCheck.WifiId when finding.Severity == Severity.Warning => [Find(RepairWifiService)!],
             ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],

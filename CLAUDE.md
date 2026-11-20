@@ -42,3 +42,7 @@ The working branch also includes installed app inventory and supported uninstall
 ## Next development work
 
 Prioritize repair and maintenance functionality. Review the current checks and repair catalog, then extend a useful Windows problem that can be detected, repaired, and verified. Use automated checks where practical so minor UI changes do not require repeated manual VM reinstalls. Public distribution on ShivaComputers.nl is a later milestone and still requires code signing, hosting, and an end-to-end download test.
+
+## Wi-Fi service increment (candidate, CI pending)
+
+Adds NETWORK-WIFI-SERVICE-001 and NET.WIFI.START; starts only a stopped automatic WlanSvc on a confirmed enabled physical wireless adapter. No startup-type or network settings changes. Disabled services are not automatically repaired. Service verification does not establish internet connectivity.

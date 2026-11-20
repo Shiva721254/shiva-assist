@@ -165,7 +165,7 @@ public sealed record ServiceInfo(string Name, ServiceRunState State, string Star
 }
 
 /// <summary>The Windows services behind common "it suddenly stopped working" problems: sound and search.</summary>
-public sealed record ServicesSnapshot(IReadOnlyList<ServiceInfo> Services)
+public sealed record ServicesSnapshot(IReadOnlyList<ServiceInfo> Services, bool? WifiAdapterPresent = null, bool WifiServiceStopped = false)
 {
     public ServiceInfo Get(string name) =>
         Services.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new ServiceInfo(name, ServiceRunState.Missing, "unknown");

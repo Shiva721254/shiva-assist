@@ -55,6 +55,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.CleanBrowserCache => CleanBrowserCache(job),
             RepairCatalogue.RepairAudioService => await RepairServicesAsync(job, ["AudioEndpointBuilder", "Audiosrv"], "Automatic", cancellationToken),
             RepairCatalogue.RepairSearchService => await RepairServicesAsync(job, ["WSearch"], "AutomaticDelayed", cancellationToken),
+            RepairCatalogue.RepairWifiService => await StartWifiServiceAsync(job, cancellationToken),
             RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
@@ -272,6 +273,25 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
     }
 
     /// <summary>netsh winsock reset + netsh int ip reset (Microsoft's documented network reset). Takes effect after a restart.</summary>
+    private static async Task<RepairResult> StartWifiServiceAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $wifi = @(Get-NetAdapter -Physical -ErrorAction Stop | Where-Object {
+                [int]$_.NdisPhysicalMedium -in 1,9 -and $_.Status -in 'Up','Disconnected'
+            }).Count -gt 0
+            $svc = Get-Service -Name WlanSvc -ErrorAction Stop
+            if ($wifi -and $svc.StartType -eq 'Automatic' -and $svc.Status -eq 'Stopped') {
+                Start-Service -Name WlanSvc -ErrorAction Stop
+                (Get-Service -Name WlanSvc).WaitForStatus('Running', [TimeSpan]::FromSeconds(20))
+            }
+            $running = $wifi -and (Get-Service -Name WlanSvc).Status -eq 'Running'
+            [pscustomobject]@{ running = $running } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var running = PowerShell.Bool(json, "running");
+        return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = running,
+            Detail = running ? "WlanSvc running" : "Wi-Fi service not running; no eligible start or start failed" };
+    }
+
     private static async Task<RepairResult> ResetNetworkStackAsync(RepairJob job, CancellationToken cancellationToken)
     {
         var netsh = ToolRunner.System32("netsh.exe");

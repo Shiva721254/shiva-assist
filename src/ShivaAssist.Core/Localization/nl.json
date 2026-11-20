@@ -4,6 +4,14 @@
     "name": "Nederlands"
   },
   "texts": {
+    "Wi-Fi service could not be assessed": "De wifi-service kon niet worden beoordeeld",
+    "The Wi-Fi service is disabled": "De wifi-service is uitgeschakeld",
+    "Check whether Wi-Fi was deliberately disabled before changing its settings.": "Controleer of wifi bewust is uitgeschakeld voordat u instellingen wijzigt.",
+    "The Windows Wi-Fi service is running": "De Windows-wifi-service is actief",
+    "The Windows Wi-Fi service has stopped": "De Windows-wifi-service is gestopt",
+    "Start the Windows Wi-Fi service again.": "Start de Windows-wifi-service opnieuw.",
+    "Start the Windows Wi-Fi service": "Start de Windows-wifi-service",
+    "Starts the stopped Windows Wi-Fi service without changing network settings or startup type.": "Start de gestopte Windows-wifi-service zonder netwerkinstellingen of het opstarttype te wijzigen.",
     "No repairs currently have an available undo. All repair records remain in Repair history.": "Er zijn momenteel geen reparaties die u ongedaan kunt maken. Alle reparatieregistraties blijven in Reparatiegeschiedenis staan.",
     "No findings to show in this section. Show OK results or include this area in your next scan.": "Er zijn geen bevindingen om in dit onderdeel weer te geven. Toon ook geslaagde controles of neem dit onderdeel op in uw volgende scan.",
     "No supported repairs match this section. Choose Available repairs to review the other sections.": "Er zijn geen ondersteunde reparaties voor dit onderdeel. Kies Beschikbare reparaties om de andere onderdelen te bekijken.",
