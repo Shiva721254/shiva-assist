@@ -272,7 +272,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
         };
     }
 
-    /// <summary>netsh winsock reset + netsh int ip reset (Microsoft's documented network reset). Takes effect after a restart.</summary>
+    /// <summary>Start only a confirmed stopped automatic WLAN service; do not change its configuration.</summary>
     private static async Task<RepairResult> StartWifiServiceAsync(RepairJob job, CancellationToken cancellationToken)
     {
         var json = await PowerShell.QueryAsync("""
@@ -292,6 +292,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             Detail = running ? "WlanSvc running" : "Wi-Fi service not running; no eligible start or start failed" };
     }
 
+    /// <summary>netsh winsock reset + netsh int ip reset (Microsoft's documented network reset). Takes effect after a restart.</summary>
     private static async Task<RepairResult> ResetNetworkStackAsync(RepairJob job, CancellationToken cancellationToken)
     {
         var netsh = ToolRunner.System32("netsh.exe");

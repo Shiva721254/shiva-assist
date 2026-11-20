@@ -4,7 +4,7 @@ using static ShivaAssist.Windows.Infrastructure.PowerShell;
 
 namespace ShivaAssist.Windows.Sources;
 
-/// <summary>Run state and start type of the sound and search services (read-only).</summary>
+/// <summary>Run state and start type of the sound, search and Wi-Fi services (read-only).</summary>
 public sealed class ServicesSource : ISnapshotSource<ServicesSnapshot>
 {
     private const string Script = """

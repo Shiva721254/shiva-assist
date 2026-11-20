@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Wi-Fi: detect and start a stopped automatic WLAN AutoConfig service on a confirmed enabled physical wireless adapter. Disabled services are left unchanged; verification checks service state, not internet access.
+- 0.1.14: Wi-Fi: detect and start a stopped automatic WLAN AutoConfig service on a confirmed enabled physical wireless adapter. Disabled services are left unchanged; verification checks service state, not internet access.
 
 - 0.1.13: "Restart the PC to finish updates" no longer reports a failure when a restart is already scheduled
   (shutdown.exe exit code 1190, from an earlier click or from Windows Update); it says the restart is on its way.
