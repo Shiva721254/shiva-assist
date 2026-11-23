@@ -1,4 +1,24 @@
-# Shiva Assist handoff
+# Shiva Assist — AI agent development instructions
+
+## Current audited baseline — 24 November 2026
+
+- Repository: `Shiva721254/shiva-assist`, working branch: `codex/software-inventory`, inspected HEAD: `3ee6cd9080693a04e895b67123732c12a21b1eb3`, source version **0.1.14** in `Directory.Build.props`. This is a dated snapshot; fetch the remote HEAD before the next change.
+- `main` was `4614c77d87eafcad44deaeb0b7d07e171e6aade2`; development was **40 commits ahead, 0 behind**, with **95 affected paths**. PR [#1](https://github.com/Shiva721254/shiva-assist/pull/1) is the development integration candidate; **not merged by this documentation update**.
+- Latest inspected commit-specific [CI #53](https://github.com/Shiva721254/shiva-assist/actions/runs/44704360055) **FAILED**: translations PASSED, Release build PASSED, **250 tests passed / 1 failed (251 total)**. Failing `ShivaAssist.Tests.ServicesTests.AllRunningIsHealthyWithoutRepairs`: one of three service findings was `Unknown` where the test expected `Healthy`. Windows integration, WPF checks, packaging, installer testing and smoke runs were SKIPPED after test failure. Do **not** describe 0.1.14 CI as green or conclude production logic vs fixture is at fault without diagnosis.
+- Previous documented last verified build: **0.1.3** / commit `34186aea46ba8503f4d5981e0e689bbe6f980a26`, [CI run #41](https://github.com/Shiva721254/shiva-assist/actions/runs/44292506582). This historical build does not validate v0.1.14.
+- **23 allowlisted operations** in `src/ShivaAssist.Core/Repairs/RepairCatalogue.cs`, including **two undo actions**; they are **not** 23 one-click automatic repairs. The current set includes the Wi-Fi service operation `NET.WIFI.START`.
+- No signed production distribution or end-to-end hosted download/installation has been verified. Current development focus remains useful detected, repaired, **verified** Windows maintenance issues; do not prematurely declare the project released.
+
+### Immediate continuation
+
+1. Inspect current branch, worktree, source, the 23-entry repair catalogue, latest CI and the Wi-Fi/service test; do not overwrite local changes.
+2. Reproduce the single failed test, inspect `ServicesCheck`, service snapshot and source, `ServicesTests` and Wi-Fi repair eligibility. Determine if `Unknown` is correct for absent/unconfirmed hardware or if a real bug exists. Never change expected severity only to conceal a fault.
+3. On separately authorized source changes, implement the smallest safe fix with regression tests, bilingual strings and full green CI; include previously skipped Windows integration and installer verification.
+4. Resume next ordinary Windows **read-only diagnose → allowlisted safe repair → independent postcheck** increment; ensure consent, restart and user-selected operations stay separate.
+5. Signing, website hosting, licensing, remote support and rescue media remain distinct later-stage work and need explicit scope/approval.
+
+Read `AI_CONTINUATION_SPEC.md` for the complete agent assignment; `HANDOFF.md` for architecture and operation catalogue; `README.md` for users/developers; `CHANGELOG.md` for version history.
+
 
 Continue on `codex/software-inventory`. Fetch the latest GitHub changes and inspect local work before editing. Read `HANDOFF.md` for project background and conventions. Use the current code and this file for the latest state when older notes differ.
 
@@ -10,7 +30,7 @@ Overview places scan options on the left and the large Start the check-up button
 
 The working branch also includes installed app inventory and supported uninstall with recoverable leftover cleanup, startup controls, repair history, and recommended Windows updates plus supported app updates after one confirmation. Third-party installers can still prompt. Optional drivers are separate.
 
-## Last verified build
+## Historical last verified build (not current v0.1.14 CI)
 
 - Version **0.1.3**, source commit `34186aea46ba8503f4d5981e0e689bbe6f980a26`.
 - [Passing Windows CI run #41](https://github.com/Shiva721254/shiva-assist/actions/runs/44292506582)
@@ -19,7 +39,7 @@ The working branch also includes installed app inventory and supported uninstall
 - The enlarged button's exact sizing in a live VM and real Windows/app updates still need manual verification. If old per-repair prompts appear, confirm which EXE or Start menu shortcut is running and check its version.
 - Run `python tools/check_translations.py` and relevant builds and tests. Verify CI for the specific source commit before sharing a new installer.
 
-## Since the last verified build (0.1.4, needs CI and a VM check)
+## Historical feature increments after v0.1.3 (source present, CI currently failed)
 
 - Fix it all hero, larger buttons, HeroButton style also on Start the check-up.
 - Printing check `PRINT-SPOOLER-001` (`Core/Modules/PrintCheck.cs`, `Windows/Sources/PrintSource.cs`) and repair `PRINT.SPOOLER.RESET` (included in Fix it all). VM test: stop the Print Spooler (`Stop-Service Spooler`) or pause a printer with a queued job older than 30 minutes, scan, Fix it all, expect Fixed.
@@ -46,3 +66,12 @@ Prioritize repair and maintenance functionality. Review the current checks and r
 ## Wi-Fi service increment (candidate, CI pending)
 
 Adds NETWORK-WIFI-SERVICE-001 and NET.WIFI.START; starts only a stopped automatic WlanSvc on a confirmed enabled physical wireless adapter. No startup-type or network settings changes. Disabled services are not automatically repaired. Service verification does not establish internet connectivity.
+
+## Non-negotiable developer behavior
+
+- Read-only scan; never interpret Unknown as healthy, and never say Fixed unless a postcheck supports that conclusion. Handle Pending for reboot or later verification.
+- `Fix it all` immediately runs eligible safe repairs without another checklist; **exclude** selected-app/startup operations, undo, explicit restarts or any action needing separate customer choice. Avoid duplicate and repeated repairs.
+- Preserve privilege separation and allowlist; the elevated agent revalidates all paths, commands, identity, signatures and time-sensitive state. Medium/high risk requires charger and restore point or fails closed. Undo remains available to customers.
+- Do not log keys, passwords, BitLocker secrets, customer identifiers, unsanitized paths or other sensitive evidence. Do not add registry cleaners, RAM boosters, forced driver updates, SSD defragmentation, fake health scores or permanent unattended remote access.
+- Keep English and formal Dutch synchronized; run translation, unit, integration and VM checks appropriate to the change. Do not mistake an unsigned lab installer for a customer download.
+- Report exact HEAD, changed files, test counts, CI run IDs, unverified cases, risks and follow-up work. Do not merge or release without explicit authorization.
