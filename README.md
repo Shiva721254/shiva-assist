@@ -1,17 +1,22 @@
 # Shiva Assist
 
-**A read-only health check for Windows PCs, by Shiva Computers.**
-It finds real problems, explains them in plain language and says what to do next. Stage 1 changes nothing on the PC.
+**Native Windows diagnosis, verified repair and maintenance software by Shiva Computers.**
 
-Product page and downloads: **https://assist.shivacomputers.nl**
+> **Development / pre-release snapshot — 24 November 2026.** Branch `codex/software-inventory`, commit `3ee6cd9080693a04e895b67123732c12a21b1eb3`, version **0.1.14**. **CI #53 failed** (250 tests pass, 1 fails: `ServicesTests.AllRunningIsHealthyWithoutRepairs`); packaging and install stages were skipped. No signed website installer has been verified. `main` is 40 commits behind this feature branch. Consult `CLAUDE.md`, `HANDOFF.md` and `AI_CONTINUATION_SPEC.md` before continuing.
 
-| | |
-|---|---|
-| Status | Stage 3a: first repairs in technician mode, on the stage 2 dashboard (English and Dutch) |
-| Runs on | Windows 10 and 11, x64 and ARM64. No installation, no .NET needed (self-contained) |
-| Built with | C# / .NET 10, no external packages in the product |
-| Specification | *Shiva Assist PRA v2.0* (architecture), *Shiva Utilities Product Strategy v2.0*, *20 Windows problems in the Netherlands* (research) |
+**Customer experience:** Start the check-up → Fix it all → Review results. The native WPF dashboard has bilingual EN/NL interface, readable finding cards, prominent one-click safe automatic repairs and a graphical Fixed / Improved / needs-attention summary. Individual choices, software removal and restarts use separate customer interactions. Detailed evidence and PDF/JSON exports remain available.
 
+**Technology:** C#/.NET 10, Windows WPF, separate pure Core checks, Windows sources, elevated allowlisted repair Agent, CLI, net48 bootstrapper, architecture-specific x64/ARM64 MSI packaging.
+
+**Covered areas:** OS/updates/security, system integrity, networking and Wi-Fi services, printer/audio/search/time services, disks and SSD wear, CPU/memory, crash/stability history, battery, startup apps, installed software, WinGet update, conservative uninstall/leftovers, measured cleanup, scheduled read-only check-up and Quick Assist launcher. Catalog contains **23 operations including two undo actions**; not all are batch eligible.
+
+**Safety:** Unknown ≠ Healthy; a command exiting successfully ≠ verified Fixed; selective user actions and restarts are never silently bundled. Protect customer data, all credentials and BitLocker recovery keys. Never implement registry-cleaner-style or fake performance claims.
+
+**Current blocker:** [CI run #53](https://github.com/Shiva721254/shiva-assist/actions/runs/44704360055) has 250 passed and one failing service test. Diagnose source/fixture before changing code, then obtain green complete CI for the actual source SHA.
+
+**Documentation navigation:** [AI agent instructions](CLAUDE.md) · [detailed architecture and 23-operation handoff](HANDOFF.md) · [AI continuation specification](AI_CONTINUATION_SPEC.md) · [version history](CHANGELOG.md) · [installer/release rules](tools/installer/README.md).
+
+---
 ## What it checks
 
 Each module turns measured data into findings in the shared contract `shiva.assist.finding/1.0` (severity, confidence, evidence, possible cause, advice). A check that cannot decide reports **Unknown with a reason**, never "healthy".
@@ -54,7 +59,7 @@ They contain no computer name, user name, file paths or serial numbers.
 
 Exit codes: `0` nothing needs attention · `2` warnings or critical findings · `1` invalid option.
 
-## Safety rules (stage 1)
+## Safety rules for read-only scans (historical Stage 1; repairs additionally subject to catalogue)
 
 - **Read-only.** No system setting, file, service or registry value is changed. The only things written are the report (when you save it) and the chosen language (`HKCU\\Software\\Shiva Computers\\Shiva Assist`).
 - Only built-in Windows tools, started by their full `System32` path: PowerShell (CIM queries), DISM `/CheckHealth`, `wevtutil`.
@@ -62,7 +67,7 @@ Exit codes: `0` nothing needs attention · `2` warnings or critical findings · 
 - No fear words, no invented problems: every finding other than Unknown carries evidence. A single busy moment is not reported as a fault.
 - The only network traffic is Windows' own connectivity test (`www.msftconnecttest.com`), the same request Windows itself makes.
 
-## Repairs (stage 3a, technician mode)
+## Historical Stage 3a repair subset (full current catalogue in HANDOFF.md)
 
 Start `ShivaAssist.exe --technician` to see repair buttons on findings that have one. Every repair is a transaction: **explain → ask → repair → check again → log**, and ends as *Fixed*, *Unresolved* or *Inconclusive*. Plan: `claude/shiva-assist-repair-plan.md` in the project.
 
@@ -182,7 +187,7 @@ CI (GitHub Actions, `windows-latest`) builds, tests, publishes the single-file e
 
 Planned modules from the *Shiva Utilities* strategy (storage manager, network tools, app manager, hardware monitor) are added as modules inside this application, not as separate programs, so they share the same core, report and download page.
 
-## Roadmap
+## Historical roadmap (see HANDOFF.md for current priorities)
 
 1. **Diagnostic foundation** (this release): read-only scan, JSON report, console
 2. **Dashboard** (in progress): WPF window, categories, Dutch and English, report export
@@ -195,3 +200,39 @@ Planned modules from the *Shiva Utilities* strategy (storage manager, network to
 ## Small web installer
 
 The new bootstrapper and signed release workflow are documented in [tools/installer/README.md](tools/installer/README.md). CI provides an unsigned **shiva-assist-installer-lab** for VM testing. Public distribution requires a configured trusted signing certificate and hosted release files; it is not yet live on the website.
+
+## Current repair catalogue IDs (v0.1.14)
+
+The following is the source-defined **23-operation** list, including two Undo operations, **not** a list of 23 automatic repairs. For exact risk, eligibility, flags and verification see `src/ShivaAssist.Core/Repairs/RepairCatalogue.cs`.
+
+1. `DISK.RECYCLEBIN.EMPTY`
+2. `DISK.TEMP.CLEAN`
+3. `DISK.COMPONENTS.CLEANUP`
+4. `STARTUP.PROGRAMS.DISABLE`
+5. `WIN.SYSTEMFILES.REPAIR`
+6. `DISK.UPDATECACHE.CLEAN`
+7. `NET.DNS.FLUSH`
+8. `NET.ADDRESS.RENEW`
+9. `SECURITY.DEFENDER.UPDATE`
+10. `UPDATE.RESTART.NOW`
+11. `UPDATE.COMPONENTS.RESET`
+12. `STARTUP.PROGRAMS.RESTORE` (Undo)
+13. `SOFTWARE.PACKAGE.UPDATE`
+14. `SOFTWARE.PROGRAM.UNINSTALL`
+15. `SOFTWARE.LEFTOVERS.CLEAN`
+16. `SOFTWARE.LEFTOVERS.RESTORE` (Undo)
+17. `PRINT.SPOOLER.RESET`
+18. `TIME.SYNC.REPAIR`
+19. `DISK.BROWSERCACHE.CLEAN`
+20. `AUDIO.SERVICE.REPAIR`
+21. `SEARCH.SERVICE.REPAIR`
+22. `NET.WIFI.START`
+23. `NET.STACK.RESET`
+
+## Verification and public release status (24 November 2026)
+
+Run `python tools/check_translations.py`, `dotnet build ShivaAssist.slnx --configuration Release`, `dotnet test tests/ShivaAssist.Tests --configuration Release`. At CI run #53 translations and build succeeded, 250/251 xUnit tests passed, and later Windows integration/installer/smoke steps were skipped. Re-run on a corrected SHA. `release.yml` supports rehearsal or Azure-signed artifacts, **not** automatic deployment. Public code signing, certified publisher identity, clean installed x64/ARM64 validation, secure website upload and end-to-end public download remain unfinished. The bootstrapper must reject unsigned/wrong-publisher payloads; rehearsal files must not be distributed.
+
+## Next AI session
+
+Read `AI_CONTINUATION_SPEC.md`; inspect remote HEAD and local dirty work, reproduce the specific service-state failing test, decide whether the fixture or eligibility code is incorrect, preserve Unknown semantics, request source-change authorization, then apply a minimal correction and verify CI. Continue useful Windows detection/repair/verification rather than commercial release first.
