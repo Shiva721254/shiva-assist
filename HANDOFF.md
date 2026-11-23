@@ -1,6 +1,6 @@
-# Shiva Assist: developer handoff
+# Shiva Assist: developer handoff (historical context plus current audited appendix)
 
-Last updated: 17 November 2026 (Software manager inventory added after roadmap step 2).
+Historical body last updated: 17 November 2026. **Authoritative 24 November 2026 status is in the final audit appendix below.**
 This file is the starting point for anyone (person or AI assistant) who continues development. Read it fully
 before changing code; the rules in "Non-negotiable rules" protect customers' PCs.
 
@@ -269,3 +269,79 @@ Public releases must sign payloads -> build MSI -> sign MSI -> build pinned setu
 New tests cover native architecture, MSI versions, source allowlists, manifest constraints, hash,
 size mismatch and manifest limits/redirect rejection. Windows CI additionally exercises real install,
 shortcut, repair/reinstall, major upgrade, uninstall and retained customer data on its disposable runner.
+
+
+---
+## 8. Current release and development snapshot (24 November 2026)
+
+## Current audited baseline — 24 November 2026
+
+- Repository: `Shiva721254/shiva-assist`, working branch: `codex/software-inventory`, inspected HEAD: `3ee6cd9080693a04e895b67123732c12a21b1eb3`, source version **0.1.14** in `Directory.Build.props`. This is a dated snapshot; fetch the remote HEAD before the next change.
+- `main` was `4614c77d87eafcad44deaeb0b7d07e171e6aade2`; development was **40 commits ahead, 0 behind**, with **95 affected paths**. PR [#1](https://github.com/Shiva721254/shiva-assist/pull/1) is the development integration candidate; **not merged by this documentation update**.
+- Latest inspected commit-specific [CI #53](https://github.com/Shiva721254/shiva-assist/actions/runs/44704360055) **FAILED**: translations PASSED, Release build PASSED, **250 tests passed / 1 failed (251 total)**. Failing `ShivaAssist.Tests.ServicesTests.AllRunningIsHealthyWithoutRepairs`: one of three service findings was `Unknown` where the test expected `Healthy`. Windows integration, WPF checks, packaging, installer testing and smoke runs were SKIPPED after test failure. Do **not** describe 0.1.14 CI as green or conclude production logic vs fixture is at fault without diagnosis.
+- Previous documented last verified build: **0.1.3** / commit `34186aea46ba8503f4d5981e0e689bbe6f980a26`, [CI run #41](https://github.com/Shiva721254/shiva-assist/actions/runs/44292506582). This historical build does not validate v0.1.14.
+- **23 allowlisted operations** in `src/ShivaAssist.Core/Repairs/RepairCatalogue.cs`, including **two undo actions**; they are **not** 23 one-click automatic repairs. The current set includes the Wi-Fi service operation `NET.WIFI.START`.
+- No signed production distribution or end-to-end hosted download/installation has been verified. Current development focus remains useful detected, repaired, **verified** Windows maintenance issues; do not prematurely declare the project released.
+
+### Immediate continuation
+
+1. Inspect current branch, worktree, source, the 23-entry repair catalogue, latest CI and the Wi-Fi/service test; do not overwrite local changes.
+2. Reproduce the single failed test, inspect `ServicesCheck`, service snapshot and source, `ServicesTests` and Wi-Fi repair eligibility. Determine if `Unknown` is correct for absent/unconfirmed hardware or if a real bug exists. Never change expected severity only to conceal a fault.
+3. On separately authorized source changes, implement the smallest safe fix with regression tests, bilingual strings and full green CI; include previously skipped Windows integration and installer verification.
+4. Resume next ordinary Windows **read-only diagnose → allowlisted safe repair → independent postcheck** increment; ensure consent, restart and user-selected operations stay separate.
+5. Signing, website hosting, licensing, remote support and rescue media remain distinct later-stage work and need explicit scope/approval.
+
+Read `AI_CONTINUATION_SPEC.md` for the complete agent assignment; `HANDOFF.md` for architecture and operation catalogue; `README.md` for users/developers; `CHANGELOG.md` for version history.
+
+
+### Exact source-defined catalogue (23 entries, two are undo)
+
+This table is a **source inventory**, not evidence that all 23 run automatically, are suitable for every PC, or have passed live Windows testing. `RepairCatalogue.For(finding)` constrains applicability and never offers fixes for Healthy/Unknown findings; user-selection, restarts and undo remain separate. Source `RepairOperation` has risk, RequiresAdmin, RestartRequired, NeedsSelection, VerifyLater, IsUndo, minutes and VerifiesFinding.
+
+| # | Operation ID | Risk / implementation caveat |
+|---:|---|---|
+| 1 | `DISK.RECYCLEBIN.EMPTY` | Low — consult catalogue flags, applicability and re-verification |
+| 2 | `DISK.TEMP.CLEAN` | Low — consult catalogue flags, applicability and re-verification |
+| 3 | `DISK.COMPONENTS.CLEANUP` | Low — consult catalogue flags, applicability and re-verification |
+| 4 | `STARTUP.PROGRAMS.DISABLE` | Low — user-selected startup apps; reversible |
+| 5 | `WIN.SYSTEMFILES.REPAIR` | Medium — restore point; DISM/SFC |
+| 6 | `DISK.UPDATECACHE.CLEAN` | Low — consult catalogue flags, applicability and re-verification |
+| 7 | `NET.DNS.FLUSH` | Low — consult catalogue flags, applicability and re-verification |
+| 8 | `NET.ADDRESS.RENEW` | Low — consult catalogue flags, applicability and re-verification |
+| 9 | `SECURITY.DEFENDER.UPDATE` | Low — consult catalogue flags, applicability and re-verification |
+| 10 | `UPDATE.RESTART.NOW` | Low — user-controlled restart; verify later |
+| 11 | `UPDATE.COMPONENTS.RESET` | Medium — restore point; verification deferred |
+| 12 | `STARTUP.PROGRAMS.RESTORE` | Low — undo startup disable |
+| 13 | `SOFTWARE.PACKAGE.UPDATE` | Low — selected WinGet package, recheck version |
+| 14 | `SOFTWARE.PROGRAM.UNINSTALL` | Medium — selected supported uninstall, restore point; verify absence |
+| 15 | `SOFTWARE.LEFTOVERS.CLEAN` | Low — selected safe leftovers, protected recovery and audit |
+| 16 | `SOFTWARE.LEFTOVERS.RESTORE` | Low — undo recovered leftovers; never overwrite |
+| 17 | `PRINT.SPOOLER.RESET` | Low — consult catalogue flags, applicability and re-verification |
+| 18 | `TIME.SYNC.REPAIR` | Low — consult catalogue flags, applicability and re-verification |
+| 19 | `DISK.BROWSERCACHE.CLEAN` | Low — consult catalogue flags, applicability and re-verification |
+| 20 | `AUDIO.SERVICE.REPAIR` | Low — consult catalogue flags, applicability and re-verification |
+| 21 | `SEARCH.SERVICE.REPAIR` | Low — consult catalogue flags, applicability and re-verification |
+| 22 | `NET.WIFI.START` | Low — only stopped automatic WlanSvc on confirmed enabled physical Wi-Fi; not proof of connectivity |
+| 23 | `NET.STACK.RESET` | Medium — restore point, restart required; verify later |
+
+### Architecture and safety boundaries requiring preservation
+
+- `Core`: pure finding/evaluation, localization, report JSON/PDF and policy. Windows sources gather bounded, read-only snapshots; elevated `Agent` executes exactly one validated catalogue job. WPF App and CLI are distinct interfaces. `Setup` is a small net48 bootstrapper; WiX packages self-contained win-x64/win-arm64 builds.
+- `Finding` contract: `shiva.assist.finding/1.0`; report contract: `shiva.assist.report/1.0`. Unknown always remains Unknown with a reason. Fix all must remain simple but not silently choose programs, uninstall anything, force reboot, or fabricate verification.
+- UI: Overview check-up areas left, large Start button right, persistent prominent Fix it all hero after scan, live progress and graphical Fixed/Improved/Pending/attention counts; technical details under Details, English and formal Dutch. Keep compact navigation without duplication.
+- Software: registry inventory, conservative grouping, manual WinGet single-package updates, startup timings from historical Windows events, safe supported uninstall and bounded recoverable leftover cleanup. Neither software category nor historical startup time is a safety judgement.
+- Privacy: never export or log secrets, identifiers, credentials or BitLocker recovery keys. Protect install folders, shared data and app profiles. Never automatically install drivers or silently reconfigure services merely for speed.
+
+### Test and release evidence
+
+`.github/workflows/ci.yml` defines: Dutch translation completeness; Release build; xUnit; disposable uninstaller checks; WPF workspace/binding smoke; x64/ARM64 self-contained publish; WiX MSI packaging; setup self/UI tests; disposable install/repair/upgrade/uninstall/data-retention; read-only CLI scan with JSON schema and 180 s bound; SHA-256 and artifact uploads. In **CI #53**, only translation/build passed before the single unit test failure; the later stages did **not** run. Repeat under the new source SHA rather than citing old CI.
+
+Release workflow `.github/workflows/release.yml` has unsigned rehearsal (staging only) and intended Azure Artifact Signing with OIDC, Public Trust profile, publisher-identity EKU/OID and RFC3161 timestamp. It produces website upload artifacts but does not deploy. Signing eligibility, credentials, identity, actual clean x64/ARM64 installs, website and end-to-end public test remain **unverified**. `tools/installer/README.md` contradicts itself in the introductory certificate-hash language versus later identity-OID design; verify actual bootstrapper before correcting prose and customer publication.
+
+### Remaining work and priorities
+
+**P0** reproduce/fix `ServicesTests.AllRunningIsHealthyWithoutRepairs` without hiding a genuine Unknown; obtain full green CI, including formerly skipped steps. **P1** new common Windows detect–repair–verify features with evaluator/agent/verification/bilingual/UI tests; expand fault-injection VM scenarios and accurate graphical outcome. **P2** complete signing eligibility, publisher trust and release-security negative tests, staging hosting at `assist.shivacomputers.nl`, versioned binaries and manifest-last deployment. **P3** commercial licensing/entitlements, optional updates, remote support and rescue OS only after explicit product and security decisions. No overall percent-complete claim is defensible without a scoped denominator.
+
+### Handoff instruction
+
+Start by verifying remote HEAD and local worktree; read `AI_CONTINUATION_SPEC.md`, the current catalogue and source/test files. Report a root-cause hypothesis, bounded edit plan, expected evidence, and risks. Do not overwrite, merge, sign, deploy, trigger workflows intentionally or implement unapproved source changes. Record exact resulting branch/SHA/test evidence before any next handoff.
