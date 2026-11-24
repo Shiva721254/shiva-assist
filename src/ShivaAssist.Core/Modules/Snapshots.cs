@@ -201,3 +201,15 @@ public enum BitLockerState
 /// <summary>Windows System Protection (restore points) and BitLocker encryption readiness on the system drive.</summary>
 public sealed record RecoverySnapshot(bool? SystemProtectionEnabled, bool DisabledByPolicy, BitLockerState BitLocker, bool BitLockerNeedsAdmin);
 
+/// <summary>Read-only NTFS dirty-bit and volume health state on the Windows system drive.</summary>
+public sealed record FileSystemSnapshot(string Drive, bool? DirtyBit, bool? VolumeHealthy, bool NeedsAdmin, string Summary);
+
+/// <summary>Windows 11 baseline hardware readiness (used on Windows 10 PCs).</summary>
+public sealed record Win11ReadinessSnapshot(
+    bool AlreadyWindows11,
+    bool Is64BitOs,
+    bool? Tpm20Present,
+    bool? SecureBootEnabled,
+    long RamBytes,
+    long SystemDriveTotalBytes);
+

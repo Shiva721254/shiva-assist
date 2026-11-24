@@ -85,6 +85,7 @@ public static class RepairCatalogue
     public const string RepairWifiService = "NET.WIFI.START";
     public const string RepairBluetoothService = "DEVICE.BLUETOOTH.REPAIR";
     public const string EnableSystemProtection = "RECOVERY.PROTECTION.ENABLE";
+    public const string ScheduleFileSystemRepair = "STORAGE.CHKDSK.SCHEDULE";
     public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
@@ -400,6 +401,18 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = ScheduleFileSystemRepair,
+            Name = "Schedule a Windows disk check on next restart",
+            Description = "Schedules Windows' built-in NTFS file system check (chkntfs /c) to repair the Windows drive automatically the next time you restart. A restore point is made first. Your PC is not restarted automatically.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            RestartRequired = true,
+            VerifyLater = true,
+            Minutes = (2, 15),
+            VerifiesFinding = FileSystemCheck.FindingId,
+        },
+        new()
+        {
             Id = ResetNetworkStack,
             Name = "Reset the network settings of Windows",
             Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
@@ -454,6 +467,7 @@ public static class RepairCatalogue
             ServicesCheck.WifiId when finding.Severity == Severity.Warning => [Find(RepairWifiService)!],
             BluetoothCheck.FindingId when finding.Severity == Severity.Warning => [Find(RepairBluetoothService)!],
             RecoveryCheck.ProtectionId when finding.Severity == Severity.Warning => [Find(EnableSystemProtection)!],
+            FileSystemCheck.FindingId when finding.Severity == Severity.Warning => [Find(ScheduleFileSystemRepair)!],
             ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],

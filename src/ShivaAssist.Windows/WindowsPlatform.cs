@@ -13,10 +13,12 @@ public static class WindowsPlatform
     [
         new PrivilegeCheck(),
         new OsCheck(new OsSource()),
+        new Win11ReadinessCheck(new Win11ReadinessSource()),
         new UpdateCheck(new UpdateSource()),
         new IntegrityCheck(new IntegritySource()),
         new SecurityCheck(new SecuritySource()),
         new StorageCheck(new StorageSource()),
+        new FileSystemCheck(new FileSystemSource()),
         new MemoryCheck(new MemorySource()),
         new ProcessorCheck(new ProcessorSource()),
         new StartupCheck(new StartupSource()),

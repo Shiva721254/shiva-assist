@@ -734,6 +734,23 @@
     "BitLocker drive encryption is off": "BitLocker-schijfversleuteling staat uit",
     "BitLocker status could not be checked on this PC": "De status van BitLocker kon op deze pc niet worden gecontroleerd",
     "Switch Windows System Protection on": "Systeembeveiliging van Windows inschakelen",
-    "Turns on Windows System Protection on the Windows drive so restore points can be created before updates and repairs.": "Schakelt Systeembeveiliging van Windows in op de Windows-schijf zodat herstelpunten kunnen worden gemaakt voor updates en reparaties."
+    "Turns on Windows System Protection on the Windows drive so restore points can be created before updates and repairs.": "Schakelt Systeembeveiliging van Windows in op de Windows-schijf zodat herstelpunten kunnen worden gemaakt voor updates en reparaties.",
+    "Check of the Windows file system": "Controle van het Windows-bestandssysteem",
+    "File system check needs administrator rights": "Voor de controle van het bestandssysteem zijn beheerdersrechten nodig",
+    "The Windows file system could not be checked": "Het bestandssysteem van Windows kon niet worden gecontroleerd",
+    "Windows flagged file system errors on the system drive": "Windows heeft bestandssysteemfouten gemeld op de systeemschijf",
+    "An unexpected power cut or crash can leave NTFS file system errors behind.": "Een onverwachte stroomuitval of crash kan fouten in het NTFS-bestandssysteem achterlaten.",
+    "Schedule Windows' built-in disk check for the next restart so errors are repaired before Windows loads.": "Plan de ingebouwde schijfcontrole van Windows voor de volgende herstart, zodat fouten worden hersteld voordat Windows start.",
+    "No file system errors are flagged on the Windows drive": "Er zijn geen bestandssysteemfouten gemeld op de Windows-schijf",
+    "Schedule a Windows disk check on next restart": "Windows-schijfcontrole plannen bij volgende herstart",
+    "Schedules Windows' built-in NTFS file system check (chkntfs /c) to repair the Windows drive automatically the next time you restart. A restore point is made first. Your PC is not restarted automatically.": "Plant de ingebouwde NTFS-schijfcontrole van Windows (chkntfs /c) om de Windows-schijf automatisch te herstellen bij de volgende herstart. Eerst wordt een herstelpunt gemaakt. Uw pc wordt niet automatisch opnieuw opgestart.",
+    "Check of Windows 11 readiness": "Controle van geschiktheid voor Windows 11",
+    "This PC already runs Windows 11": "Deze pc draait al op Windows 11",
+    "This PC does not meet all Windows 11 requirements ({missing})": "Deze pc voldoet niet aan alle vereisten voor Windows 11 ({missing})",
+    "Older PCs or disabled BIOS security features (TPM 2.0 or Secure Boot) can block the Windows 11 upgrade.": "Oudere pc's of uitgeschakelde BIOS-beveiligingsfuncties (TPM 2.0 of Secure Boot) kunnen de upgrade naar Windows 11 blokkeren.",
+    "Contact Shiva Computers to check whether TPM/Secure Boot can be enabled safely or discuss replacement options.": "Neem contact op met Shiva Computers om te bekijken of TPM/Secure Boot veilig kan worden ingeschakeld of om vervangingsopties te bespreken.",
+    "Windows 11 readiness could not be fully checked": "De geschiktheid voor Windows 11 kon niet volledig worden gecontroleerd",
+    "This PC meets the basic Windows 11 hardware checks": "Deze pc voldoet aan de basiscontroles voor Windows 11-hardware",
+    "Check Windows Update or Microsoft PC Health Check to confirm processor eligibility before upgrading.": "Controleer Windows Update of Microsoft PC-statuscontrole om te bevestigen of de processor geschikt is voordat u upgradet."
   }
 }

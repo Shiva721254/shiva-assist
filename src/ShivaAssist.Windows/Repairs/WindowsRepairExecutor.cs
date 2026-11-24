@@ -65,6 +65,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.RepairWifiService => await StartWifiServiceAsync(job, cancellationToken),
             RepairCatalogue.RepairBluetoothService => await StartBluetoothServiceAsync(job, cancellationToken),
             RepairCatalogue.EnableSystemProtection => await EnableSystemProtectionAsync(job, cancellationToken),
+            RepairCatalogue.ScheduleFileSystemRepair => await ScheduleFileSystemRepairAsync(job, cancellationToken),
             RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
@@ -597,6 +598,29 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             OperationId = job.OperationId,
             Completed = PowerShell.Bool(json, "ok"),
             Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Schedules built-in Windows NTFS check on next restart via chkntfs /c without forcing a reboot.</summary>
+    private static async Task<RepairResult> ScheduleFileSystemRepairAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var drive = Environment.GetEnvironmentVariable("SystemDrive");
+        if (string.IsNullOrWhiteSpace(drive) || drive.Length != 2 || drive[1] != ':')
+        {
+            drive = "C:";
+        }
+
+        var chkntfs = ToolRunner.System32("chkntfs.exe");
+        var (exit, output, error) = await ToolRunner.RunAsync(chkntfs, ["/c", drive], cancellationToken);
+        var ok = exit == 0;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = ok
+                ? $"Scheduled Windows disk check on {drive} for the next restart"
+                : string.Create(CultureInfo.InvariantCulture, $"chkntfs failed (exit {exit}): {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
         };
     }
 
