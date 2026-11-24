@@ -42,6 +42,9 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.CleanUpdateCache => await CleanUpdateCacheAsync(job, cancellationToken),
             RepairCatalogue.FlushDns => await RunToolAsync(job, ToolRunner.System32("ipconfig.exe"), ["/flushdns"], "DNS cache cleared", cancellationToken),
             RepairCatalogue.RenewAddress => await RenewAddressAsync(job, cancellationToken),
+            RepairCatalogue.ResetNetworkAdapter => await ResetNetworkAdaptersAsync(job, cancellationToken),
+            RepairCatalogue.ResetProxy => ResetProxy(job),
+            RepairCatalogue.RestoreProxy => RestoreProxy(job),
             RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
             RepairCatalogue.EnableDefender => await EnableDefenderAsync(job, cancellationToken),
             RepairCatalogue.DefenderQuickScan => await RunDefenderQuickScanAsync(job, cancellationToken),
@@ -481,6 +484,92 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             OperationId = job.OperationId,
             Completed = PowerShell.Bool(json, "ok"),
             Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Restart active physical Wi-Fi/Ethernet adapters without touching disabled, virtual or VPN adapters.</summary>
+    private static async Task<RepairResult> ResetNetworkAdaptersAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $adapters = @(Get-NetAdapter -Physical -ErrorAction Stop | Where-Object { $_.Status -in 'Up','Disconnected' })
+            if ($adapters.Count -eq 0) {
+                [pscustomobject]@{ ok = $false; detail = 'No active physical network adapter found; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $restarted = @()
+            foreach ($a in $adapters) {
+                Restart-NetAdapter -Name $a.Name -Confirm:$false -ErrorAction Stop
+                $restarted += $a.Name
+            }
+            $deadline = (Get-Date).AddSeconds(12)
+            $up = $false
+            while ((Get-Date) -lt $deadline) {
+                $up = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }).Count -gt 0
+                if ($up) { break }
+                Start-Sleep -Milliseconds 500
+            }
+            $detail = if ($up) { 'Restarted adapter(s): ' + ($restarted -join ', ') } else { 'Adapter(s) restarted but did not reconnect yet: ' + ($restarted -join ', ') }
+            [pscustomobject]@{ ok = $up; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Turns off HKCU manual WinINET proxy (ProxyEnable=0) while keeping ProxyServer intact for free Undo.</summary>
+    private static RepairResult ResetProxy(RepairJob job)
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(ProxySource.RegistryPath, writable: true);
+        if (key is null)
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "Internet Settings registry key could not be opened" };
+        }
+
+        var enabled = key.GetValue("ProxyEnable") is int value && value != 0;
+        if (!enabled)
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = true, Detail = "Manual Windows proxy was already off" };
+        }
+
+        key.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
+        var nowOff = key.GetValue("ProxyEnable") is int after && after == 0;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = nowOff,
+            Detail = nowOff ? "Manual Windows proxy turned off (previous proxy setting preserved for Undo)" : "ProxyEnable could not be verified as off",
+            Rollback = nowOff ? ["ProxyEnable=1"] : [],
+        };
+    }
+
+    /// <summary>Restores ProxyEnable=1 from the saved rollback record.</summary>
+    private static RepairResult RestoreProxy(RepairJob job)
+    {
+        if (!job.Items.Contains("ProxyEnable=1", StringComparer.Ordinal))
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "No valid proxy rollback record was supplied" };
+        }
+
+        using var key = Registry.CurrentUser.OpenSubKey(ProxySource.RegistryPath, writable: true);
+        if (key is null)
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "Internet Settings registry key could not be opened" };
+        }
+
+        key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
+        var nowOn = key.GetValue("ProxyEnable") is int after && after == 1;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = nowOn,
+            Detail = nowOn ? "Previous manual Windows proxy restored" : "ProxyEnable could not be verified as restored",
         };
     }
 

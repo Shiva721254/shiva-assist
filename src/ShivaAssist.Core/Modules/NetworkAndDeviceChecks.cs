@@ -104,6 +104,66 @@ public sealed class NetworkCheck(ISnapshotSource<NetworkSnapshot> source) : Snap
     };
 }
 
+/// <summary>Detects a broken manual Windows proxy (common leftover from old VPNs or adware) without touching working corporate proxies.</summary>
+public sealed class ProxyCheck(ISnapshotSource<ProxySnapshot> source) : SnapshotCheck<ProxySnapshot>(source)
+{
+    public const string FindingId = "NETWORK-PROXY-001";
+
+    public override string Module => "proxy";
+
+    public override Message Name => "Check of Windows proxy settings";
+
+    public override Category Category => Category.Network;
+
+    public override string FailureId => "PROXY-CHECK-000";
+
+    public override IReadOnlyList<Finding> Evaluate(ProxySnapshot snapshot, ScanContext context)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (!snapshot.ProxyEnabled)
+        {
+            return [new Finding
+            {
+                Id = FindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Healthy,
+                Title = "No manual Windows proxy is enabled",
+                Evidence = [new Evidence("Internet Settings", "ProxyEnable = 0")],
+            }];
+        }
+
+        if (!snapshot.ProxyTargetReachable)
+        {
+            var reason = snapshot.LoopbackProxy
+                ? "ProxyEnable = 1; local loopback proxy port is not answering"
+                : "ProxyEnable = 1; configured proxy server is not reachable";
+            return [new Finding
+            {
+                Id = FindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Warning,
+                Title = "A manual Windows proxy is enabled but does not respond",
+                SuspectedCause = "An uninstalled VPN, browser tool or unwanted program can leave a broken proxy turned on, blocking websites.",
+                Recommendation = new("Turn off the manual Windows proxy. Shiva Assist saves the previous setting so you can undo it in History."),
+                Evidence = [new Evidence("Internet Settings", reason)],
+            }];
+        }
+
+        return [new Finding
+        {
+            Id = FindingId,
+            Module = Module,
+            Category = Category,
+            Severity = Severity.Information,
+            Title = "A manual Windows proxy is configured and responding",
+            Recommendation = new("Leave it on if your workplace, school or VPN requires it."),
+            Evidence = [new Evidence("Internet Settings", "ProxyEnable = 1; proxy endpoint answered")],
+        }];
+    }
+}
+
 /// <summary>Devices that Windows reports with a problem (research problem 10).</summary>
 public sealed class DeviceCheck(ISnapshotSource<DeviceSnapshot> source) : SnapshotCheck<DeviceSnapshot>(source)
 {

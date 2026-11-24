@@ -145,3 +145,83 @@ public sealed class NetworkSource : ISnapshotSource<NetworkSnapshot>
         }
     }
 }
+
+/// <summary>Checks whether Windows' per-user manual proxy (WinINET ProxyEnable) is active and reachable (read-only).</summary>
+public sealed class ProxySource : ISnapshotSource<ProxySnapshot>
+{
+    public const string RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
+
+    public async Task<ProxySnapshot> ReadAsync(ScanContext context, CancellationToken cancellationToken)
+    {
+        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryPath);
+        var enabled = key?.GetValue("ProxyEnable") is int value && value != 0;
+        if (!enabled)
+        {
+            return new ProxySnapshot(false, true, false);
+        }
+
+        var rawServer = (key?.GetValue("ProxyServer") as string)?.Trim() ?? string.Empty;
+        if (!TryParseEndpoint(rawServer, out var host, out var port))
+        {
+            return new ProxySnapshot(true, false, false);
+        }
+
+        var isLoopback = string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || (IPAddress.TryParse(host, out var ip) && IPAddress.IsLoopback(ip));
+        var reachable = await CanConnectAsync(host, port, cancellationToken);
+        return new ProxySnapshot(true, reachable, isLoopback);
+    }
+
+    public static bool TryParseEndpoint(string rawServer, out string host, out int port)
+    {
+        host = string.Empty;
+        port = 0;
+        if (string.IsNullOrWhiteSpace(rawServer))
+        {
+            return false;
+        }
+
+        // WinINET ProxyServer can be "host:port" or "http=host:port;https=host:port".
+        var entry = rawServer.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault(part => part.StartsWith("https=", StringComparison.OrdinalIgnoreCase)
+                || part.StartsWith("http=", StringComparison.OrdinalIgnoreCase))
+            ?? rawServer.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault()
+            ?? string.Empty;
+
+        var eq = entry.IndexOf('=', StringComparison.Ordinal);
+        if (eq >= 0)
+        {
+            entry = entry[(eq + 1)..];
+        }
+
+        if (!entry.Contains("://", StringComparison.Ordinal))
+        {
+            entry = "http://" + entry;
+        }
+
+        if (!Uri.TryCreate(entry, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Host) || uri.Port <= 0)
+        {
+            return false;
+        }
+
+        host = uri.Host;
+        port = uri.Port;
+        return true;
+    }
+
+    private static async Task<bool> CanConnectAsync(string host, int port, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new TcpClient();
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(3));
+            await client.ConnectAsync(host, port, timeout.Token);
+            return client.Connected;
+        }
+        catch (Exception ex) when (ex is SocketException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+    }
+}

@@ -21,6 +21,7 @@ public static class WindowsPlatform
         new ProcessorCheck(new ProcessorSource()),
         new StartupCheck(new StartupSource()),
         new NetworkCheck(new NetworkSource()),
+        new ProxyCheck(new ProxySource()),
         new DeviceCheck(new DeviceSource()),
         new BluetoothCheck(new BluetoothSource()),
         new PrintCheck(new PrintSource()),

@@ -703,6 +703,19 @@
     "Switch Microsoft Defender protection back on": "Microsoft Defender-beveiliging weer inschakelen",
     "Switches Microsoft Defender real-time virus protection back on, only when no other antivirus is active. If Windows Tamper Protection is on, Windows requires switching it on in Windows Security.": "Schakelt realtime virusbeveiliging van Microsoft Defender weer in, alleen wanneer er geen andere virusscanner actief is. Als Manipulatiebeveiliging van Windows aan staat, moet u dit inschakelen in Windows-beveiliging.",
     "Run a Microsoft Defender quick scan": "Snelle scan van Microsoft Defender uitvoeren",
-    "Runs Windows' built-in Microsoft Defender quick scan on common malware locations. If a threat is found, Windows Security handles removal.": "Voert de ingebouwde snelle scan van Microsoft Defender uit op veelvoorkomende malwarelocaties. Als er een bedreiging wordt gevonden, regelt Windows-beveiliging de verwijdering."
+    "Runs Windows' built-in Microsoft Defender quick scan on common malware locations. If a threat is found, Windows Security handles removal.": "Voert de ingebouwde snelle scan van Microsoft Defender uit op veelvoorkomende malwarelocaties. Als er een bedreiging wordt gevonden, regelt Windows-beveiliging de verwijdering.",
+    "Check of Windows proxy settings": "Controle van Windows-proxyinstellingen",
+    "No manual Windows proxy is enabled": "Er is geen handmatige Windows-proxy ingeschakeld",
+    "A manual Windows proxy is enabled but does not respond": "Een handmatige Windows-proxy staat aan maar reageert niet",
+    "An uninstalled VPN, browser tool or unwanted program can leave a broken proxy turned on, blocking websites.": "Een verwijderde VPN, browserhulpmiddel of ongewenst programma kan een kapotte proxy achterlaten die websites blokkeert.",
+    "Turn off the manual Windows proxy. Shiva Assist saves the previous setting so you can undo it in History.": "Schakel de handmatige Windows-proxy uit. Shiva Assist bewaart de vorige instelling zodat u dit in Geschiedenis ongedaan kunt maken.",
+    "A manual Windows proxy is configured and responding": "Er is een handmatige Windows-proxy ingesteld en deze reageert",
+    "Leave it on if your workplace, school or VPN requires it.": "Laat deze aan staan als uw werkplek, school of VPN dit vereist.",
+    "Restart the network adapter": "Netwerkadapter opnieuw starten",
+    "Briefly disables and re-enables active physical Wi-Fi or Ethernet adapters to clear a stuck connection without restarting Windows. Virtual and VPN adapters are not touched.": "Schakelt actieve fysieke wifi- of bekabelde netwerkadapters kort uit en weer in om een vastgelopen verbinding te herstellen zonder Windows opnieuw op te starten. Virtuele en VPN-adapters blijven onaangeroerd.",
+    "Turn off the broken Windows proxy": "Kapotte Windows-proxy uitschakelen",
+    "Switches off the manual Windows proxy that is not responding. Your previous proxy setting is saved so you can undo this in History.": "Schakelt de handmatige Windows-proxy uit die niet reageert. Uw vorige proxyinstelling blijft bewaard zodat u dit in Geschiedenis ongedaan kunt maken.",
+    "Restore previous Windows proxy": "Vorige Windows-proxy herstellen",
+    "Restores the manual Windows proxy setting that Shiva Assist turned off.": "Herstelt de handmatige Windows-proxyinstelling die Shiva Assist heeft uitgeschakeld."
   }
 }

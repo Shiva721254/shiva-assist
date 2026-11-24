@@ -186,3 +186,6 @@ public sealed record ServicesSnapshot(IReadOnlyList<ServiceInfo> Services, bool?
 /// <summary>Bluetooth radio presence and the Windows Bluetooth Support Service (bthserv). Device names are never stored.</summary>
 public sealed record BluetoothSnapshot(bool? AdapterPresent, ServiceInfo Service);
 
+/// <summary>Windows manual WinINET proxy posture (never stores proxy credentials or internal URLs in findings).</summary>
+public sealed record ProxySnapshot(bool ProxyEnabled, bool ProxyTargetReachable, bool LoopbackProxy);
+

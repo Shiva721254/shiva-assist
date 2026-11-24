@@ -62,6 +62,9 @@ public static class RepairCatalogue
     public const string CleanUpdateCache = "DISK.UPDATECACHE.CLEAN";
     public const string FlushDns = "NET.DNS.FLUSH";
     public const string RenewAddress = "NET.ADDRESS.RENEW";
+    public const string ResetNetworkAdapter = "NET.ADAPTER.RESET";
+    public const string ResetProxy = "NET.PROXY.RESET";
+    public const string RestoreProxy = "NET.PROXY.RESTORE";
     public const string UpdateDefender = "SECURITY.DEFENDER.UPDATE";
     public const string EnableDefender = "SECURITY.DEFENDER.ENABLE";
     public const string DefenderQuickScan = "SECURITY.DEFENDER.QUICKSCAN";
@@ -204,6 +207,35 @@ public static class RepairCatalogue
             RequiresAdmin = true,
             Minutes = (1, 2),
             VerifiesFinding = "NETWORK-CONNECT-001",
+        },
+        new()
+        {
+            Id = ResetNetworkAdapter,
+            Name = "Restart the network adapter",
+            Description = "Briefly disables and re-enables active physical Wi-Fi or Ethernet adapters to clear a stuck connection without restarting Windows. Virtual and VPN adapters are not touched.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 2),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
+        new()
+        {
+            Id = ResetProxy,
+            Name = "Turn off the broken Windows proxy",
+            Description = "Switches off the manual Windows proxy that is not responding. Your previous proxy setting is saved so you can undo this in History.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = ProxyCheck.FindingId,
+        },
+        new()
+        {
+            Id = RestoreProxy,
+            Name = "Restore previous Windows proxy",
+            Description = "Restores the manual Windows proxy setting that Shiva Assist turned off.",
+            Risk = RiskClass.Low,
+            IsUndo = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ProxyCheck.FindingId,
         },
         new()
         {
@@ -374,6 +406,7 @@ public static class RepairCatalogue
     {
         DisableStartupPrograms => Find(RestoreStartupPrograms),
         CleanSoftwareLeftovers => Find(RestoreSoftwareLeftovers),
+        ResetProxy => Find(RestoreProxy),
         _ => null,
     };
 
@@ -394,6 +427,7 @@ public static class RepairCatalogue
         {
             "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanBrowserCache)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
             "NETWORK-CONNECT-001" => NetworkRepairs(finding),
+            ProxyCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetProxy)!],
             SecurityCheck.AntivirusId when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
             SecurityCheck.AntivirusId when finding.Severity == Severity.Critical && Observed(finding, SecurityCheck.NoThirdPartyAntivirusObservation) => [Find(EnableDefender)!],
             SecurityCheck.ScanId when finding.Severity is Severity.Information or Severity.Warning => [Find(DefenderQuickScan)!],
@@ -426,6 +460,7 @@ public static class RepairCatalogue
         if (Observed(finding, "IP address failed") || Observed(finding, "gateway failed"))
         {
             operations.Add(Find(RenewAddress)!);
+            operations.Add(Find(ResetNetworkAdapter)!);
         }
 
         if (Observed(finding, "DNS failed"))
