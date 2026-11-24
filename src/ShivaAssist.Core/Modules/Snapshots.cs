@@ -59,10 +59,16 @@ public sealed record AntivirusProduct(string Name, bool Enabled, bool UpToDate);
 
 public sealed record FirewallProfile(string Name, bool Enabled);
 
+public sealed record FirewallProduct(string Name, bool Enabled);
+
 /// <summary>Microsoft Defender's own status, used when Security Center lists no antivirus (null when Defender is not present).</summary>
 public sealed record DefenderStatus(bool AntivirusEnabled, bool RealTimeProtection, int SignatureAgeDays);
 
-public sealed record SecuritySnapshot(IReadOnlyList<AntivirusProduct>? Antivirus, IReadOnlyList<FirewallProfile>? Firewall, DefenderStatus? Defender = null);
+public sealed record SecuritySnapshot(
+    IReadOnlyList<AntivirusProduct>? Antivirus,
+    IReadOnlyList<FirewallProfile>? Firewall,
+    DefenderStatus? Defender = null,
+    IReadOnlyList<FirewallProduct>? ThirdPartyFirewalls = null);
 
 /// <summary>
 /// One program that starts with Windows. <see cref="Location"/> is where it is registered

@@ -674,6 +674,9 @@
     "The monthly check-up is switched off.": "De maandelijkse controle is uitgeschakeld.",
     "The monthly check-up is switched on.": "De maandelijkse controle is ingeschakeld.",
     "This PC has no battery, so there is no battery report.": "Deze pc heeft geen accu, dus er is geen accurapport.",
-    "Contact Shiva Computers for help with a result, a repair or anything else about your PC.": "Neem contact op met Shiva Computers voor hulp bij een resultaat, een reparatie of iets anders met uw pc."
+    "Contact Shiva Computers for help with a result, a repair or anything else about your PC.": "Neem contact op met Shiva Computers voor hulp bij een resultaat, een reparatie of iets anders met uw pc.",
+    "Another firewall is active: {names}": "Er is een andere firewall actief: {names}",
+    "Switch the Windows firewall back on": "Windows-firewall weer inschakelen",
+    "Turns the Windows Defender Firewall back on for any network profile that is switched off, only when no other firewall is active. Existing firewall rules are preserved.": "Schakelt de Windows Defender Firewall weer in voor elk netwerkprofiel dat uit staat, alleen wanneer er geen andere firewall actief is. Bestaande firewallregels blijven bewaard."
   }
 }

@@ -63,6 +63,7 @@ public static class RepairCatalogue
     public const string FlushDns = "NET.DNS.FLUSH";
     public const string RenewAddress = "NET.ADDRESS.RENEW";
     public const string UpdateDefender = "SECURITY.DEFENDER.UPDATE";
+    public const string EnableFirewall = "SECURITY.FIREWALL.ENABLE";
     public const string RestartNow = "UPDATE.RESTART.NOW";
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
     public const string RestoreStartupPrograms = "STARTUP.PROGRAMS.RESTORE";
@@ -212,6 +213,16 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = EnableFirewall,
+            Name = "Switch the Windows firewall back on",
+            Description = "Turns the Windows Defender Firewall back on for any network profile that is switched off, only when no other firewall is active. Existing firewall rules are preserved.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = SecurityCheck.FirewallId,
+        },
+        new()
+        {
             Id = RestartNow,
             Name = "Restart the PC to finish updates",
             Description = "Restarts the PC in 2 minutes so Windows can finish installing updates. Save your work and close your programs first.",
@@ -341,6 +352,7 @@ public static class RepairCatalogue
             "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanBrowserCache)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
             "NETWORK-CONNECT-001" => NetworkRepairs(finding),
             "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
+            SecurityCheck.FirewallId when finding.Severity == Severity.Warning && Observed(finding, SecurityCheck.NoThirdPartyFirewallObservation) => [Find(EnableFirewall)!],
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "UPDATE-FAILED-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],

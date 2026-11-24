@@ -148,8 +148,11 @@ public sealed class SecurityTests
     public void DecodesSecurityCenterProductState(int state, bool enabled, bool upToDate) =>
         Assert.Equal((enabled, upToDate), SecurityCheck.DecodeProductState(state));
 
-    private static IReadOnlyList<Finding> Scan(IReadOnlyList<AntivirusProduct>? av, IReadOnlyList<FirewallProfile>? fw) =>
-        new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new(av, fw), Ctx.User);
+    private static IReadOnlyList<Finding> Scan(
+        IReadOnlyList<AntivirusProduct>? av,
+        IReadOnlyList<FirewallProfile>? fw,
+        IReadOnlyList<FirewallProduct>? thirdPartyFirewalls = null) =>
+        new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new(av, fw, null, thirdPartyFirewalls), Ctx.User);
 
     private static readonly FirewallProfile[] AllOn = [new("Domain", true), new("Private", true), new("Public", true)];
 
@@ -162,9 +165,27 @@ public sealed class SecurityTests
     [Fact]
     public void FirewallOffOnPublicNetworksIsAWarning()
     {
-        var finding = Ctx.Single(Scan([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", false)]), "SECURITY-FIREWALL-001");
+        var finding = Ctx.Single(Scan([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", false)]), SecurityCheck.FirewallId);
         Assert.Equal(Severity.Warning, finding.Severity);
         Assert.Contains("Public", finding.Title.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ActiveThirdPartyFirewallKeepsFirewallFindingHealthy()
+    {
+        var finding = Ctx.Single(
+            Scan([new("Bitdefender Antivirus", true, true)], [new("Domain", false), new("Private", false), new("Public", false)], [new("Bitdefender Firewall", true)]),
+            SecurityCheck.FirewallId);
+        Assert.Equal(Severity.Healthy, finding.Severity);
+        Assert.Contains("Bitdefender Firewall", finding.Title.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MissingFirewallProfilesAreUnknownNotHealthy()
+    {
+        var finding = Ctx.Single(Scan([new("Microsoft Defender Antivirus", true, true)], []), SecurityCheck.FirewallId);
+        Assert.Equal(Severity.Unknown, finding.Severity);
+        Assert.Equal(UnknownReason.Unsupported, finding.UnknownReason);
     }
 
     [Fact]

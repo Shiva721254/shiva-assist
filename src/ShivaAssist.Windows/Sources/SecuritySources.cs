@@ -23,6 +23,12 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
         [pscustomobject]@{ profiles = @($fw) } | ConvertTo-Json -Compress -Depth 3
         """;
 
+    private const string ThirdPartyFirewallScript = """
+        $fw = Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduct |
+            ForEach-Object { [pscustomobject]@{ name = "$($_.displayName)"; state = [int]$_.productState } }
+        [pscustomobject]@{ products = @($fw) } | ConvertTo-Json -Compress -Depth 3
+        """;
+
     private const string DefenderScript = """
         $s = Get-CimInstance -Namespace root/Microsoft/Windows/Defender -ClassName MSFT_MpComputerStatus
         [pscustomobject]@{
@@ -43,6 +49,14 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
         var firewall = await TryAsync(FirewallScript, json => (IReadOnlyList<FirewallProfile>)[.. Items(json, "profiles")
             .Select(p => new FirewallProfile(Str(p, "name"), Bool(p, "enabled")))], cancellationToken);
 
+        var thirdPartyFirewalls = await TryAsync(ThirdPartyFirewallScript, json => (IReadOnlyList<FirewallProduct>)[.. Items(json, "products")
+            .Select(p =>
+            {
+                var (enabled, _) = SecurityCheck.DecodeProductState((int)Long(p, "state"));
+                return new FirewallProduct(Str(p, "name"), enabled);
+            })
+            .Where(f => !string.IsNullOrWhiteSpace(f.Name) && !SecurityCheck.IsWindowsFirewallName(f.Name))], cancellationToken);
+
         DefenderStatus? defender = null;
         if (antivirus is null || antivirus.Count == 0)
         {
@@ -56,7 +70,7 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
             }
         }
 
-        return new SecuritySnapshot(antivirus, firewall, defender);
+        return new SecuritySnapshot(antivirus, firewall, defender, thirdPartyFirewalls);
     }
 
     /// <summary>One half failing (e.g. no Security Center on Windows Server) must not hide the other half.</summary>

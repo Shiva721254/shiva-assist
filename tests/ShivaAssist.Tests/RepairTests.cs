@@ -69,6 +69,42 @@ public sealed class RepairTests
     }
 
     [Fact]
+    public void FirewallRepairIsOfferedOnlyWhenNoThirdPartyFirewallIsActive()
+    {
+        Finding Fw(FirewallProfile[] profiles, FirewallProduct[]? thirdParty) => Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([new("Microsoft Defender Antivirus", true, true)], profiles, null, thirdParty), Ctx.User),
+            SecurityCheck.FirewallId);
+
+        FirewallProfile[] publicOff = [new("Domain", true), new("Private", true), new("Public", false)];
+        FirewallProfile[] allOn = [new("Domain", true), new("Private", true), new("Public", true)];
+
+        // Confirmed no third-party firewall -> safe Fix-it-all eligible repair offered
+        var repairable = Fw(publicOff, []);
+        var op = Assert.Single(RepairCatalogue.For(repairable));
+        Assert.Equal(RepairCatalogue.EnableFirewall, op.Id);
+        Assert.Equal(RiskClass.Low, op.Risk);
+        Assert.True(op.RequiresAdmin);
+        Assert.False(op.NeedsSelection || op.RestartRequired || op.VerifyLater || op.IsUndo);
+
+        // Disabled third-party firewall -> still eligible
+        Assert.Equal([RepairCatalogue.EnableFirewall], RepairCatalogue.For(Fw(publicOff, [new("Old Firewall", false)])).Select(o => o.Id));
+
+        // Active third-party firewall -> Healthy and no repair offered
+        Assert.Empty(RepairCatalogue.For(Fw(publicOff, [new("Bitdefender Firewall", true)])));
+
+        // Unconfirmed third-party firewall status (null) -> fails closed, no automatic repair offered
+        Assert.Empty(RepairCatalogue.For(Fw(publicOff, null)));
+
+        // Already healthy -> no repair offered
+        var healthy = Fw(allOn, []);
+        Assert.Empty(RepairCatalogue.For(healthy));
+
+        // Independent post-check verdict transitions Warning -> Healthy = Fixed
+        var done = new RepairResult { JobId = "fw1", OperationId = RepairCatalogue.EnableFirewall, Completed = true };
+        Assert.Equal(RepairVerdict.Fixed, RepairVerification.Judge(repairable, healthy, done));
+    }
+
+    [Fact]
     public void UpdateRepairsAreVerifiedLater()
     {
         var findings = new UpdateCheck(new Fixed<UpdateSnapshot>(null!)).Evaluate(new(true, ["Component Based Servicing"], DateOnly.FromDateTime(Ctx.Now.UtcDateTime.AddDays(-120)), "KB1"), Ctx.User);

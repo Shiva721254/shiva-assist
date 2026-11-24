@@ -43,6 +43,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.FlushDns => await RunToolAsync(job, ToolRunner.System32("ipconfig.exe"), ["/flushdns"], "DNS cache cleared", cancellationToken),
             RepairCatalogue.RenewAddress => await RenewAddressAsync(job, cancellationToken),
             RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
+            RepairCatalogue.EnableFirewall => await EnableFirewallAsync(job, cancellationToken),
             RepairCatalogue.RestartNow => await ScheduleRestartAsync(job, cancellationToken),
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
             RepairCatalogue.RestoreStartupPrograms => RestoreStartupPrograms(job),
@@ -290,6 +291,54 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
         var running = PowerShell.Bool(json, "running");
         return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = running,
             Detail = running ? "WlanSvc running" : "Wi-Fi service not running; no eligible start or start failed" };
+    }
+
+    /// <summary>Re-enable disabled Windows Firewall profiles only after confirming no third-party firewall is active.</summary>
+    private static async Task<RepairResult> EnableFirewallAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $allowed = @('Domain', 'Private', 'Public')
+            try {
+                $thirdParty = @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduct -ErrorAction Stop | Where-Object {
+                    $name = "$($_.displayName)".Trim()
+                    $name.Length -gt 0 -and $name -notin 'Windows Firewall','Windows Defender Firewall' -and ([int]$_.productState -band 0x1000) -ne 0
+                })
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Could not verify whether another firewall is active; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($thirdParty.Count -gt 0) {
+                [pscustomobject]@{ ok = $false; detail = 'Another firewall is active; Windows Firewall was not changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $svc = Get-Service -Name mpssvc -ErrorAction SilentlyContinue
+            if ($null -eq $svc -or $svc.Status -ne 'Running') {
+                [pscustomobject]@{ ok = $false; detail = 'Windows Defender Firewall service (mpssvc) is not running; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $before = @(Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetFirewallProfile -ErrorAction Stop | Where-Object { $_.Name -in $allowed })
+            $off = @($before | Where-Object { [int]$_.Enabled -ne 1 } | ForEach-Object { "$($_.Name)" })
+            foreach ($profile in $off) {
+                Set-NetFirewallProfile -Name $profile -Enabled True -ErrorAction Stop
+            }
+            $after = @(Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetFirewallProfile -ErrorAction Stop | Where-Object { $_.Name -in $allowed })
+            $stillOff = @($after | Where-Object { [int]$_.Enabled -ne 1 } | ForEach-Object { "$($_.Name)" })
+            $ok = $after.Count -gt 0 -and $stillOff.Count -eq 0
+            $detail = if ($ok) {
+                if ($off.Count -gt 0) { 'Enabled Windows Firewall profiles: ' + ($off -join ', ') } else { 'Windows Firewall already enabled on all profiles' }
+            } else {
+                'Windows Firewall still off for: ' + ($stillOff -join ', ')
+            }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
     }
 
     /// <summary>netsh winsock reset + netsh int ip reset (Microsoft's documented network reset). Takes effect after a restart.</summary>

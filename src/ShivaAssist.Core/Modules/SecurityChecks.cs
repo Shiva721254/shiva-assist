@@ -8,6 +8,9 @@ namespace ShivaAssist.Core.Modules;
 /// <summary>Antivirus and firewall status as Windows Security reports it.</summary>
 public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : SnapshotCheck<SecuritySnapshot>(source)
 {
+    public const string FirewallId = "SECURITY-FIREWALL-001";
+    public const string NoThirdPartyFirewallObservation = "No active third-party firewall registered";
+
     public override string Module => "security";
 
     public override Message Name => "Check of antivirus and firewall";
@@ -23,10 +26,14 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
     public static (bool Enabled, bool UpToDate) DecodeProductState(int productState) =>
         ((productState & 0x1000) != 0, (productState & 0x10) == 0);
 
+    public static bool IsWindowsFirewallName(string name) =>
+        string.Equals(name, "Windows Firewall", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(name, "Windows Defender Firewall", StringComparison.OrdinalIgnoreCase);
+
     public override IReadOnlyList<Finding> Evaluate(SecuritySnapshot snapshot, ScanContext context)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        return [Antivirus(snapshot.Antivirus, snapshot.Defender), Firewall(snapshot.Firewall)];
+        return [Antivirus(snapshot.Antivirus, snapshot.Defender), Firewall(snapshot.Firewall, snapshot.ThirdPartyFirewalls)];
     }
 
     private Finding Antivirus(IReadOnlyList<AntivirusProduct>? products, DefenderStatus? defender)
@@ -96,28 +103,60 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
             : new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Microsoft Defender protection is on and up to date", Evidence = [evidence] };
     }
 
-    private Finding Firewall(IReadOnlyList<FirewallProfile>? profiles)
+    private Finding Firewall(IReadOnlyList<FirewallProfile>? profiles, IReadOnlyList<FirewallProduct>? thirdPartyFirewalls)
     {
         if (profiles is null || profiles.Count == 0)
         {
-            return Finding.Unknown("SECURITY-FIREWALL-001", Module, Category, "Firewall status could not be read", UnknownReason.Unsupported, "No firewall profiles reported");
+            return Finding.Unknown(FirewallId, Module, Category, "Firewall status could not be read", UnknownReason.Unsupported, "No firewall profiles reported");
         }
 
         var evidence = profiles.Select(p => new Evidence("MSFT_NetFirewallProfile", $"{p.Name}: {(p.Enabled ? "on" : "off")}")).ToList();
-        var off = profiles.Where(p => !p.Enabled).Select(p => p.Name).ToList();
-        return off.Count > 0
-            ? new Finding
+        var activeThirdParty = thirdPartyFirewalls?
+            .Where(f => f.Enabled && !string.IsNullOrWhiteSpace(f.Name) && !IsWindowsFirewallName(f.Name))
+            .ToList() ?? [];
+
+        if (thirdPartyFirewalls is not null)
+        {
+            if (activeThirdParty.Count > 0)
             {
-                Id = "SECURITY-FIREWALL-001",
+                evidence.AddRange(activeThirdParty.Select(f => new Evidence("SecurityCenter2", $"{f.Name}: on")));
+            }
+            else
+            {
+                evidence.Add(new Evidence("SecurityCenter2", NoThirdPartyFirewallObservation));
+            }
+        }
+
+        var off = profiles.Where(p => !p.Enabled).Select(p => p.Name).ToList();
+        if (off.Count == 0)
+        {
+            return new Finding { Id = FirewallId, Module = Module, Category = Category, Severity = Severity.Healthy, Title = "The Windows firewall is on for every network type", Evidence = evidence };
+        }
+
+        if (activeThirdParty.Count > 0)
+        {
+            return new Finding
+            {
+                Id = FirewallId,
                 Module = Module,
                 Category = Category,
-                Severity = Severity.Warning,
-                Title = new Message("The Windows firewall is switched off for: {profiles}", ("profiles", string.Join(", ", off))),
+                Severity = Severity.Healthy,
+                Title = new Message("Another firewall is active: {names}", ("names", string.Join(", ", activeThirdParty.Select(f => f.Name)))),
                 Evidence = evidence,
-                SuspectedCause = "It may have been switched off by hand or by another security program.",
-                Recommendation = new("Turn the firewall on: Start → Windows Security → Firewall & network protection."),
-            }
-            : new Finding { Id = "SECURITY-FIREWALL-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "The Windows firewall is on for every network type", Evidence = evidence };
+            };
+        }
+
+        return new Finding
+        {
+            Id = FirewallId,
+            Module = Module,
+            Category = Category,
+            Severity = Severity.Warning,
+            Title = new Message("The Windows firewall is switched off for: {profiles}", ("profiles", string.Join(", ", off))),
+            Evidence = evidence,
+            SuspectedCause = "It may have been switched off by hand or by another security program.",
+            Recommendation = new("Turn the firewall on: Start → Windows Security → Firewall & network protection."),
+        };
     }
 }
 
