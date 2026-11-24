@@ -84,6 +84,7 @@ public static class RepairCatalogue
     public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
     public const string RepairWifiService = "NET.WIFI.START";
     public const string RepairBluetoothService = "DEVICE.BLUETOOTH.REPAIR";
+    public const string EnableSystemProtection = "RECOVERY.PROTECTION.ENABLE";
     public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
@@ -389,6 +390,16 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = EnableSystemProtection,
+            Name = "Switch Windows System Protection on",
+            Description = "Turns on Windows System Protection on the Windows drive so restore points can be created before updates and repairs.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = RecoveryCheck.ProtectionId,
+        },
+        new()
+        {
             Id = ResetNetworkStack,
             Name = "Reset the network settings of Windows",
             Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
@@ -442,6 +453,7 @@ public static class RepairCatalogue
             ServicesCheck.AudioId when finding.Severity == Severity.Warning => [Find(RepairAudioService)!],
             ServicesCheck.WifiId when finding.Severity == Severity.Warning => [Find(RepairWifiService)!],
             BluetoothCheck.FindingId when finding.Severity == Severity.Warning => [Find(RepairBluetoothService)!],
+            RecoveryCheck.ProtectionId when finding.Severity == Severity.Warning => [Find(EnableSystemProtection)!],
             ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],

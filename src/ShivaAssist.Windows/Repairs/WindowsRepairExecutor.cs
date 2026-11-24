@@ -64,6 +64,7 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.RepairSearchService => await RepairServicesAsync(job, ["WSearch"], "AutomaticDelayed", cancellationToken),
             RepairCatalogue.RepairWifiService => await StartWifiServiceAsync(job, cancellationToken),
             RepairCatalogue.RepairBluetoothService => await StartBluetoothServiceAsync(job, cancellationToken),
+            RepairCatalogue.EnableSystemProtection => await EnableSystemProtectionAsync(job, cancellationToken),
             RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
@@ -570,6 +571,32 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             OperationId = job.OperationId,
             Completed = nowOn,
             Detail = nowOn ? "Previous manual Windows proxy restored" : "ProxyEnable could not be verified as restored",
+        };
+    }
+
+    /// <summary>Enables Windows System Protection on the system drive unless disabled by administrator policy.</summary>
+    private static async Task<RepairResult> EnableSystemProtectionAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $pol = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore' -Name DisableSR -ErrorAction SilentlyContinue
+            if ($null -ne $pol -and [int]$pol.DisableSR -ne 0) {
+                [pscustomobject]@{ ok = $false; detail = 'System Protection is disabled by administrator policy; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $drive = $env:SystemDrive + '\'
+            Enable-ComputerRestore -Drive $drive -ErrorAction Stop
+            $sr = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' -ErrorAction SilentlyContinue
+            $ok = $null -ne $sr -and [int]$sr.RPSessionInterval -gt 0
+            $detail = if ($ok) { 'System Protection enabled on ' + $drive } else { 'System Protection could not be verified as enabled' }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
         };
     }
 

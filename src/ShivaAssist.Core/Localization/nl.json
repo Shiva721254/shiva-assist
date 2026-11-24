@@ -716,6 +716,24 @@
     "Turn off the broken Windows proxy": "Kapotte Windows-proxy uitschakelen",
     "Switches off the manual Windows proxy that is not responding. Your previous proxy setting is saved so you can undo this in History.": "Schakelt de handmatige Windows-proxy uit die niet reageert. Uw vorige proxyinstelling blijft bewaard zodat u dit in Geschiedenis ongedaan kunt maken.",
     "Restore previous Windows proxy": "Vorige Windows-proxy herstellen",
-    "Restores the manual Windows proxy setting that Shiva Assist turned off.": "Herstelt de handmatige Windows-proxyinstelling die Shiva Assist heeft uitgeschakeld."
+    "Restores the manual Windows proxy setting that Shiva Assist turned off.": "Herstelt de handmatige Windows-proxyinstelling die Shiva Assist heeft uitgeschakeld.",
+    "Check of system protection and recovery": "Controle van systeembeveiliging en herstel",
+    "Windows System Protection is switched off by an administrator policy": "Systeembeveiliging van Windows is uitgeschakeld door een beheerdersbeleid",
+    "Check with your organisation or system administrator before changing System Protection.": "Overleg met uw organisatie of systeembeheerder voordat u Systeembeveiliging wijzigt.",
+    "System Protection status could not be checked": "De status van Systeembeveiliging kon niet worden gecontroleerd",
+    "Windows System Protection is switched on": "Systeembeveiliging van Windows staat aan",
+    "Windows System Protection is switched off": "Systeembeveiliging van Windows staat uit",
+    "Without System Protection, Windows cannot create restore points before updates or repairs.": "Zonder Systeembeveiliging kan Windows geen herstelpunten maken voor updates of reparaties.",
+    "Switch Windows System Protection on for the Windows drive.": "Schakel Systeembeveiliging van Windows in voor de Windows-schijf.",
+    "BitLocker status needs administrator rights": "Voor de status van BitLocker zijn beheerdersrechten nodig",
+    "BitLocker drive encryption is on: keep your recovery key backed up": "BitLocker-schijfversleuteling staat aan: zorg dat uw herstelsleutel veilig is opgeslagen",
+    "If Windows ever fails to start after an update or hardware repair, Windows asks for the 48-digit BitLocker recovery key.": "Als Windows ooit niet meer start na een update of hardwarereparatie, vraagt Windows om de 48-cijferige BitLocker-herstelsleutel.",
+    "Verify that your BitLocker recovery key is saved in your Microsoft account or printed in a safe place.": "Controleer of uw BitLocker-herstelsleutel is opgeslagen in uw Microsoft-account of veilig is afgedrukt.",
+    "BitLocker drive encryption is temporarily suspended": "BitLocker-schijfversleuteling is tijdelijk onderbroken",
+    "Restart your PC or resume BitLocker protection in Windows Settings if it should be active.": "Start uw pc opnieuw op of hervat BitLocker-beveiliging in Windows-instellingen als deze actief moet zijn.",
+    "BitLocker drive encryption is off": "BitLocker-schijfversleuteling staat uit",
+    "BitLocker status could not be checked on this PC": "De status van BitLocker kon op deze pc niet worden gecontroleerd",
+    "Switch Windows System Protection on": "Systeembeveiliging van Windows inschakelen",
+    "Turns on Windows System Protection on the Windows drive so restore points can be created before updates and repairs.": "Schakelt Systeembeveiliging van Windows in op de Windows-schijf zodat herstelpunten kunnen worden gemaakt voor updates en reparaties."
   }
 }

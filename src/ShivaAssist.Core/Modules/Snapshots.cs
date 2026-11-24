@@ -189,3 +189,15 @@ public sealed record BluetoothSnapshot(bool? AdapterPresent, ServiceInfo Service
 /// <summary>Windows manual WinINET proxy posture (never stores proxy credentials or internal URLs in findings).</summary>
 public sealed record ProxySnapshot(bool ProxyEnabled, bool ProxyTargetReachable, bool LoopbackProxy);
 
+/// <summary>BitLocker protection state on the Windows system drive (never reads or stores any recovery key).</summary>
+public enum BitLockerState
+{
+    Off,
+    On,
+    Suspended,
+    Unknown,
+}
+
+/// <summary>Windows System Protection (restore points) and BitLocker encryption readiness on the system drive.</summary>
+public sealed record RecoverySnapshot(bool? SystemProtectionEnabled, bool DisabledByPolicy, BitLockerState BitLocker, bool BitLockerNeedsAdmin);
+

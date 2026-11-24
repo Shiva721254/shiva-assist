@@ -28,6 +28,7 @@ public static class WindowsPlatform
         new ClockCheck(new TimeSource()),
         new ServicesCheck(new ServicesSource()),
         new BatteryCheck(new BatterySource()),
+        new RecoveryCheck(new RecoverySource()),
         new StabilityCheck(new StabilitySource()),
     ];
 
