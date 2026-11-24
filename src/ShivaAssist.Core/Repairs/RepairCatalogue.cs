@@ -63,6 +63,8 @@ public static class RepairCatalogue
     public const string FlushDns = "NET.DNS.FLUSH";
     public const string RenewAddress = "NET.ADDRESS.RENEW";
     public const string UpdateDefender = "SECURITY.DEFENDER.UPDATE";
+    public const string EnableDefender = "SECURITY.DEFENDER.ENABLE";
+    public const string DefenderQuickScan = "SECURITY.DEFENDER.QUICKSCAN";
     public const string EnableFirewall = "SECURITY.FIREWALL.ENABLE";
     public const string RestartNow = "UPDATE.RESTART.NOW";
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
@@ -211,7 +213,26 @@ public static class RepairCatalogue
             Risk = RiskClass.Low,
             RequiresAdmin = true,
             Minutes = (1, 5),
-            VerifiesFinding = "SECURITY-AV-001",
+            VerifiesFinding = SecurityCheck.AntivirusId,
+        },
+        new()
+        {
+            Id = EnableDefender,
+            Name = "Switch Microsoft Defender protection back on",
+            Description = "Switches Microsoft Defender real-time virus protection back on, only when no other antivirus is active. If Windows Tamper Protection is on, Windows requires switching it on in Windows Security.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = SecurityCheck.AntivirusId,
+        },
+        new()
+        {
+            Id = DefenderQuickScan,
+            Name = "Run a Microsoft Defender quick scan",
+            Description = "Runs Windows' built-in Microsoft Defender quick scan on common malware locations. If a threat is found, Windows Security handles removal.",
+            Risk = RiskClass.Low,
+            Minutes = (2, 10),
+            VerifiesFinding = SecurityCheck.ScanId,
         },
         new()
         {
@@ -373,7 +394,9 @@ public static class RepairCatalogue
         {
             "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanBrowserCache)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
             "NETWORK-CONNECT-001" => NetworkRepairs(finding),
-            "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
+            SecurityCheck.AntivirusId when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
+            SecurityCheck.AntivirusId when finding.Severity == Severity.Critical && Observed(finding, SecurityCheck.NoThirdPartyAntivirusObservation) => [Find(EnableDefender)!],
+            SecurityCheck.ScanId when finding.Severity is Severity.Information or Severity.Warning => [Find(DefenderQuickScan)!],
             SecurityCheck.FirewallId when finding.Severity == Severity.Warning && Observed(finding, SecurityCheck.NoThirdPartyFirewallObservation) => [Find(EnableFirewall)!],
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],

@@ -43,6 +43,8 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.FlushDns => await RunToolAsync(job, ToolRunner.System32("ipconfig.exe"), ["/flushdns"], "DNS cache cleared", cancellationToken),
             RepairCatalogue.RenewAddress => await RenewAddressAsync(job, cancellationToken),
             RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
+            RepairCatalogue.EnableDefender => await EnableDefenderAsync(job, cancellationToken),
+            RepairCatalogue.DefenderQuickScan => await RunDefenderQuickScanAsync(job, cancellationToken),
             RepairCatalogue.EnableFirewall => await EnableFirewallAsync(job, cancellationToken),
             RepairCatalogue.RestartNow => await ScheduleRestartAsync(job, cancellationToken),
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
@@ -340,6 +342,63 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             OperationId = job.OperationId,
             Completed = PowerShell.Bool(json, "ok"),
             Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Re-enable Microsoft Defender real-time protection only when no third-party antivirus is active.</summary>
+    private static async Task<RepairResult> EnableDefenderAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            try {
+                $thirdParty = @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | Where-Object {
+                    $name = "$($_.displayName)".Trim()
+                    $name.Length -gt 0 -and $name -notmatch 'Defender' -and ([int]$_.productState -band 0x1000) -ne 0
+                })
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Could not verify whether another antivirus is active; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($thirdParty.Count -gt 0) {
+                [pscustomobject]@{ ok = $false; detail = 'Another antivirus is active; Microsoft Defender was not changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            try {
+                Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction Stop
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Windows Tamper Protection or policy prevented automatic change; switch Real-time protection on in Windows Security' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $s = Get-CimInstance -Namespace root/Microsoft/Windows/Defender -ClassName MSFT_MpComputerStatus -ErrorAction SilentlyContinue
+            $ok = $null -ne $s -and [bool]$s.AntivirusEnabled -and [bool]$s.RealTimeProtectionEnabled
+            $detail = if ($ok) { 'Microsoft Defender real-time protection is on' } else { 'Real-time protection stayed off (check Tamper Protection in Windows Security)' }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Runs built-in Microsoft Defender Quick Scan. Exit 2 means a threat was found and requires Windows Security review.</summary>
+    private static async Task<RepairResult> RunDefenderQuickScanAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var (exit, output, error) = await ToolRunner.RunAsync(DefenderCommandLine(), ["-Scan", "-ScanType", "1"], cancellationToken);
+        var detail = exit switch
+        {
+            0 => "Microsoft Defender quick scan finished; no threats found",
+            2 => "Microsoft Defender found a threat; open Windows Security to review and remove it",
+            _ => string.Create(CultureInfo.InvariantCulture, $"Microsoft Defender quick scan failed (exit {exit}): {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
+        };
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = exit == 0,
+            Detail = detail,
         };
     }
 

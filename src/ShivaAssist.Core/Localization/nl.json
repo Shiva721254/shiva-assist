@@ -695,6 +695,14 @@
     "Resume the paused or offline printer queue so waiting documents can print.": "Hervat de gepauzeerde of offline afdrukwachtrij zodat wachtende documenten kunnen worden afgedrukt.",
     "No printers are paused or set to work offline": "Geen enkele printer staat op pauze of offline",
     "Resume paused or offline printers": "Gepauzeerde of offline printers hervatten",
-    "Resumes paused printer queues and switches off Windows' 'Use Printer Offline' mode without deleting waiting print jobs.": "Hervat gepauzeerde afdrukwachtrijen en schakelt de modus 'Printer offline gebruiken' in Windows uit, zonder wachtende afdruktaken te verwijderen."
+    "Resumes paused printer queues and switches off Windows' 'Use Printer Offline' mode without deleting waiting print jobs.": "Hervat gepauzeerde afdrukwachtrijen en schakelt de modus 'Printer offline gebruiken' in Windows uit, zonder wachtende afdruktaken te verwijderen.",
+    "Microsoft Defender has not run a quick scan yet": "Microsoft Defender heeft nog geen snelle scan uitgevoerd",
+    "Microsoft Defender last ran a quick scan {days} days ago": "Microsoft Defender heeft {days} dagen geleden voor het laatst een snelle scan uitgevoerd",
+    "Run a Microsoft Defender quick scan to check common malware locations.": "Voer een snelle scan van Microsoft Defender uit om veelvoorkomende malwarelocaties te controleren.",
+    "Microsoft Defender ran a quick scan recently": "Microsoft Defender heeft onlangs een snelle scan uitgevoerd",
+    "Switch Microsoft Defender protection back on": "Microsoft Defender-beveiliging weer inschakelen",
+    "Switches Microsoft Defender real-time virus protection back on, only when no other antivirus is active. If Windows Tamper Protection is on, Windows requires switching it on in Windows Security.": "Schakelt realtime virusbeveiliging van Microsoft Defender weer in, alleen wanneer er geen andere virusscanner actief is. Als Manipulatiebeveiliging van Windows aan staat, moet u dit inschakelen in Windows-beveiliging.",
+    "Run a Microsoft Defender quick scan": "Snelle scan van Microsoft Defender uitvoeren",
+    "Runs Windows' built-in Microsoft Defender quick scan on common malware locations. If a threat is found, Windows Security handles removal.": "Voert de ingebouwde snelle scan van Microsoft Defender uit op veelvoorkomende malwarelocaties. Als er een bedreiging wordt gevonden, regelt Windows-beveiliging de verwijdering."
   }
 }

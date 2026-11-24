@@ -60,12 +60,29 @@ public sealed class RepairTests
     }
 
     [Fact]
-    public void OutdatedDefenderOffersAnUpdateButDisabledDefenderDoesNot()
+    public void OutdatedDefenderOffersAnUpdateAndDisabledDefenderOffersEnableOnlyWithoutThirdParty()
     {
-        Finding Av(DefenderStatus status) => Ctx.Single(
-            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([], [new("Domain", true), new("Private", true), new("Public", true)], status), Ctx.User), "SECURITY-AV-001");
+        Finding Av(DefenderStatus status, AntivirusProduct[]? sc = null) => Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new(sc ?? [], [new("Domain", true), new("Private", true), new("Public", true)], status), Ctx.User),
+            SecurityCheck.AntivirusId);
         Assert.Equal([RepairCatalogue.UpdateDefender], RepairCatalogue.For(Av(new DefenderStatus(true, true, 20))).Select(o => o.Id));
-        Assert.Empty(RepairCatalogue.For(Av(new DefenderStatus(true, false, 1))));
+        Assert.Equal([RepairCatalogue.EnableDefender], RepairCatalogue.For(Av(new DefenderStatus(true, false, 1))).Select(o => o.Id));
+        Assert.Empty(RepairCatalogue.For(Av(new DefenderStatus(true, false, 1), [new("Bitdefender Antivirus", true, true)])));
+        Assert.Empty(RepairCatalogue.For(Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new(null, [new("Domain", true), new("Private", true), new("Public", true)], new DefenderStatus(true, false, 1)), Ctx.User),
+            SecurityCheck.AntivirusId)));
+
+        var staleFindings = new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(
+            new([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", true)], new DefenderStatus(true, true, 1, 45)), Ctx.User);
+        var staleScan = Ctx.Single(staleFindings, SecurityCheck.ScanId);
+        Assert.Equal(Severity.Information, staleScan.Severity);
+        Assert.Equal([RepairCatalogue.DefenderQuickScan], RepairCatalogue.For(staleScan).Select(o => o.Id));
+
+        var recentFindings = new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(
+            new([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", true)], new DefenderStatus(true, true, 1, 2)), Ctx.User);
+        var recentScan = Ctx.Single(recentFindings, SecurityCheck.ScanId);
+        Assert.Equal(Severity.Healthy, recentScan.Severity);
+        Assert.Empty(RepairCatalogue.For(recentScan));
     }
 
     [Fact]

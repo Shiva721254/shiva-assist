@@ -62,7 +62,7 @@ public sealed record FirewallProfile(string Name, bool Enabled);
 public sealed record FirewallProduct(string Name, bool Enabled);
 
 /// <summary>Microsoft Defender's own status, used when Security Center lists no antivirus (null when Defender is not present).</summary>
-public sealed record DefenderStatus(bool AntivirusEnabled, bool RealTimeProtection, int SignatureAgeDays);
+public sealed record DefenderStatus(bool AntivirusEnabled, bool RealTimeProtection, int SignatureAgeDays, int? QuickScanAgeDays = null);
 
 public sealed record SecuritySnapshot(
     IReadOnlyList<AntivirusProduct>? Antivirus,

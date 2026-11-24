@@ -31,10 +31,12 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
 
     private const string DefenderScript = """
         $s = Get-CimInstance -Namespace root/Microsoft/Windows/Defender -ClassName MSFT_MpComputerStatus
+        $scanAge = if ($null -ne $s.QuickScanAge -and [uint32]$s.QuickScanAge -lt 36500) { [int]$s.QuickScanAge } else { -1 }
         [pscustomobject]@{
             av = [bool]$s.AntivirusEnabled
             rtp = [bool]$s.RealTimeProtectionEnabled
             age = [int]$s.AntivirusSignatureAge
+            scanAge = $scanAge
         } | ConvertTo-Json -Compress
         """;
 
@@ -58,16 +60,17 @@ public sealed class SecuritySource : ISnapshotSource<SecuritySnapshot>
             .Where(f => !string.IsNullOrWhiteSpace(f.Name) && !SecurityCheck.IsWindowsFirewallName(f.Name))], cancellationToken);
 
         DefenderStatus? defender = null;
-        if (antivirus is null || antivirus.Count == 0)
+        try
         {
-            try
-            {
-                defender = await TryAsync(DefenderScript, json => new DefenderStatus(Bool(json, "av"), Bool(json, "rtp"), (int)Long(json, "age")), cancellationToken);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                defender = null;
-            }
+            defender = await TryAsync(DefenderScript, json => new DefenderStatus(
+                Bool(json, "av"),
+                Bool(json, "rtp"),
+                (int)Long(json, "age"),
+                (int)Long(json, "scanAge")), cancellationToken);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            defender = null;
         }
 
         return new SecuritySnapshot(antivirus, firewall, defender, thirdPartyFirewalls);
