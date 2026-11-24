@@ -9,14 +9,33 @@ public sealed class ServicesTests
 {
     private static ServiceInfo Running(string name) => new(name, ServiceRunState.Running, "automatic");
 
+    private static IReadOnlyList<Finding> Scan(bool? wifiAdapterPresent, params ServiceInfo[] services) =>
+        new ServicesCheck(new Fixed<ServicesSnapshot>(null!)).Evaluate(new ServicesSnapshot(services, wifiAdapterPresent), Ctx.Admin);
+
     private static IReadOnlyList<Finding> Scan(params ServiceInfo[] services) =>
-        new ServicesCheck(new Fixed<ServicesSnapshot>(null!)).Evaluate(new ServicesSnapshot(services), Ctx.Admin);
+        Scan(null, services);
 
     [Fact]
     public void AllRunningIsHealthyWithoutRepairs()
     {
-        var findings = Scan(Running("AudioEndpointBuilder"), Running("Audiosrv"), Running("WSearch"));
+        var findings = Scan(true, Running("AudioEndpointBuilder"), Running("Audiosrv"), Running("WSearch"), Running("WlanSvc"));
+        Assert.Equal(3, findings.Count);
         Assert.All(findings, f => Assert.Equal(Severity.Healthy, f.Severity));
+        Assert.All(findings, f => Assert.Empty(RepairCatalogue.For(f)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(false)]
+    public void RunningAudioAndSearchWithoutConfirmedWifiKeepsWifiUnknownWithoutRepairs(bool? wifiAdapterPresent)
+    {
+        var findings = Scan(wifiAdapterPresent, Running("AudioEndpointBuilder"), Running("Audiosrv"), Running("WSearch"));
+        Assert.Equal(Severity.Healthy, Ctx.Single(findings, ServicesCheck.AudioId).Severity);
+        Assert.Equal(Severity.Healthy, Ctx.Single(findings, ServicesCheck.SearchId).Severity);
+
+        var wifi = Ctx.Single(findings, ServicesCheck.WifiId);
+        Assert.Equal(Severity.Unknown, wifi.Severity);
+        Assert.Equal(UnknownReason.Unsupported, wifi.UnknownReason);
         Assert.All(findings, f => Assert.Empty(RepairCatalogue.For(f)));
     }
 
