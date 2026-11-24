@@ -34,3 +34,35 @@ public sealed class ServicesSource : ISnapshotSource<ServicesSnapshot>
             Str(s, "start")))], Bool(json, "wifi"), Bool(json, "wifiStopped"));
     }
 }
+
+/// <summary>Read-only Bluetooth radio presence and bthserv state (never records personal device names).</summary>
+public sealed class BluetoothSource : ISnapshotSource<BluetoothSnapshot>
+{
+    private const string Script = """
+        $present = $null
+        try {
+            $present = @(Get-PnpDevice -Class Bluetooth -ErrorAction Stop | Where-Object { $_.Present -eq $true -and $_.Status -eq 'OK' }).Count -gt 0
+        } catch {
+            $present = $null
+        }
+        $svc = Get-Service -Name bthserv -ErrorAction SilentlyContinue
+        $state = if (-not $svc) { 'missing' } elseif ($svc.Status -eq 'Running') { 'running' } else { 'stopped' }
+        $start = if ($svc) { "$($svc.StartType)".ToLowerInvariant() } else { 'unknown' }
+        [pscustomobject]@{ present = $present; state = $state; start = $start } | ConvertTo-Json -Compress
+        """;
+
+    public async Task<BluetoothSnapshot> ReadAsync(ScanContext context, CancellationToken cancellationToken)
+    {
+        var json = await QueryAsync(Script, cancellationToken);
+        bool? present = json.TryGetProperty("present", out var prop) && prop.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False
+            ? prop.GetBoolean()
+            : null;
+        var state = Str(json, "state") switch
+        {
+            "running" => ServiceRunState.Running,
+            "missing" => ServiceRunState.Missing,
+            _ => ServiceRunState.Stopped,
+        };
+        return new BluetoothSnapshot(present, new ServiceInfo("bthserv", state, Str(json, "start")));
+    }
+}

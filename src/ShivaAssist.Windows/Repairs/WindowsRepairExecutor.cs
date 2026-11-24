@@ -52,11 +52,13 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.CleanSoftwareLeftovers => UninstallerService.Clean(job),
             RepairCatalogue.RestoreSoftwareLeftovers => UninstallerService.Restore(job),
             RepairCatalogue.ResetPrintSpooler => await ResetPrintSpoolerAsync(job, cancellationToken),
+            RepairCatalogue.ResumePrinterQueues => await ResumePrinterQueuesAsync(job, cancellationToken),
             RepairCatalogue.SyncClock => await SyncClockAsync(job, cancellationToken),
             RepairCatalogue.CleanBrowserCache => CleanBrowserCache(job),
             RepairCatalogue.RepairAudioService => await RepairServicesAsync(job, ["AudioEndpointBuilder", "Audiosrv"], "Automatic", cancellationToken),
             RepairCatalogue.RepairSearchService => await RepairServicesAsync(job, ["WSearch"], "AutomaticDelayed", cancellationToken),
             RepairCatalogue.RepairWifiService => await StartWifiServiceAsync(job, cancellationToken),
+            RepairCatalogue.RepairBluetoothService => await StartBluetoothServiceAsync(job, cancellationToken),
             RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
@@ -328,6 +330,88 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
                 if ($off.Count -gt 0) { 'Enabled Windows Firewall profiles: ' + ($off -join ', ') } else { 'Windows Firewall already enabled on all profiles' }
             } else {
                 'Windows Firewall still off for: ' + ($stillOff -join ', ')
+            }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Start stopped bthserv only when Bluetooth hardware is present and the service is not disabled.</summary>
+    private static async Task<RepairResult> StartBluetoothServiceAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $present = $false
+            try {
+                $present = @(Get-PnpDevice -Class Bluetooth -ErrorAction Stop | Where-Object { $_.Present -eq $true -and $_.Status -eq 'OK' }).Count -gt 0
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Bluetooth hardware could not be confirmed; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if (-not $present) {
+                [pscustomobject]@{ ok = $false; detail = 'No active Bluetooth adapter found; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $svc = Get-Service -Name bthserv -ErrorAction SilentlyContinue
+            if ($null -eq $svc) {
+                [pscustomobject]@{ ok = $false; detail = 'Bluetooth Support Service (bthserv) not found' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($svc.StartType -eq 'Disabled') {
+                [pscustomobject]@{ ok = $false; detail = 'Bluetooth service is disabled; not changed automatically' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($svc.Status -ne 'Running') {
+                Start-Service -Name bthserv -ErrorAction Stop
+                (Get-Service -Name bthserv).WaitForStatus('Running', [TimeSpan]::FromSeconds(20))
+            }
+            $running = (Get-Service -Name bthserv).Status -eq 'Running'
+            [pscustomobject]@{ ok = $running; detail = if ($running) { 'bthserv running' } else { 'bthserv did not start' } } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Resume paused printer queues and clear WorkOffline without deleting waiting print jobs.</summary>
+    private static async Task<RepairResult> ResumePrinterQueuesAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $svc = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+            if ($null -eq $svc -or $svc.Status -ne 'Running') {
+                [pscustomobject]@{ ok = $false; detail = 'Print Spooler is not running; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $touched = @()
+            foreach ($p in @(Get-CimInstance Win32_Printer -ErrorAction Stop)) {
+                $isPaused = ([int]$p.PrinterState -band 1) -ne 0
+                $isOffline = [bool]$p.WorkOffline
+                if ($isPaused) {
+                    Invoke-CimMethod -InputObject $p -MethodName Resume -ErrorAction Stop | Out-Null
+                    $touched += "$($p.Name) (resumed)"
+                }
+                if ($isOffline) {
+                    Set-CimInstance -InputObject $p -Property @{ WorkOffline = $false } -ErrorAction Stop
+                    $touched += "$($p.Name) (online)"
+                }
+            }
+            $stillBlocked = @(Get-CimInstance Win32_Printer -ErrorAction Stop | Where-Object { ([int]$_.PrinterState -band 1) -ne 0 -or [bool]$_.WorkOffline })
+            $ok = $stillBlocked.Count -eq 0
+            $detail = if ($ok) {
+                if ($touched.Count -gt 0) { 'Updated printers: ' + ($touched -join '; ') } else { 'No paused or offline printers found' }
+            } else {
+                'Still paused or offline: ' + (($stillBlocked | ForEach-Object { $_.Name }) -join ', ')
             }
             [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
             """, cancellationToken);

@@ -72,11 +72,13 @@ public static class RepairCatalogue
     public const string CleanSoftwareLeftovers = "SOFTWARE.LEFTOVERS.CLEAN";
     public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
     public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
+    public const string ResumePrinterQueues = "PRINT.QUEUE.RESUME";
     public const string SyncClock = "TIME.SYNC.REPAIR";
     public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
     public const string RepairAudioService = "AUDIO.SERVICE.REPAIR";
     public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
     public const string RepairWifiService = "NET.WIFI.START";
+    public const string RepairBluetoothService = "DEVICE.BLUETOOTH.REPAIR";
     public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
@@ -265,6 +267,16 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = ResumePrinterQueues,
+            Name = "Resume paused or offline printers",
+            Description = "Resumes paused printer queues and switches off Windows' 'Use Printer Offline' mode without deleting waiting print jobs.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = PrintCheck.QueueFindingId,
+        },
+        new()
+        {
             Id = SyncClock,
             Name = "Set the clock right",
             Description = "Switches automatic time synchronisation back on and sets the clock to the exact time from Microsoft's internet time server (time.windows.com).",
@@ -314,6 +326,16 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = RepairBluetoothService,
+            Name = "Start the Windows Bluetooth service",
+            Description = "Starts the stopped Windows Bluetooth Support Service without changing its startup type or paired devices.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = BluetoothCheck.FindingId,
+        },
+        new()
+        {
             Id = ResetNetworkStack,
             Name = "Reset the network settings of Windows",
             Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
@@ -358,9 +380,11 @@ public static class RepairCatalogue
             "UPDATE-FAILED-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
             PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
+            PrintCheck.QueueFindingId when finding.Severity == Severity.Warning => [Find(ResumePrinterQueues)!],
             ClockCheck.FindingId when finding.Severity == Severity.Warning => [Find(SyncClock)!],
             ServicesCheck.AudioId when finding.Severity == Severity.Warning => [Find(RepairAudioService)!],
             ServicesCheck.WifiId when finding.Severity == Severity.Warning => [Find(RepairWifiService)!],
+            BluetoothCheck.FindingId when finding.Severity == Severity.Warning => [Find(RepairBluetoothService)!],
             ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],

@@ -677,6 +677,24 @@
     "Contact Shiva Computers for help with a result, a repair or anything else about your PC.": "Neem contact op met Shiva Computers voor hulp bij een resultaat, een reparatie of iets anders met uw pc.",
     "Another firewall is active: {names}": "Er is een andere firewall actief: {names}",
     "Switch the Windows firewall back on": "Windows-firewall weer inschakelen",
-    "Turns the Windows Defender Firewall back on for any network profile that is switched off, only when no other firewall is active. Existing firewall rules are preserved.": "Schakelt de Windows Defender Firewall weer in voor elk netwerkprofiel dat uit staat, alleen wanneer er geen andere firewall actief is. Bestaande firewallregels blijven bewaard."
+    "Turns the Windows Defender Firewall back on for any network profile that is switched off, only when no other firewall is active. Existing firewall rules are preserved.": "Schakelt de Windows Defender Firewall weer in voor elk netwerkprofiel dat uit staat, alleen wanneer er geen andere firewall actief is. Bestaande firewallregels blijven bewaard.",
+    "Check of Bluetooth": "Controle van Bluetooth",
+    "Bluetooth could not be checked on this PC": "Bluetooth kon op deze pc niet worden gecontroleerd",
+    "No Bluetooth adapter is installed on this PC": "Er is geen Bluetooth-adapter geïnstalleerd op deze pc",
+    "The Bluetooth service is disabled": "De Bluetooth-service is uitgeschakeld",
+    "Check whether Bluetooth was deliberately switched off before changing its settings.": "Controleer of Bluetooth bewust is uitgeschakeld voordat u de instellingen aanpast.",
+    "The Windows Bluetooth service is running": "De Bluetooth-service van Windows draait",
+    "The Windows Bluetooth service has stopped": "De Bluetooth-service van Windows is gestopt",
+    "The Bluetooth Support Service stopped, which prevents wireless headphones, mice or keyboards from connecting.": "De Bluetooth-ondersteuningsservice is gestopt, waardoor draadloze koptelefoons, muizen of toetsenborden geen verbinding kunnen maken.",
+    "Start the Windows Bluetooth service again.": "Start de Bluetooth-service van Windows opnieuw.",
+    "Start the Windows Bluetooth service": "Windows Bluetooth-service starten",
+    "Starts the stopped Windows Bluetooth Support Service without changing its startup type or paired devices.": "Start de gestopte Bluetooth-ondersteuningsservice van Windows zonder het opstarttype of gekoppelde apparaten te wijzigen.",
+    "A printer is paused or set to work offline": "Een printer staat op pauze of is ingesteld op offline werken",
+    "{count} printers are paused or set to work offline": "{count} printers staan op pauze of zijn ingesteld op offline werken",
+    "When a printer is paused or switched to offline mode in Windows, new documents stay waiting in the queue.": "Wanneer een printer in Windows op pauze of offline staat, blijven nieuwe documenten in de wachtrij staan.",
+    "Resume the paused or offline printer queue so waiting documents can print.": "Hervat de gepauzeerde of offline afdrukwachtrij zodat wachtende documenten kunnen worden afgedrukt.",
+    "No printers are paused or set to work offline": "Geen enkele printer staat op pauze of offline",
+    "Resume paused or offline printers": "Gepauzeerde of offline printers hervatten",
+    "Resumes paused printer queues and switches off Windows' 'Use Printer Offline' mode without deleting waiting print jobs.": "Hervat gepauzeerde afdrukwachtrijen en schakelt de modus 'Printer offline gebruiken' in Windows uit, zonder wachtende afdruktaken te verwijderen."
   }
 }

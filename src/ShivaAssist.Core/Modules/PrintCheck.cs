@@ -12,6 +12,7 @@ namespace ShivaAssist.Core.Modules;
 public sealed class PrintCheck(ISnapshotSource<PrintSnapshot> source) : SnapshotCheck<PrintSnapshot>(source)
 {
     public const string FindingId = "PRINT-SPOOLER-001";
+    public const string QueueFindingId = "PRINT-QUEUE-001";
 
     public override string Module => "printing";
 
@@ -57,9 +58,10 @@ public sealed class PrintCheck(ISnapshotSource<PrintSnapshot> source) : Snapshot
             }];
         }
 
+        var findings = new List<Finding>();
         if (snapshot.StuckJobs > 0)
         {
-            return [new Finding
+            findings.Add(new Finding
             {
                 Id = FindingId,
                 Module = Module,
@@ -69,9 +71,42 @@ public sealed class PrintCheck(ISnapshotSource<PrintSnapshot> source) : Snapshot
                 SuspectedCause = "A print job that fails or waits too long blocks every document behind it.",
                 Recommendation = new("Restart the print service and clear stuck print jobs."),
                 Evidence = [evidence],
-            }];
+            });
+        }
+        else
+        {
+            findings.Add(Healthy(new Message("Printing works ({count} printers set up)", ("count", snapshot.Printers))));
         }
 
-        return [Healthy(new Message("Printing works ({count} printers set up)", ("count", snapshot.Printers)))];
+        if (snapshot.PausedOrOfflinePrinters is { Count: > 0 } blocked)
+        {
+            findings.Add(new Finding
+            {
+                Id = QueueFindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Warning,
+                Title = blocked.Count == 1
+                    ? new Message("A printer is paused or set to work offline")
+                    : new Message("{count} printers are paused or set to work offline", ("count", blocked.Count)),
+                SuspectedCause = "When a printer is paused or switched to offline mode in Windows, new documents stay waiting in the queue.",
+                Recommendation = new("Resume the paused or offline printer queue so waiting documents can print."),
+                Evidence = [.. blocked.Select(p => new Evidence("Win32_Printer", p))],
+            });
+        }
+        else if (snapshot.PausedOrOfflinePrinters is not null && snapshot.Printers > 0)
+        {
+            findings.Add(new Finding
+            {
+                Id = QueueFindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Healthy,
+                Title = "No printers are paused or set to work offline",
+                Evidence = [new Evidence("Win32_Printer", string.Create(CultureInfo.InvariantCulture, $"{snapshot.Printers} printer(s) checked, none paused or offline"))],
+            });
+        }
+
+        return findings;
     }
 }

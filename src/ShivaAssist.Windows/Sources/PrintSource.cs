@@ -16,7 +16,7 @@ public sealed class PrintSource : ISnapshotSource<PrintSnapshot>
         $state = if (-not $svc) { 'missing' } elseif ($svc.Status -eq 'Running') { 'running' } else { 'stopped' }
         $start = if ($svc) { "$($svc.StartType)".ToLowerInvariant() } else { 'unknown' }
         $printers = @(Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Control\Print\Printers' -ErrorAction SilentlyContinue).Count
-        $stuck = 0; $oldest = 0
+        $stuck = 0; $oldest = 0; $blocked = @()
         if ($state -eq 'running') {
             $now = Get-Date
             foreach ($job in @(Get-CimInstance Win32_PrintJob -ErrorAction SilentlyContinue)) {
@@ -26,8 +26,18 @@ public sealed class PrintSource : ISnapshotSource<PrintSnapshot>
                 $failed = ([int]$job.StatusMask -band (2 -bor 4 -bor 512)) -ne 0
                 if ($failed -or $age -ge 30) { $stuck++; if ($age -gt $oldest) { $oldest = $age } }
             }
+            foreach ($p in @(Get-CimInstance Win32_Printer -ErrorAction SilentlyContinue)) {
+                $isPaused = ([int]$p.PrinterState -band 1) -ne 0
+                $isOffline = [bool]$p.WorkOffline
+                if ($isPaused -or $isOffline) {
+                    $flags = @()
+                    if ($isPaused) { $flags += 'paused' }
+                    if ($isOffline) { $flags += 'work offline' }
+                    $blocked += "$($p.Name): " + ($flags -join ', ')
+                }
+            }
         }
-        [pscustomobject]@{ state = $state; start = $start; printers = $printers; stuck = $stuck; oldest = $oldest } | ConvertTo-Json -Compress
+        [pscustomobject]@{ state = $state; start = $start; printers = $printers; stuck = $stuck; oldest = $oldest; blocked = @($blocked) } | ConvertTo-Json -Compress -Depth 3
         """;
 
     public async Task<PrintSnapshot> ReadAsync(ScanContext context, CancellationToken cancellationToken)
@@ -39,6 +49,7 @@ public sealed class PrintSource : ISnapshotSource<PrintSnapshot>
             "missing" => SpoolerState.Missing,
             _ => SpoolerState.Stopped,
         };
-        return new PrintSnapshot(state, Str(json, "start"), (int)Long(json, "printers"), (int)Long(json, "stuck"), (int)Long(json, "oldest"));
+        var blocked = Items(json, "blocked").Select(e => e.GetString() ?? string.Empty).Where(s => s.Length > 0).ToList();
+        return new PrintSnapshot(state, Str(json, "start"), (int)Long(json, "printers"), (int)Long(json, "stuck"), (int)Long(json, "oldest"), blocked);
     }
 }

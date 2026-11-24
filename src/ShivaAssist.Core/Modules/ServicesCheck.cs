@@ -113,3 +113,89 @@ public sealed class ServicesCheck(ISnapshotSource<ServicesSnapshot> source) : Sn
         return new Finding { Id = SearchId, Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Windows Search is running", Evidence = evidence };
     }
 }
+
+/// <summary>Checks whether the Windows Bluetooth Support Service (bthserv) is running when Bluetooth hardware is present.</summary>
+public sealed class BluetoothCheck(ISnapshotSource<BluetoothSnapshot> source) : SnapshotCheck<BluetoothSnapshot>(source)
+{
+    public const string FindingId = "DEVICE-BLUETOOTH-001";
+
+    public override string Module => "bluetooth";
+
+    public override Message Name => "Check of Bluetooth";
+
+    public override Category Category => Category.Drivers;
+
+    public override string FailureId => "BLUETOOTH-CHECK-000";
+
+    public override IReadOnlyList<Finding> Evaluate(BluetoothSnapshot snapshot, ScanContext context)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        var service = snapshot.Service;
+        var serviceEvidence = new Evidence("Get-Service", string.Create(CultureInfo.InvariantCulture,
+            $"{service.Name}: {service.State.ToString().ToLowerInvariant()}, start type {service.StartType}"));
+
+        if (snapshot.AdapterPresent is null)
+        {
+            return [Finding.Unknown(FindingId, Module, Category, "Bluetooth could not be checked on this PC", UnknownReason.Unsupported, "Bluetooth adapter state could not be determined")];
+        }
+
+        if (snapshot.AdapterPresent == false)
+        {
+            return [new Finding
+            {
+                Id = FindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Healthy,
+                Title = "No Bluetooth adapter is installed on this PC",
+                Evidence = [new Evidence("Get-PnpDevice", "No present Bluetooth adapter"), serviceEvidence],
+            }];
+        }
+
+        if (service.State == ServiceRunState.Missing)
+        {
+            return [Finding.Unknown(FindingId, Module, Category, "Bluetooth could not be checked on this PC", UnknownReason.Unsupported, "Windows Bluetooth Support Service not found")];
+        }
+
+        Evidence[] evidence = [new Evidence("Get-PnpDevice", "Bluetooth adapter present"), serviceEvidence];
+
+        if (service.Disabled)
+        {
+            return [new Finding
+            {
+                Id = FindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Information,
+                Title = "The Bluetooth service is disabled",
+                Recommendation = new("Check whether Bluetooth was deliberately switched off before changing its settings."),
+                Evidence = evidence,
+            }];
+        }
+
+        if (service.State == ServiceRunState.Running)
+        {
+            return [new Finding
+            {
+                Id = FindingId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Healthy,
+                Title = "The Windows Bluetooth service is running",
+                Evidence = evidence,
+            }];
+        }
+
+        return [new Finding
+        {
+            Id = FindingId,
+            Module = Module,
+            Category = Category,
+            Severity = Severity.Warning,
+            Title = "The Windows Bluetooth service has stopped",
+            SuspectedCause = "The Bluetooth Support Service stopped, which prevents wireless headphones, mice or keyboards from connecting.",
+            Recommendation = new("Start the Windows Bluetooth service again."),
+            Evidence = evidence,
+        }];
+    }
+}

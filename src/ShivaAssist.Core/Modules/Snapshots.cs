@@ -117,7 +117,13 @@ public enum SpoolerState
 /// Printing (top-20 problem "printer does not print"): the Print Spooler service, how many printers are set up and
 /// how many jobs are stuck (error, deleting or blocked, or waiting for 30 minutes or longer).
 /// </summary>
-public sealed record PrintSnapshot(SpoolerState Spooler, string StartType, int Printers, int StuckJobs, int OldestStuckMinutes);
+public sealed record PrintSnapshot(
+    SpoolerState Spooler,
+    string StartType,
+    int Printers,
+    int StuckJobs,
+    int OldestStuckMinutes,
+    IReadOnlyList<string>? PausedOrOfflinePrinters = null);
 
 /// <summary>Result of one network layer test.</summary>
 public enum LayerResult
@@ -176,4 +182,7 @@ public sealed record ServicesSnapshot(IReadOnlyList<ServiceInfo> Services, bool?
     public ServiceInfo Get(string name) =>
         Services.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new ServiceInfo(name, ServiceRunState.Missing, "unknown");
 }
+
+/// <summary>Bluetooth radio presence and the Windows Bluetooth Support Service (bthserv). Device names are never stored.</summary>
+public sealed record BluetoothSnapshot(bool? AdapterPresent, ServiceInfo Service);
 
