@@ -60,12 +60,16 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             RepairCatalogue.ResumePrinterQueues => await ResumePrinterQueuesAsync(job, cancellationToken),
             RepairCatalogue.SyncClock => await SyncClockAsync(job, cancellationToken),
             RepairCatalogue.CleanBrowserCache => CleanBrowserCache(job),
+            RepairCatalogue.CleanShaderCache => CleanShaderCache(job),
             RepairCatalogue.RepairAudioService => await RepairServicesAsync(job, ["AudioEndpointBuilder", "Audiosrv"], "Automatic", cancellationToken),
             RepairCatalogue.RepairSearchService => await RepairServicesAsync(job, ["WSearch"], "AutomaticDelayed", cancellationToken),
             RepairCatalogue.RepairWifiService => await StartWifiServiceAsync(job, cancellationToken),
             RepairCatalogue.RepairBluetoothService => await StartBluetoothServiceAsync(job, cancellationToken),
             RepairCatalogue.EnableSystemProtection => await EnableSystemProtectionAsync(job, cancellationToken),
             RepairCatalogue.ScheduleFileSystemRepair => await ScheduleFileSystemRepairAsync(job, cancellationToken),
+            RepairCatalogue.RestartExplorer => await RestartExplorerAsync(job, cancellationToken),
+            RepairCatalogue.RebuildIconCache => await RebuildIconCacheAsync(job, cancellationToken),
+            RepairCatalogue.ResetStoreCache => await ResetStoreCacheAsync(job, cancellationToken),
             RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
@@ -621,6 +625,144 @@ public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExec
             Detail = ok
                 ? $"Scheduled Windows disk check on {drive} for the next restart"
                 : string.Create(CultureInfo.InvariantCulture, $"chkntfs failed (exit {exit}): {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
+        };
+    }
+
+    /// <summary>Deletes DirectX/GPU shader cache files older than 7 days from fixed LocalAppData folders (skips links and in-use files).</summary>
+    private static RepairResult CleanShaderCache(RepairJob job)
+    {
+        var cutoff = DateTime.UtcNow - TempAge;
+        var deleted = 0;
+        var skipped = 0;
+        long bytes = 0;
+        var folders = ShaderCaches.Folders();
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System };
+        foreach (var folder in folders)
+        {
+            foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
+            {
+                if (file.LastWriteTimeUtc > cutoff || file.CreationTimeUtc > cutoff)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var length = file.Length;
+                    file.Delete();
+                    deleted++;
+                    bytes += length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    skipped++;
+                }
+            }
+        }
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = true,
+            BytesFreed = bytes,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"Cleaned {folders.Count} shader cache folder(s): {deleted} files deleted, {skipped} skipped"),
+        };
+    }
+
+    /// <summary>Restarts Windows Explorer cleanly to unfreeze the taskbar or Start menu without closing user documents.</summary>
+    private static async Task<RepairResult> RestartExplorerAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 800
+            if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+                Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe') -ErrorAction Stop
+            }
+            $deadline = (Get-Date).AddSeconds(10)
+            $running = $false
+            while ((Get-Date) -lt $deadline) {
+                $running = @(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -gt 0
+                if ($running) { break }
+                Start-Sleep -Milliseconds 300
+            }
+            [pscustomobject]@{ ok = $running } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        var ok = PowerShell.Bool(json, "ok");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = ok ? "Windows Explorer restarted cleanly" : "Windows Explorer did not restart within 10 seconds",
+        };
+    }
+
+    /// <summary>Rebuilds Windows' per-user icon/thumbnail cache files under LocalAppData\Microsoft\Windows\Explorer.</summary>
+    private static async Task<RepairResult> RebuildIconCacheAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $dir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Explorer'
+            $removed = 0
+            Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 900
+            if (Test-Path -LiteralPath $dir) {
+                $item = Get-Item -LiteralPath $dir -Force -ErrorAction SilentlyContinue
+                if ($null -ne $item -and -not ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                    foreach ($f in @(Get-ChildItem -LiteralPath $dir -Filter 'iconcache_*.db' -File -Force -ErrorAction SilentlyContinue) + @(Get-ChildItem -LiteralPath $dir -Filter 'thumbcache_*.db' -File -Force -ErrorAction SilentlyContinue)) {
+                        if (-not ($f.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                            try { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop; $removed++ } catch { }
+                        }
+                    }
+                }
+            }
+            if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+                Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe') -ErrorAction Stop
+            }
+            $deadline = (Get-Date).AddSeconds(10)
+            $running = $false
+            while ((Get-Date) -lt $deadline) {
+                $running = @(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -gt 0
+                if ($running) { break }
+                Start-Sleep -Milliseconds 300
+            }
+            [pscustomobject]@{ ok = $running; removed = $removed } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        var ok = PowerShell.Bool(json, "ok");
+        var removed = PowerShell.Long(json, "removed");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = ok
+                ? string.Create(CultureInfo.InvariantCulture, $"Cleared {removed} icon/thumbnail cache file(s) and restarted Explorer")
+                : string.Create(CultureInfo.InvariantCulture, $"Cleared {removed} cache file(s), but Explorer did not restart cleanly"),
+        };
+    }
+
+    /// <summary>Runs built-in Microsoft Store cache reset (wsreset.exe) with a bounded timeout.</summary>
+    private static async Task<RepairResult> ResetStoreCacheAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var wsreset = ToolRunner.System32("wsreset.exe");
+        if (!File.Exists(wsreset))
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "wsreset.exe was not found on this Windows edition" };
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(60));
+        var (exit, output, error) = await ToolRunner.RunAsync(wsreset, [], timeout.Token);
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = exit == 0,
+            Detail = exit == 0
+                ? "Microsoft Store cache cleared"
+                : string.Create(CultureInfo.InvariantCulture, $"wsreset exited with code {exit}: {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
         };
     }
 

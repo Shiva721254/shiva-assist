@@ -41,7 +41,9 @@ public sealed class FileSystemAndWin11Tests
             new Win11ReadinessCheck(new Fixed<Win11ReadinessSnapshot>(s)).Evaluate(s, Ctx.User),
             Win11ReadinessCheck.FindingId);
 
-        Assert.Equal(Severity.Healthy, Eval(new(true, true, true, true, 16 * Gb, 500 * Gb)).Severity);
+        var win11 = Eval(new(true, true, true, true, 16 * Gb, 500 * Gb));
+        Assert.Equal(Severity.Healthy, win11.Severity);
+        Assert.Empty(FindingValidator.Validate(win11));
 
         var missingTpm = Eval(new(false, true, false, true, 8 * Gb, 256 * Gb));
         Assert.Equal(Severity.Information, missingTpm.Severity);

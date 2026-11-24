@@ -80,12 +80,16 @@ public static class RepairCatalogue
     public const string ResumePrinterQueues = "PRINT.QUEUE.RESUME";
     public const string SyncClock = "TIME.SYNC.REPAIR";
     public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
+    public const string CleanShaderCache = "DISK.SHADERCACHE.CLEAN";
     public const string RepairAudioService = "AUDIO.SERVICE.REPAIR";
     public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
     public const string RepairWifiService = "NET.WIFI.START";
     public const string RepairBluetoothService = "DEVICE.BLUETOOTH.REPAIR";
     public const string EnableSystemProtection = "RECOVERY.PROTECTION.ENABLE";
     public const string ScheduleFileSystemRepair = "STORAGE.CHKDSK.SCHEDULE";
+    public const string RestartExplorer = "SHELL.EXPLORER.RESTART";
+    public const string RebuildIconCache = "SHELL.ICONCACHE.REBUILD";
+    public const string ResetStoreCache = "APPS.STORE.RESET";
     public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
@@ -351,6 +355,15 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = CleanShaderCache,
+            Name = "Clear old graphics shader cache",
+            Description = "Deletes temporary DirectX and graphics shader cache files older than 7 days. Files in use are skipped; Windows and apps recreate them automatically.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 2),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
             Id = RepairAudioService,
             Name = "Switch the sound service back on",
             Description = "Switches the Windows Audio services back to automatic start and restarts them. Sound usually works again straight away; programs that were playing may need to be restarted.",
@@ -410,6 +423,33 @@ public static class RepairCatalogue
             VerifyLater = true,
             Minutes = (2, 15),
             VerifiesFinding = FileSystemCheck.FindingId,
+        },
+        new()
+        {
+            Id = RestartExplorer,
+            Name = "Restart Windows taskbar and File Explorer",
+            Description = "Briefly restarts Windows Explorer to unfreeze a stuck taskbar, Start menu or File Explorer window. Your open documents stay open.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "SHELL-EXPLORER-001",
+        },
+        new()
+        {
+            Id = RebuildIconCache,
+            Name = "Rebuild desktop and taskbar icon cache",
+            Description = "Clears Windows' cached icon and thumbnail files and restarts File Explorer so blank or broken desktop and taskbar icons redraw cleanly.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "SHELL-ICONCACHE-001",
+        },
+        new()
+        {
+            Id = ResetStoreCache,
+            Name = "Reset Microsoft Store cache",
+            Description = "Clears the Microsoft Store download cache using Windows' built-in wsreset tool, helping when Store apps will not download or update.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 2),
+            VerifiesFinding = "APPS-STORE-001",
         },
         new()
         {

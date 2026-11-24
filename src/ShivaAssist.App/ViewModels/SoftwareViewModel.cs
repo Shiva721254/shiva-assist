@@ -49,6 +49,8 @@ public sealed partial class SoftwareViewModel : Observable
         RefreshCommand = new RelayCommand(async _ => await LoadAsync(), _ => !loading && !repairBusy());
         CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(), _ => !checkingUpdates && !repairBusy());
         UpdateCommand = new RelayCommand(async _ => await UpdateAsync(), _ => technicianMode && selectedUpdate is not null && !checkingUpdates && !repairBusy());
+        UpdateBatchCommand = new RelayCommand(async _ => await UpdateBatchAsync(),
+            _ => technicianMode && UpdateItems.Any(item => item.IsSelected) && !checkingUpdates && !repairBusy());
     }
 
     public RelayCommand InstallWindowsUpdatesCommand { get; }
@@ -81,10 +83,19 @@ public sealed partial class SoftwareViewModel : Observable
     public RelayCommand RefreshCommand { get; }
     public RelayCommand CheckUpdatesCommand { get; }
     public RelayCommand UpdateCommand { get; }
+    public RelayCommand UpdateBatchCommand { get; }
     public ObservableCollection<PackageUpdate> Updates { get; } = [];
+    public ObservableCollection<PackageUpdateItem> UpdateItems { get; } = [];
     public bool ShowUpdateAction => technicianMode;
     public string TextCheckUpdates => T("Check program updates");
     public string TextUpdateSelected => T("Update selected program");
+    public string TextUpdateChecked => SelectedUpdateCount switch
+    {
+        0 => T("Update selected programs"),
+        1 => T("Update 1 selected program"),
+        var count => new Message("Update {count} selected programs", ("count", count)).Render(catalog()),
+    };
+    private int SelectedUpdateCount => UpdateItems.Count(item => item.IsSelected);
     public string TextAvailableVersion => T("Available version");
     public string TextUpdateScope => T("Checks the WinGet community source over the internet. Only programs recognised by Windows Package Manager can appear here.");
     public string? UpdateStatus => updateStatus;
@@ -143,6 +154,7 @@ public sealed partial class SoftwareViewModel : Observable
         checkingUpdates = true;
         RefreshAll();
         Updates.Clear();
+        UpdateItems.Clear();
         SelectedUpdate = null;
         SetUpdateStatus(T("Checking program updates…"));
         try
@@ -152,9 +164,18 @@ public sealed partial class SoftwareViewModel : Observable
             foreach (var update in updates)
             {
                 Updates.Add(update);
+                var row = new PackageUpdateItem(update);
+                row.PropertyChanged += (_, _) =>
+                {
+                    OnPropertyChanged(nameof(TextUpdateChecked));
+                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                };
+                UpdateItems.Add(row);
             }
 
-            SetUpdateStatus(T("Select a program to review its update."));
+            SetUpdateStatus(updates.Count == 0
+                ? T("All supported programs are up to date.")
+                : T("Untick any program you want to skip, then update the selected programs."));
         }
         catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException or IOException or Win32Exception or UnauthorizedAccessException)
         {
@@ -170,6 +191,61 @@ public sealed partial class SoftwareViewModel : Observable
             RefreshAll();
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
+    }
+
+    private async Task UpdateBatchAsync()
+    {
+        var chosen = UpdateItems.Where(item => item.IsSelected).ToList();
+        if (!technicianMode || chosen.Count == 0 || checkingUpdates || repairBusy())
+        {
+            return;
+        }
+
+        if (chosen.Count == 1)
+        {
+            SelectedUpdate = chosen[0].Update;
+            await UpdateAsync();
+            return;
+        }
+
+        var operation = RepairCatalogue.Find(RepairCatalogue.UpdateSoftware)!;
+        var explanation = new Message(
+            "Update {count} selected programs? Save your work and close those programs first. Some installers may ask for administrator permission or licence acceptance.",
+            ("count", chosen.Count)).Render(catalog());
+        if (MessageBox.Show(Application.Current.MainWindow, explanation, operation.Name.Render(catalog()),
+            MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        SetSoftwareBusy(true);
+        var verified = 0;
+        try
+        {
+            for (var index = 0; index < chosen.Count; index++)
+            {
+                var item = chosen[index];
+                SetUpdateStatus(new Message("Updating {done} of {total}: {name}…",
+                    ("done", index + 1), ("total", chosen.Count), ("name", item.Name)).Render(catalog()));
+                if (await InstallProgramAsync(item.Update))
+                {
+                    verified++;
+                    UpdateItems.Remove(item);
+                    Updates.Remove(item.Update);
+                }
+            }
+
+            SelectedUpdate = null;
+            SetUpdateStatus(new Message("App updates: {verified} verified, {unverified} could not be verified.",
+                ("verified", verified), ("unverified", chosen.Count - verified)).Render(catalog()));
+        }
+        finally
+        {
+            SetSoftwareBusy(false);
+            OnPropertyChanged(nameof(TextUpdateChecked));
+        }
+
+        await LoadAsync();
     }
 
     private async Task UpdateAsync()
@@ -195,7 +271,14 @@ public sealed partial class SoftwareViewModel : Observable
         {
             var verified = await InstallProgramAsync(selected);
             Updates.Remove(selected);
+            var matchingItem = UpdateItems.FirstOrDefault(item => item.Update == selected);
+            if (matchingItem is not null)
+            {
+                UpdateItems.Remove(matchingItem);
+            }
+
             SelectedUpdate = null;
+            OnPropertyChanged(nameof(TextUpdateChecked));
             SetUpdateStatus(verified
                 ? T("The program was updated and its installed version was verified.")
                 : T("The update could not be verified. Check the program and refresh the update list before trying again."));
@@ -288,6 +371,7 @@ public sealed partial class SoftwareViewModel : Observable
                     }
 
                     Updates.Clear();
+                    UpdateItems.Clear();
                     SelectedUpdate = null;
                     summary.Add(new Message("App updates: {verified} verified, {unverified} could not be verified.",
                         ("verified", verified), ("unverified", available.Count - verified)).Render(catalog()));
@@ -375,4 +459,26 @@ public sealed record SoftwareItem(string Name, string Publisher, string Version,
 {
     public required string Group { get; init; }
     public string Glyph => ApplicationGroups.Glyph(ApplicationGroups.Suggest(Name));
+}
+
+/// <summary>One available program update with a checkbox for batch updating.</summary>
+public sealed class PackageUpdateItem(PackageUpdate update) : Observable
+{
+    private bool isSelected = true;
+
+    public PackageUpdate Update { get; } = update;
+
+    public string Name => Update.Name;
+
+    public string Id => Update.Id;
+
+    public string InstalledVersion => Update.InstalledVersion;
+
+    public string AvailableVersion => Update.AvailableVersion;
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set => Set(ref isSelected, value);
+    }
 }

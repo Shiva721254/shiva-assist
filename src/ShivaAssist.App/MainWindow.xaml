@@ -52,6 +52,9 @@
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="&#xE90F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" />
                       <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                      <Border Background="{Binding TierBackground}" CornerRadius="8" Padding="7,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding TierLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding TierForeground}" />
+                      </Border>
                     </StackPanel>
                   </Button>
                 </DataTemplate>
@@ -519,74 +522,170 @@
           <TextBlock Text="{Binding SelectedModule.Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,16,0" />
         </StackPanel>
       </DockPanel>
-      <!-- Free up space: measured preview per area, tick what to clean, one big button -->
-      <Border DockPanel.Dock="Top" DataContext="{Binding Cleanup}" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
-              Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
-              CornerRadius="16" Padding="20,16" Margin="0,0,0,14">
-        <StackPanel>
-          <DockPanel>
-            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="{Binding TextMeasure}" Command="{Binding MeasureCommand}" VerticalAlignment="Top" />
-            <StackPanel Margin="0,0,12,0">
-              <TextBlock Text="{Binding TextTitle}" FontSize="21" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level2" />
-              <TextBlock Text="{Binding TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
-            </StackPanel>
-          </DockPanel>
-          <ItemsControl ItemsSource="{Binding Items}" Margin="0,12,0,0">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,10">
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Style="{StaticResource AreaCheck}" IsChecked="{Binding IsChecked}" IsEnabled="{Binding CanClean}"
-                              VerticalAlignment="Center" AutomationProperties.Name="{Binding Name}" />
-                    <Grid Grid.Column="1" Width="38" Height="38" Margin="4,0,12,0" VerticalAlignment="Center">
-                      <Ellipse Fill="{StaticResource GreenSoft}" />
-                      <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17"
-                                 Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Grid>
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
-                      <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0" />
+      <Grid>
+        <!-- Performance, storage cleanup, quick Windows fixes and scan findings -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding ShowCleanupSection, Converter={StaticResource Visible}}">
+          <StackPanel>
+            <!-- Free up space: measured preview per area, tick what to clean, one big button -->
+            <Border DataContext="{Binding Cleanup}" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
+                    Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="16" Padding="20,16" Margin="0,0,0,14">
+              <StackPanel>
+                <DockPanel>
+                  <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="{Binding TextMeasure}" Command="{Binding MeasureCommand}" VerticalAlignment="Top" />
+                  <StackPanel Margin="0,0,12,0">
+                    <TextBlock Text="{Binding TextTitle}" FontSize="21" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level2" />
+                    <TextBlock Text="{Binding TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                  </StackPanel>
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Items}" Margin="0,12,0,0">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,10">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <CheckBox Style="{StaticResource AreaCheck}" IsChecked="{Binding IsChecked}" IsEnabled="{Binding CanClean}"
+                                    VerticalAlignment="Center" AutomationProperties.Name="{Binding Name}" />
+                          <Grid Grid.Column="1" Width="38" Height="38" Margin="4,0,12,0" VerticalAlignment="Center">
+                            <Ellipse Fill="{StaticResource GreenSoft}" />
+                            <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17"
+                                       Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Grid>
+                          <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="3" Text="{Binding Size}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                                     VerticalAlignment="Center" Margin="16,0,0,0" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <DockPanel Margin="0,14,0,0">
+                  <Button DockPanel.Dock="Right" Style="{StaticResource HeroButton}" Command="{Binding CleanCommand}" MinWidth="260" MinHeight="60"
+                          AutomationProperties.Name="{Binding TextClean}">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0" />
+                      <TextBlock Text="{Binding TextClean}" FontSize="17" VerticalAlignment="Center" />
                     </StackPanel>
-                    <TextBlock Grid.Column="3" Text="{Binding Size}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
-                               VerticalAlignment="Center" Margin="16,0,0,0" />
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <DockPanel Margin="0,14,0,0">
-            <Button DockPanel.Dock="Right" Style="{StaticResource HeroButton}" Command="{Binding CleanCommand}" MinWidth="260" MinHeight="60"
-                    AutomationProperties.Name="{Binding TextClean}">
-              <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0" />
-                <TextBlock Text="{Binding TextClean}" FontSize="17" VerticalAlignment="Center" />
+                  </Button>
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TextTotal}" FontSize="15" FontWeight="SemiBold" />
+                    <ProgressBar IsIndeterminate="True" Height="5" Width="140" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                 Foreground="{StaticResource Green}" Background="{StaticResource GreenSoft}" BorderThickness="0"
+                                 Visibility="{Binding Working, Converter={StaticResource Visible}}" />
+                    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,12,0" AutomationProperties.LiveSetting="Polite" />
+                  </StackPanel>
+                </DockPanel>
               </StackPanel>
-            </Button>
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="{Binding TextTotal}" FontSize="15" FontWeight="SemiBold" />
-              <ProgressBar IsIndeterminate="True" Height="5" Width="140" HorizontalAlignment="Left" Margin="0,6,0,0"
+            </Border>
+
+            <!-- Quick Windows fixes: Explorer restart, icon cache rebuild, Microsoft Store cache reset -->
+            <Border DataContext="{Binding Cleanup}" Visibility="{Binding TechnicianMode, Converter={StaticResource Visible}}"
+                    Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="16" Padding="20,16" Margin="0,0,0,14">
+              <StackPanel>
+                <TextBlock Text="{Binding TextQuickFixesTitle}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level2" />
+                <TextBlock Text="{Binding TextQuickFixesScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                <ItemsControl ItemsSource="{Binding QuickFixes}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,10">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <Grid Width="38" Height="38" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <Ellipse Fill="{StaticResource GreenSoft}" />
+                            <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17"
+                                       Foreground="{StaticResource GreenDark}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Grid>
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                          </StackPanel>
+                          <Button Grid.Column="2" Style="{StaticResource QuietButton}"
+                                  Content="{Binding DataContext.TextRunFix, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                  Command="{Binding DataContext.RunQuickFixCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                  CommandParameter="{Binding}" VerticalAlignment="Center" MinWidth="110"
+                                  AutomationProperties.Name="{Binding Name}" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding QuickFixStatus}" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}"
+                           TextWrapping="Wrap" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite" />
+              </StackPanel>
+            </Border>
+
+            <Border Visibility="{Binding ModuleNeedsScan, Converter={StaticResource Visible}}"
+                    Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16" Margin="0,0,0,12">
+              <TextBlock Text="{Binding TextModuleNeedsScan}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
+            </Border>
+            <TextBlock Text="{Binding TextRepairSectionEmpty}" TextWrapping="Wrap"
+                       Visibility="{Binding RepairsEmpty, Converter={StaticResource Visible}}" Margin="0,0,0,12" />
+            <ItemsControl ItemsSource="{Binding FindingGroups}" ItemTemplate="{StaticResource FindingGroup}"
+                          Visibility="{Binding ModuleHasResults, Converter={StaticResource Visible}}" />
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Read-only Large Files finder (Downloads, Videos, Desktop, Documents >= 100 MB) -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsLargeFilesSection, Converter={StaticResource Visible}}">
+          <Border DataContext="{Binding LargeFiles}" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                  BorderThickness="1" CornerRadius="16" Padding="20,16">
+            <StackPanel>
+              <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="{Binding TextScan}" Command="{Binding ScanCommand}" VerticalAlignment="Top" />
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock Text="{Binding TextTitle}" FontSize="21" FontWeight="SemiBold" Foreground="{StaticResource GreenDark}" AutomationProperties.HeadingLevel="Level2" />
+                  <TextBlock Text="{Binding TextScope}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                </StackPanel>
+              </DockPanel>
+              <ProgressBar IsIndeterminate="True" Height="5" Width="160" HorizontalAlignment="Left" Margin="0,12,0,0"
                            Foreground="{StaticResource Green}" Background="{StaticResource GreenSoft}" BorderThickness="0"
                            Visibility="{Binding Working, Converter={StaticResource Visible}}" />
-              <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,12,0" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,10,0,12" AutomationProperties.LiveSetting="Polite" />
+              <DataGrid ItemsSource="{Binding Items}" Visibility="{Binding HasItems, Converter={StaticResource Visible}}"
+                        MaxHeight="420" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                        GridLinesVisibility="Horizontal" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" RowHeaderWidth="0">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Binding="{Binding Name}" Width="2*" MinWidth="160">
+                    <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.TextFile, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Binding="{Binding Folder}" Width="*" MinWidth="90">
+                    <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.TextFolder, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Binding="{Binding Size}" Width="Auto" MinWidth="85">
+                    <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.TextSize, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Binding="{Binding Modified}" Width="Auto" MinWidth="95">
+                    <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.TextModified, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
+                  </DataGridTextColumn>
+                  <DataGridTemplateColumn Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <Button Style="{StaticResource QuietButton}" Padding="10,4" MinHeight="30" Margin="4,2"
+                                Content="{Binding DataContext.TextOpenFolder, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name}" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                </DataGrid.Columns>
+              </DataGrid>
             </StackPanel>
-          </DockPanel>
-        </StackPanel>
-      </Border>
-      <Border DockPanel.Dock="Top" Visibility="{Binding ModuleNeedsScan, Converter={StaticResource Visible}}"
-              Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="20,16">
-        <TextBlock Text="{Binding TextModuleNeedsScan}" TextWrapping="Wrap" Foreground="{StaticResource Muted}" />
-      </Border>
-      <TextBlock DockPanel.Dock="Top" Text="{Binding TextRepairSectionEmpty}" TextWrapping="Wrap"
-                 Visibility="{Binding RepairsEmpty, Converter={StaticResource Visible}}" Margin="0,0,0,12" />
-      <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding ModuleHasResults, Converter={StaticResource Visible}}">
-        <ItemsControl ItemsSource="{Binding FindingGroups}" ItemTemplate="{StaticResource FindingGroup}" />
-      </ScrollViewer>
+          </Border>
+        </ScrollViewer>
+      </Grid>
     </DockPanel>
 
     <ScrollViewer Margin="28,22" Visibility="{Binding IsSoftwarePage, Converter={StaticResource Visible}}" VerticalScrollBarVisibility="Auto">
@@ -654,23 +753,27 @@
         <Expander Header="{Binding Software.TextCheckUpdates}" IsExpanded="True" Visibility="{Binding Software.ShowProgramUpdates, Converter={StaticResource Visible}}" Margin="0,12,0,0">
           <StackPanel>
             <TextBlock Text="{Binding Software.TextUpdateScope}" TextWrapping="Wrap" Margin="0,8" />
-            <StackPanel Orientation="Horizontal">
-              <Button Content="{Binding Software.TextCheckUpdates}" Command="{Binding Software.CheckUpdatesCommand}" Style="{StaticResource PrimaryButton}" />
-              <Button Content="{Binding Software.TextUpdateSelected}" Command="{Binding Software.UpdateCommand}" Margin="8,0,0,0"
+            <WrapPanel>
+              <Button Content="{Binding Software.TextCheckUpdates}" Command="{Binding Software.CheckUpdatesCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,6" />
+              <Button Content="{Binding Software.TextUpdateChecked}" Command="{Binding Software.UpdateBatchCommand}" Style="{StaticResource QuietButton}" Margin="0,0,0,6"
                       Visibility="{Binding Software.ShowUpdateAction, Converter={StaticResource Visible}}" />
-            </StackPanel>
+            </WrapPanel>
             <TextBlock Text="{Binding Software.UpdateStatus}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite" />
-            <DataGrid ItemsSource="{Binding Software.Updates}" SelectedItem="{Binding Software.SelectedUpdate}" MaxHeight="190"
-                      SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowHeaderWidth="0">
+            <DataGrid ItemsSource="{Binding Software.UpdateItems}" MaxHeight="220"
+                      SelectionMode="Single" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0">
               <DataGrid.Columns>
-                <DataGridTextColumn Binding="{Binding Name}" Width="2*">
+                <DataGridTemplateColumn Width="65">
+                  <DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextSelect, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
+                  <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" AutomationProperties.Name="{Binding Name}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Binding="{Binding Name}" Width="2*" IsReadOnly="True">
                   <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextName, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*" />
-                <DataGridTextColumn Binding="{Binding InstalledVersion}" Width="*">
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn Binding="{Binding InstalledVersion}" Width="*" IsReadOnly="True">
                   <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
                 </DataGridTextColumn>
-                <DataGridTextColumn Binding="{Binding AvailableVersion}" Width="*">
+                <DataGridTextColumn Binding="{Binding AvailableVersion}" Width="*" IsReadOnly="True">
                   <DataGridTextColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.Software.TextAvailableVersion, RelativeSource={RelativeSource AncestorType=DataGrid}}" /></DataTemplate></DataGridTextColumn.HeaderTemplate>
                 </DataGridTextColumn>
               </DataGrid.Columns>

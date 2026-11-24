@@ -127,6 +127,24 @@ public sealed class RepairButton(RepairOperation operation, FindingItem item, Re
 
     public string Tooltip => Operation.Description.Render(catalog());
 
+    public string TierLabel => Operation.RestartRequired
+        ? new Message("Needs restart").Render(catalog())
+        : Operation.NeedsSelection
+            ? new Message("Your choice").Render(catalog())
+            : new Message("Automatic").Render(catalog());
+
+    public Brush TierBackground => Operation.RestartRequired
+        ? Palette.Background(Severity.Warning)
+        : Operation.NeedsSelection
+            ? Palette.Background(Severity.Information)
+            : Palette.Background(Severity.Healthy);
+
+    public Brush TierForeground => Operation.RestartRequired
+        ? Palette.For(Severity.Warning)
+        : Operation.NeedsSelection
+            ? Palette.For(Severity.Information)
+            : Palette.For(Severity.Healthy);
+
     public RelayCommand Command => new(async _ => await context.RunAsync(this), _ => !context.Busy);
 }
 

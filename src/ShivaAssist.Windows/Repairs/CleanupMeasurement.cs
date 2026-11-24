@@ -53,6 +53,26 @@ public static class BrowserCaches
     }
 }
 
+/// <summary>Fixed per-user DirectX/GPU shader cache folders derived from LocalAppData (never follows links).</summary>
+public static class ShaderCaches
+{
+    public static IReadOnlyList<string> Folders()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string[] candidates =
+        [
+            Path.Combine(local, "D3DSCache"),
+            Path.Combine(local, "NVIDIA", "DXCache"),
+            Path.Combine(local, "AMD", "DxCache"),
+            Path.Combine(local, "Intel", "ShaderCache"),
+        ];
+        return candidates
+            .Where(Directory.Exists)
+            .Where(f => !new DirectoryInfo(f).Attributes.HasFlag(FileAttributes.ReparsePoint))
+            .ToList();
+    }
+}
+
 /// <summary>Measures, read-only, what each cleanup area would free. Uses the same rules as the cleanup itself.</summary>
 public static class CleanupMeasurement
 {
@@ -71,6 +91,7 @@ public static class CleanupMeasurement
                     RepairCatalogue.CleanBrowserCache => Measure(area.OperationId, BrowserCaches.Folders(), null),
                     RepairCatalogue.EmptyRecycleBin => await RecycleBinAsync(cancellationToken),
                     RepairCatalogue.CleanUpdateCache => Measure(area.OperationId, UpdateCacheFolders(), null),
+                    RepairCatalogue.CleanShaderCache => Measure(area.OperationId, ShaderCaches.Folders(), DateTime.UtcNow - TimeSpan.FromDays(7)),
                     _ => new CleanupEstimate(area.OperationId, null, 0),
                 });
             }

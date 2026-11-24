@@ -17,6 +17,8 @@ public sealed partial class MainViewModel
     public bool ShowWorkspaceSections => !IsOverviewPage;
     public bool IsRepairSection => IsResultsPage && ActiveSection == "repairs";
     public bool IsStartupSection => IsResultsPage && ActiveSection == "startup";
+    public bool IsLargeFilesSection => IsModulePage && ActiveSection == "largefiles";
+    public bool ShowCleanupSection => IsModulePage && !IsLargeFilesSection;
     public bool ShowFindingResults => HasResults && !IsStartupSection;
     public bool IsHelpSection => IsHistoryPage && ActiveSection == "help";
     public bool IsUndoSection => IsHistoryPage && ActiveSection == "undo";
@@ -33,7 +35,15 @@ public sealed partial class MainViewModel
         void Add(string key, string title, string description, string glyph, string? target = null)
         {
             var status = string.Empty;
-            if ((IsResultsPage || IsModulePage) && target is null && key != "startup" && (key != "all" || IsModulePage))
+            if (key == "largefiles")
+            {
+                status = LargeFiles.Loaded
+                    ? (LargeFiles.Items.Count == 0
+                        ? T("None found")
+                        : new Message("{count} large files", ("count", LargeFiles.Items.Count)).Render(catalog))
+                    : string.Empty;
+            }
+            else if ((IsResultsPage || IsModulePage) && target is null && key != "startup" && (key != "all" || IsModulePage))
             {
                 var findings = AllFindings.Where(item => MatchesSection(key, item.Finding, IsModulePage));
                 var repairs = findings.Sum(item => item.Repairs.Count);
@@ -67,6 +77,7 @@ public sealed partial class MainViewModel
             case AppModules.RepairsKey:
                 Add("all", "Performance and storage", "Review performance and storage improvements.", "\uE90F");
                 Add("cleanup", "Free up space", "Review supported storage cleanups", "\uE74D");
+                Add("largefiles", "Large files", "Find files of 100 MB or larger in your personal folders", "\uE8B7");
                 Add("startup", "Startup apps", "Recorded timings and startup controls", "\uE768", AppModules.ResultsKey);
                 break;
             case "software":
@@ -107,6 +118,11 @@ public sealed partial class MainViewModel
         {
             await Startup.EnsureLoadedAsync();
         }
+        if (IsLargeFilesSection)
+        {
+            await LargeFiles.EnsureLoadedAsync();
+            RebuildSections();
+        }
         if (IsHistoryPage)
         {
             LoadHistory();
@@ -125,6 +141,7 @@ public sealed partial class MainViewModel
         "windows" => finding.Category is Category.WindowsSystem or Category.Security or Category.BootAndRecovery,
         "network" => finding.Category == Category.Network,
         "cleanup" => finding.Id.StartsWith("STORAGE-SPACE", StringComparison.Ordinal),
+        "largefiles" => false,
         "startup" => false,
         _ => true,
     };

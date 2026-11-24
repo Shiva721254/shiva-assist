@@ -68,6 +68,8 @@ public sealed partial class MainViewModel : Observable
                 if (!value) RebuildSections(); // the "Free up space" card shows the measured total
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             });
+        LargeFiles = new LargeFilesViewModel(() => catalog,
+            () => repairing || reviewingRepairs || State == ScreenState.Scanning);
         PropertyChanged += (_, _) => Software.RefreshBusyState();
         IsElevated = WindowsPlatform.IsElevated();
         foreach (var module in AppModules.All)
@@ -153,6 +155,7 @@ public sealed partial class MainViewModel : Observable
             Software.RefreshLanguage();
             Startup.RefreshLanguage();
             Cleanup.RefreshLanguage();
+            LargeFiles.RefreshLanguage();
             RebuildSections();
             ApplyFilter();
         }
@@ -354,7 +357,7 @@ public sealed partial class MainViewModel : Observable
         (false, false) => new Message("{count} problems found", ("count", ProblemCount)).Render(catalog),
     };
 
-    public bool RepairsEmpty => IsModulePage && HasResults && Findings.Count == 0;
+    public bool RepairsEmpty => IsModulePage && !IsLargeFilesSection && HasResults && Findings.Count == 0;
 
     private IEnumerable<RepairButton> AutomaticRepairs => AllFindings.SelectMany(item => item.Repairs)
         .Where(repair => !repair.Operation.NeedsSelection && !repair.Operation.RestartRequired && !repair.Operation.IsUndo
@@ -400,9 +403,9 @@ public sealed partial class MainViewModel : Observable
 
     public bool IsSoonPage => selectedModule.IsSoon;
 
-    public bool ModuleNeedsScan => IsModulePage && State != ScreenState.Results;
+    public bool ModuleNeedsScan => IsModulePage && !IsLargeFilesSection && State != ScreenState.Results;
 
-    public bool ModuleHasResults => IsModulePage && State == ScreenState.Results;
+    public bool ModuleHasResults => IsModulePage && !IsLargeFilesSection && State == ScreenState.Results;
 
     public string TextModuleNeedsScan => T("Start the check-up to see the results for this area.");
 
@@ -617,6 +620,9 @@ public sealed partial class MainViewModel : Observable
 
     /// <summary>Cleanup with preview on the Optimize page.</summary>
     public CleanupViewModel Cleanup { get; }
+
+    /// <summary>Read-only large personal file finder on the Optimize page.</summary>
+    public LargeFilesViewModel LargeFiles { get; }
 
     /// <summary>Overview: problems (and, on request, what is OK). Module page: everything the module found.</summary>
     private void ApplyFilter()

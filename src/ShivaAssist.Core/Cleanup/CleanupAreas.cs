@@ -24,6 +24,8 @@ public static class CleanupAreas
             new Message("Files you deleted earlier. After emptying, they cannot be restored."), ""),
         new(RepairCatalogue.CleanUpdateCache, new Message("Windows Update downloads and crash reports"),
             new Message("Update files Windows already installed, and old crash dump files."), ""),
+        new(RepairCatalogue.CleanShaderCache, new Message("Graphics shader cache"),
+            new Message("Temporary graphics cache files older than 7 days (DirectX, NVIDIA, AMD, Intel). Windows and games recreate them automatically."), "\uE7F4"),
     ];
 
     /// <summary>Total of the areas that are selected and could be measured.</summary>

@@ -71,7 +71,7 @@ public sealed class CleanupAreaTests
     [Fact]
     public void EveryCleanupAreaIsALowRiskCatalogueRepairWithoutSelection()
     {
-        Assert.Equal(4, ShivaAssist.Core.Cleanup.CleanupAreas.All.Count);
+        Assert.Equal(5, ShivaAssist.Core.Cleanup.CleanupAreas.All.Count);
         Assert.All(ShivaAssist.Core.Cleanup.CleanupAreas.All, area =>
         {
             var operation = RepairCatalogue.Find(area.OperationId);

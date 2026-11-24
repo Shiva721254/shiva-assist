@@ -61,7 +61,7 @@ public sealed class FileSystemCheck(ISnapshotSource<FileSystemSnapshot> source) 
 /// <summary>Checks baseline Windows 11 hardware eligibility for Windows 10 PCs without forcing any upgrade.</summary>
 public sealed class Win11ReadinessCheck(ISnapshotSource<Win11ReadinessSnapshot> source) : SnapshotCheck<Win11ReadinessSnapshot>(source)
 {
-    public const string FindingId = "OS-WIN11-READY-001";
+    public const string FindingId = "OS-UPGRADE-001";
     private const long MinRamBytes = 3_800_000_000;      // 4 GB nominal (allowing hardware-reserved RAM)
     private const long MinStorageBytes = 60_000_000_000; // 64 GB nominal (base-10 vs GiB tolerance)
 
@@ -71,7 +71,7 @@ public sealed class Win11ReadinessCheck(ISnapshotSource<Win11ReadinessSnapshot> 
 
     public override Category Category => Category.WindowsSystem;
 
-    public override string FailureId => "WIN11-CHECK-000";
+    public override string FailureId => "OS-UPGRADE-000";
 
     public override IReadOnlyList<Finding> Evaluate(Win11ReadinessSnapshot snapshot, ScanContext context)
     {
