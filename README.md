@@ -2,19 +2,17 @@
 
 **Native Windows diagnosis, verified repair and maintenance software by Shiva Computers.**
 
-> **Development / pre-release snapshot — 24 November 2026.** Branch `codex/software-inventory`, commit `3ee6cd9080693a04e895b67123732c12a21b1eb3`, version **0.1.14**. **CI #53 failed** (250 tests pass, 1 fails: `ServicesTests.AllRunningIsHealthyWithoutRepairs`); packaging and install stages were skipped. No signed website installer has been verified. `main` is 40 commits behind this feature branch. Consult `CLAUDE.md`, `HANDOFF.md` and `AI_CONTINUATION_SPEC.md` before continuing.
+> **Pre-release milestone — 24 November 2026 (v0.2.0).** Branch `codex/software-inventory`, version **0.2.0**. **Full Windows CI is green** (Wave A CI [#57](https://github.com/Shiva721254/shiva-assist/actions/runs/45384235415), Wave B CI [#58](https://github.com/Shiva721254/shiva-assist/actions/runs/45401952310): 651 EN/NL templates, 272 xUnit tests, disposable uninstaller integration, elevated WPF `WorkspaceChecks` with 0 binding errors, x64/ARM64 MSI packaging, and live CLI smoke scan). Public signed website distribution on `assist.shivacomputers.nl` is the remaining Wave C go-live gate. Consult `CLAUDE.md`, `HANDOFF.md`, `AI_CONTINUATION_SPEC.md`, and `tools/installer/README.md`.
 
 **Customer experience:** Start the check-up → Fix it all → Review results. The native WPF dashboard has bilingual EN/NL interface, readable finding cards, prominent one-click safe automatic repairs and a graphical Fixed / Improved / needs-attention summary. Individual choices, software removal and restarts use separate customer interactions. Detailed evidence and PDF/JSON exports remain available.
 
 **Technology:** C#/.NET 10, Windows WPF, separate pure Core checks, Windows sources, elevated allowlisted repair Agent, CLI, net48 bootstrapper, architecture-specific x64/ARM64 MSI packaging.
 
-**Covered areas:** OS/updates/security, system integrity, networking and Wi-Fi services, printer/audio/search/time services, disks and SSD wear, CPU/memory, crash/stability history, battery, startup apps, installed software, WinGet update, conservative uninstall/leftovers, measured cleanup, scheduled read-only check-up and Quick Assist launcher. Catalog contains **23 operations including two undo actions**; not all are batch eligible.
+**Covered areas:** OS/updates/Windows 11 readiness, security (Defender real-time, definitions, quick scan, Firewall with 3rd-party guards), system integrity (DISM/SFC), NTFS file system health, networking (layers, Wi-Fi service, adapter reset, broken proxy with Undo), Bluetooth/printer/queue/audio/search/time services, disks and SSD wear, CPU/memory, crash/stability history, System Protection & BitLocker awareness, battery, startup apps, installed software, multi-select WinGet batch updates, conservative uninstall/leftovers, 5-area measured cleanup (incl. shader cache), Quick Windows fixes (Explorer, icon cache, Store cache), read-only Large Files finder, scheduled read-only check-up, and Quick Assist launcher. Catalogue contains **37 allowlisted operations including 3 undo actions**; selection, restart, and undo actions stay outside `Fix it all` and are labelled with clear tier badges.
 
 **Safety:** Unknown ≠ Healthy; a command exiting successfully ≠ verified Fixed; selective user actions and restarts are never silently bundled. Protect customer data, all credentials and BitLocker recovery keys. Never implement registry-cleaner-style or fake performance claims.
 
-**Current blocker:** [CI run #53](https://github.com/Shiva721254/shiva-assist/actions/runs/44704360055) has 250 passed and one failing service test. Diagnose source/fixture before changing code, then obtain green complete CI for the actual source SHA.
-
-**Documentation navigation:** [AI agent instructions](CLAUDE.md) · [detailed architecture and 23-operation handoff](HANDOFF.md) · [AI continuation specification](AI_CONTINUATION_SPEC.md) · [version history](CHANGELOG.md) · [installer/release rules](tools/installer/README.md).
+**Documentation navigation:** [AI agent instructions](CLAUDE.md) · [detailed architecture and 37-operation handoff](HANDOFF.md) · [AI continuation specification](AI_CONTINUATION_SPEC.md) · [version history](CHANGELOG.md) · [installer/release rules](tools/installer/README.md).
 
 ---
 ## What it checks
@@ -201,38 +199,50 @@ Planned modules from the *Shiva Utilities* strategy (storage manager, network to
 
 The new bootstrapper and signed release workflow are documented in [tools/installer/README.md](tools/installer/README.md). CI provides an unsigned **shiva-assist-installer-lab** for VM testing. Public distribution requires a configured trusted signing certificate and hosted release files; it is not yet live on the website.
 
-## Current repair catalogue IDs (v0.1.14)
+## Current repair catalogue IDs (v0.2.0)
 
-The following is the source-defined **23-operation** list, including two Undo operations, **not** a list of 23 automatic repairs. For exact risk, eligibility, flags and verification see `src/ShivaAssist.Core/Repairs/RepairCatalogue.cs`.
+The following is the source-defined **37-operation** catalogue, including **3 Undo operations** (`STARTUP.PROGRAMS.RESTORE`, `SOFTWARE.LEFTOVERS.RESTORE`, `NET.PROXY.RESTORE`). Not all operations are eligible for one-click `Fix it all`; for exact risk, eligibility, flags and verification see `src/ShivaAssist.Core/Repairs/RepairCatalogue.cs` and `HANDOFF.md`.
 
-1. `DISK.RECYCLEBIN.EMPTY`
-2. `DISK.TEMP.CLEAN`
-3. `DISK.COMPONENTS.CLEANUP`
-4. `STARTUP.PROGRAMS.DISABLE`
-5. `WIN.SYSTEMFILES.REPAIR`
-6. `DISK.UPDATECACHE.CLEAN`
-7. `NET.DNS.FLUSH`
-8. `NET.ADDRESS.RENEW`
-9. `SECURITY.DEFENDER.UPDATE`
-10. `UPDATE.RESTART.NOW`
-11. `UPDATE.COMPONENTS.RESET`
-12. `STARTUP.PROGRAMS.RESTORE` (Undo)
-13. `SOFTWARE.PACKAGE.UPDATE`
-14. `SOFTWARE.PROGRAM.UNINSTALL`
-15. `SOFTWARE.LEFTOVERS.CLEAN`
-16. `SOFTWARE.LEFTOVERS.RESTORE` (Undo)
-17. `PRINT.SPOOLER.RESET`
-18. `TIME.SYNC.REPAIR`
-19. `DISK.BROWSERCACHE.CLEAN`
-20. `AUDIO.SERVICE.REPAIR`
-21. `SEARCH.SERVICE.REPAIR`
-22. `NET.WIFI.START`
-23. `NET.STACK.RESET`
+1. `SOFTWARE.PROGRAM.UNINSTALL` (Medium, Selection)
+2. `SOFTWARE.LEFTOVERS.CLEAN` (Low, Selection)
+3. `SOFTWARE.LEFTOVERS.RESTORE` (Undo)
+4. `SOFTWARE.PACKAGE.UPDATE` (Low, Selection / batch)
+5. `DISK.RECYCLEBIN.EMPTY`
+6. `DISK.TEMP.CLEAN`
+7. `DISK.COMPONENTS.CLEANUP`
+8. `STARTUP.PROGRAMS.DISABLE` (Low, Selection)
+9. `WIN.SYSTEMFILES.REPAIR` (Medium)
+10. `DISK.UPDATECACHE.CLEAN`
+11. `NET.DNS.FLUSH`
+12. `NET.ADDRESS.RENEW`
+13. `NET.ADAPTER.RESET`
+14. `NET.PROXY.RESET`
+15. `NET.PROXY.RESTORE` (Undo)
+16. `SECURITY.DEFENDER.UPDATE`
+17. `SECURITY.DEFENDER.ENABLE`
+18. `SECURITY.DEFENDER.QUICKSCAN`
+19. `SECURITY.FIREWALL.ENABLE`
+20. `UPDATE.RESTART.NOW` (Restart)
+21. `UPDATE.COMPONENTS.RESET` (Medium)
+22. `STARTUP.PROGRAMS.RESTORE` (Undo)
+23. `PRINT.SPOOLER.RESET`
+24. `PRINT.QUEUE.RESUME`
+25. `TIME.SYNC.REPAIR`
+26. `DISK.BROWSERCACHE.CLEAN`
+27. `DISK.SHADERCACHE.CLEAN`
+28. `AUDIO.SERVICE.REPAIR`
+29. `SEARCH.SERVICE.REPAIR`
+30. `NET.WIFI.START`
+31. `DEVICE.BLUETOOTH.REPAIR`
+32. `RECOVERY.PROTECTION.ENABLE`
+33. `STORAGE.CHKDSK.SCHEDULE` (Medium, Restart)
+34. `SHELL.EXPLORER.RESTART` (Quick fix)
+35. `SHELL.ICONCACHE.REBUILD` (Quick fix)
+36. `APPS.STORE.RESET` (Quick fix)
+37. `NET.STACK.RESET` (Medium, Restart)
 
-## Verification and public release status (24 November 2026)
+## Verification and public release status (24 November 2026 — v0.2.0)
 
-Run `python tools/check_translations.py`, `dotnet build ShivaAssist.slnx --configuration Release`, `dotnet test tests/ShivaAssist.Tests --configuration Release`. At CI run #53 translations and build succeeded, 250/251 xUnit tests passed, and later Windows integration/installer/smoke steps were skipped. Re-run on a corrected SHA. `release.yml` supports rehearsal or Azure-signed artifacts, **not** automatic deployment. Public code signing, certified publisher identity, clean installed x64/ARM64 validation, secure website upload and end-to-end public download remain unfinished. The bootstrapper must reject unsigned/wrong-publisher payloads; rehearsal files must not be distributed.
+Run `python tools/check_translations.py`, `dotnet build ShivaAssist.slnx --configuration Release`, and `dotnet test tests/ShivaAssist.Tests --configuration Release`. Full Windows CI (run [#58 / 45401952310](https://github.com/Shiva721254/shiva-assist/actions/runs/45401952310)) is **100% green** across all 651 templates, 272 xUnit tests, disposable uninstaller integration, elevated WPF `WorkspaceChecks` (0 binding errors), x64/ARM64 publish, WiX MSI packaging, bootstrapper tests, disposable install/repair/upgrade/uninstall, and live CLI smoke scan.
 
-## Next AI session
-
-Read `AI_CONTINUATION_SPEC.md`; inspect remote HEAD and local dirty work, reproduce the specific service-state failing test, decide whether the fixture or eligibility code is incorrect, preserve Unknown semantics, request source-change authorization, then apply a minimal correction and verify CI. Continue useful Windows detection/repair/verification rather than commercial release first.
+`.github/workflows/release.yml` supports zero-cost unsigned rehearsal (`rehearsal-*` tag) and Azure Artifact Signing (OIDC + `PublisherIdentityOid` EKU + RFC 3161 timestamp), without auto-deploying. Public code signing, STRATO staging/cutover on `assist.shivacomputers.nl`, and clean x64/ARM64 customer install validation are tracked in Wave C (see `tools/installer/README.md`).

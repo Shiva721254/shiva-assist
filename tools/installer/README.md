@@ -3,7 +3,9 @@
 The small `ShivaAssistSetup.exe` uses Windows' .NET Framework 4.8 (not a bundled .NET 10 runtime).
 It requests UAC at launch, detects native x64/ARM64, retrieves a fixed HTTPS release manifest,
 streams the correct MSI with progress/cancellation, validates exact size and SHA-256, and checks
-Windows Authenticode trust **and the pinned SHA-256 of the signing certificate**. It checks the
+Windows Authenticode trust (timestamp-aware via `WinVerifyTrust`) **and verifies that the signing
+certificate's Extended Key Usage contains both Code Signing (`1.3.6.1.5.5.7.3.3`) and the pinned
+`PublisherIdentityOid` (`1.3.6.1.4.1.311.97.…`)**. It checks the
 MSI manufacturer/version/architecture-specific UpgradeCode before invoking System32/msiexec.
 After installation it verifies registration, the installed app's hash and signer before opening it.
 The MSI installs the three self-contained executables under Program Files, adds a Start menu
@@ -38,8 +40,17 @@ on a test folder. The public setup refuses these unsigned files by design: never
 
 **Signed release:**
 
-1. Azure Artifact Signing: paid (Pay-As-You-Go) subscription, signing account, completed **Organization** identity
-   validation and a **Public Trust** certificate profile.
+1. Azure Artifact Signing: paid (**Pay-As-You-Go**) Azure subscription (free, trial and student subscriptions are not
+   supported), signing account in West Europe, completed **Organization** identity validation and a **Public Trust**
+   certificate profile.
+   - *Netherlands sole proprietorship (eenmanszaak / KVK) note:* **Individual** Public Trust validation is restricted to
+     the US and Canada, so Netherlands businesses must use **Organization** Public Trust validation (supported across the
+     EU, Basic tier $9.99/month). Prepare a recent official KVK *uittreksel Handelsregister* (English or Dutch), confirm
+     the visiting address is not shielded in KVK, and ensure `Shiva Computers` matches the registered *handelsnaam*.
+     If automated vetting stalls in "In Progress" for more than 5 business days, escalate via Azure Support to the
+     Artifact Signing validation team. If Organization validation is declined for an *eenmanszaak*, fall back to a cloud
+     OV code-signing certificate (e.g. SSL.com eSigner or Sectigo OV) and update `WindowsInstallerApi.cs` +
+     `New-ReleaseManifest.ps1` + `release.yml` accordingly.
 2. App registration with a federated credential for this repository (OIDC, no stored password) and the role
    **Artifact Signing Certificate Profile Signer** on the signing account.
 3. Repository settings → Secrets and variables → Actions:

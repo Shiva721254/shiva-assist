@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-11-24) — Wave A & Wave B PC Maintenance Upgrade
+
+- **CI & Wi-Fi service test fix:** Fixed `ServicesTests.AllRunningIsHealthyWithoutRepairs` fixture to include `WlanSvc` and `WifiAdapterPresent: true` and added an `Unknown` regression test without weakening `Unknown != Healthy`.
+- **Wave A — 9 new verified Windows checks & catalogue repairs:**
+  - **Firewall (`SECURITY.FIREWALL.ENABLE`):** Turns Windows Defender Firewall back on per profile only when no active third-party firewall is registered in `SecurityCenter2\FirewallProduct`.
+  - **Bluetooth (`DEVICE-BLUETOOTH-001`, `DEVICE.BLUETOOTH.REPAIR`):** Detects stopped Bluetooth Support Service (`bthserv`) on confirmed Bluetooth hardware without logging personal device names; restarts safely without altering startup type or pairings.
+  - **Paused/offline printers (`PRINT-QUEUE-001`, `PRINT.QUEUE.RESUME`):** Detects paused or Work Offline printer queues without logging printer `PortName` (SIDs) and resumes them without deleting waiting print jobs.
+  - **Defender real-time protection & quick scan (`SECURITY.DEFENDER.ENABLE`, `SECURITY-SCAN-001`, `SECURITY.DEFENDER.QUICKSCAN`):** Re-enables Defender only when no other antivirus is active (respecting Tamper Protection) and flags stale quick scans (>30 days) with an on-demand `MpCmdRun -Scan -ScanType 1` repair.
+  - **Network adapter & broken proxy (`NET.ADAPTER.RESET`, `NETWORK-PROXY-001`, `NET.PROXY.RESET`, `NET.PROXY.RESTORE`):** Restarts active physical Wi-Fi/Ethernet adapters without rebooting; detects dead manual HKCU proxies and disables `ProxyEnable` with privacy-safe one-click Undo in History.
+  - **System Protection & BitLocker awareness (`RECOVERY-PROTECTION-001`, `RECOVERY.PROTECTION.ENABLE`, `RECOVERY-BITLOCKER-001`):** Detects disabled System Protection and enables it while respecting Group Policy (`DisableSR`); adds a read-only BitLocker status reminder that never reads or logs recovery keys.
+- **Wave B — File system health, Windows 11 readiness, cleanup & UX upgrades:**
+  - **File system dirty bit (`STORAGE-FS-001`, `STORAGE.CHKDSK.SCHEDULE`):** Read-only `fsutil dirty query` / volume health check plus Medium-risk `chkntfs /c` scheduling on next restart (restore point first; never forces a reboot).
+  - **Windows 11 readiness (`OS-UPGRADE-001`):** Read-only TPM 2.0, Secure Boot, UEFI/GPT, RAM, storage, and OS build readiness check.
+  - **Graphics shader cache (`DISK.SHADERCACHE.CLEAN`):** Added as the 5th measured cleanup area in Optimize (DirectX, NVIDIA, AMD, Intel caches >7 days old; skips reparse points and files in use).
+  - **Quick Windows fixes (Optimize):** Safe on-demand actions with confirmation and audit logging for `SHELL.EXPLORER.RESTART`, `SHELL.ICONCACHE.REBUILD`, and `APPS.STORE.RESET`.
+  - **Batch program updates (Software):** Multi-select checkboxes and one-click **"Update N selected programs"** with sequential per-app progress and post-install verification.
+  - **Read-only Large Files finder (Optimize → Large files):** Bounded scan (`>= 100 MB`, max 50 results / 25,000 entries, skips links) across Downloads, Videos, Desktop and Documents with **Open folder**; never deletes personal files.
+  - **Automation tier badges:** Clear **Automatic**, **Your choice**, and **Needs restart** badges directly on finding repair buttons.
+- **Wave C prep:** Aligned `tools/installer/README.md` with actual `PublisherIdentityOid` EKU trust verification in `ShivaAssist.Setup`, added Netherlands *eenmanszaak* (KVK) code-signing notes, and updated project handoff docs to v0.2.0 (37 catalogue operations, 3 undo actions, 651 EN/NL templates).
+
+## 0.1.14 (historical pre-0.2.0)
 
 - 0.1.14: Wi-Fi: detect and start a stopped automatic WLAN AutoConfig service on a confirmed enabled physical wireless adapter. Disabled services are left unchanged; verification checks service state, not internet access.
 
