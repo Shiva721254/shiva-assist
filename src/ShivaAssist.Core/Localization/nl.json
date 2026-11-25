@@ -799,6 +799,9 @@
     "Automatic": "Automatisch",
     "Your choice": "Uw keuze",
     "Needs restart": "Herstart nodig",
-    "Size": "Grootte"
+    "Size": "Grootte",
+    "Get remote help": "Hulp op afstand krijgen",
+    "Could not be fixed automatically? Connect with a Shiva Computers technician for safe, consent-based remote help.": "Kon dit niet automatisch worden opgelost? Maak verbinding met een technicus van Shiva Computers voor veilige hulp op afstand met uw toestemming.",
+    "Open Quick Assist or request remote help from Shiva Computers": "Open Snelle hulp of vraag hulp op afstand aan bij Shiva Computers"
   }
 }

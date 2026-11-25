@@ -39,6 +39,17 @@
                        TextWrapping="Wrap" Margin="0,8,0,0" />
             <TextBlock Text="{Binding Outcome}" Visibility="{Binding HasOutcome, Converter={StaticResource Visible}}"
                        Foreground="{Binding OutcomeColour}" FontWeight="SemiBold" Margin="0,8,0,0" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Visibility="{Binding ShowRemoteHelp, Converter={StaticResource Visible}}" Margin="0,12,0,0">
+              <Button Style="{StaticResource QuietButton}"
+                      Command="{Binding DataContext.OpenRemoteHelpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                      ToolTip="{Binding DataContext.TextHeroRemoteHelpTooltip, RelativeSource={RelativeSource AncestorType=Window}}"
+                      AutomationProperties.Name="{Binding DataContext.TextGetRemoteHelp, RelativeSource={RelativeSource AncestorType=Window}}">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xE7F8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <TextBlock Text="{Binding DataContext.TextGetRemoteHelp, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
             <ItemsControl ItemsSource="{Binding Repairs}" Visibility="{Binding HasRepairs, Converter={StaticResource Visible}}" Margin="0,12,0,0">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -186,6 +197,25 @@
             <TextBlock Text="{Binding TextRepairCoverage}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
             <TextBlock Text="{Binding TextLastBatch}" Foreground="{StaticResource GreenDark}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"
                        Visibility="{Binding HasRepairSummary, Converter={StaticResource Visible}}" />
+            <Border Visibility="{Binding ShowHeroRemoteHelp, Converter={StaticResource Visible}}" Background="{StaticResource GreenSoft}"
+                    CornerRadius="12" Padding="12,10" Margin="0,10,0,0">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                  <Button Style="{StaticResource PrimaryButton}" Command="{Binding OpenRemoteHelpCommand}"
+                          ToolTip="{Binding TextHeroRemoteHelpTooltip}" Padding="16,8" FontSize="14"
+                          AutomationProperties.Name="{Binding TextGetRemoteHelp}">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="&#xE7F8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <TextBlock Text="{Binding TextGetRemoteHelp}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
+                  <Button Style="{StaticResource QuietButton}" Content="{Binding TextQuickAssist}" Command="{Binding QuickAssistCommand}"
+                          Margin="8,0,0,0" Padding="14,8" AutomationProperties.Name="{Binding TextQuickAssist}" />
+                </StackPanel>
+                <TextBlock Text="{Binding TextHeroRemoteHelpHint}" Foreground="{StaticResource GreenDark}" FontWeight="SemiBold"
+                           TextWrapping="Wrap" VerticalAlignment="Center" />
+              </DockPanel>
+            </Border>
             <Expander Header="{Binding TextFixAllPlanTitle}" Margin="0,8,0,0" Foreground="{StaticResource GreenDark}"
                       Visibility="{Binding HasFixAllPlan, Converter={StaticResource Visible}}">
               <ItemsControl ItemsSource="{Binding FixAllPlan}" Margin="20,6,0,0">

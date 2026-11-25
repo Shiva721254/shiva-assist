@@ -49,6 +49,9 @@ public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog, Repa
 
     public bool HasRepairs => Repairs.Count > 0;
 
+    /// <summary>Shown on Warning/Critical findings that have no automatic catalogue repair.</summary>
+    public bool ShowRemoteHelp => Finding.Severity is Severity.Critical or Severity.Warning && !HasRepairs;
+
     public string? Outcome => repairs?.Outcome(Finding.Id);
 
     public bool HasOutcome => Outcome is not null;

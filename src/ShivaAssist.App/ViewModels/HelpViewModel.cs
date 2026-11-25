@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Input;
 using ShivaAssist.Core.Localization;
+using ShivaAssist.Core.Reporting;
 using ShivaAssist.Windows.Maintenance;
 
 namespace ShivaAssist.App.ViewModels;
@@ -31,6 +32,7 @@ public sealed partial class MainViewModel
     private RelayCommand? rescueCommand;
     private RelayCommand? remoteHelpCommand;
     private RelayCommand? quickAssistCommand;
+    private RelayCommand? openRemoteHelpCommand;
 
     public RelayCommand ToggleMonthlyCommand => toggleMonthlyCommand ??= new RelayCommand(async _ => await ToggleMonthlyAsync(), _ => !monthlyBusy && MonthlyCheckup.Available);
 
@@ -41,6 +43,19 @@ public sealed partial class MainViewModel
     public RelayCommand RemoteHelpCommand => remoteHelpCommand ??= new RelayCommand(_ => Open(HelpUrl.Replace("{lang}", catalog.Language.Code == "nl" ? "nl" : "en", StringComparison.Ordinal) + "?topic=remote-help"));
 
     public RelayCommand QuickAssistCommand => quickAssistCommand ??= new RelayCommand(_ => StartQuickAssist());
+
+    /// <summary>Opens History and help -> Get help so the customer can start Quick Assist or request remote help.</summary>
+    public RelayCommand OpenRemoteHelpCommand => openRemoteHelpCommand ??= new RelayCommand(async _ =>
+        await SelectSectionAsync(new WorkspaceSection("help", T("Get help"), T("Contact Shiva Computers"), "", AppModules.HistoryKey, true, string.Empty)));
+
+    /// <summary>Shown in the hero card when problems exist (or remain after Fix it all) that cannot be fixed automatically.</summary>
+    public bool ShowHeroRemoteHelp => HasResults && !IsFixingAll && ProblemCount > 0 && !HasFixAllPlan;
+
+    public string TextGetRemoteHelp => T("Get remote help");
+
+    public string TextHeroRemoteHelpHint => T("Could not be fixed automatically? Connect with a Shiva Computers technician for safe, consent-based remote help.");
+
+    public string TextHeroRemoteHelpTooltip => T("Open Quick Assist or request remote help from Shiva Computers");
 
     public string? HelpStatus => helpStatus;
 
