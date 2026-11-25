@@ -11,7 +11,7 @@ namespace ShivaAssist.Windows.Repairs;
 /// Executes catalogue repairs on Windows. Every operation validates its own input again, because the same code
 /// runs inside the elevated helper, which must not trust the job file blindly.
 /// </summary>
-public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
+public sealed partial class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
 {
     private static readonly TimeSpan TempAge = TimeSpan.FromDays(7);
 
@@ -42,10 +42,35 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             RepairCatalogue.CleanUpdateCache => await CleanUpdateCacheAsync(job, cancellationToken),
             RepairCatalogue.FlushDns => await RunToolAsync(job, ToolRunner.System32("ipconfig.exe"), ["/flushdns"], "DNS cache cleared", cancellationToken),
             RepairCatalogue.RenewAddress => await RenewAddressAsync(job, cancellationToken),
+            RepairCatalogue.ResetNetworkAdapter => await ResetNetworkAdaptersAsync(job, cancellationToken),
+            RepairCatalogue.ResetProxy => ResetProxy(job),
+            RepairCatalogue.RestoreProxy => RestoreProxy(job),
             RepairCatalogue.UpdateDefender => await RunToolAsync(job, DefenderCommandLine(), ["-SignatureUpdate"], "Microsoft Defender definitions updated", cancellationToken),
-            RepairCatalogue.RestartNow => await RunToolAsync(job, ToolRunner.System32("shutdown.exe"), ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken),
+            RepairCatalogue.EnableDefender => await EnableDefenderAsync(job, cancellationToken),
+            RepairCatalogue.DefenderQuickScan => await RunDefenderQuickScanAsync(job, cancellationToken),
+            RepairCatalogue.EnableFirewall => await EnableFirewallAsync(job, cancellationToken),
+            RepairCatalogue.RestartNow => await ScheduleRestartAsync(job, cancellationToken),
             RepairCatalogue.ResetUpdateComponents => await ResetUpdateComponentsAsync(job, cancellationToken),
             RepairCatalogue.RestoreStartupPrograms => RestoreStartupPrograms(job),
+            RepairCatalogue.UpdateSoftware => await UpdateSoftwareAsync(job, cancellationToken),
+            RepairCatalogue.UninstallSoftware => await UninstallSoftwareAsync(job, cancellationToken),
+            RepairCatalogue.CleanSoftwareLeftovers => UninstallerService.Clean(job),
+            RepairCatalogue.RestoreSoftwareLeftovers => UninstallerService.Restore(job),
+            RepairCatalogue.ResetPrintSpooler => await ResetPrintSpoolerAsync(job, cancellationToken),
+            RepairCatalogue.ResumePrinterQueues => await ResumePrinterQueuesAsync(job, cancellationToken),
+            RepairCatalogue.SyncClock => await SyncClockAsync(job, cancellationToken),
+            RepairCatalogue.CleanBrowserCache => CleanBrowserCache(job),
+            RepairCatalogue.CleanShaderCache => CleanShaderCache(job),
+            RepairCatalogue.RepairAudioService => await RepairServicesAsync(job, ["AudioEndpointBuilder", "Audiosrv"], "Automatic", cancellationToken),
+            RepairCatalogue.RepairSearchService => await RepairServicesAsync(job, ["WSearch"], "AutomaticDelayed", cancellationToken),
+            RepairCatalogue.RepairWifiService => await StartWifiServiceAsync(job, cancellationToken),
+            RepairCatalogue.RepairBluetoothService => await StartBluetoothServiceAsync(job, cancellationToken),
+            RepairCatalogue.EnableSystemProtection => await EnableSystemProtectionAsync(job, cancellationToken),
+            RepairCatalogue.ScheduleFileSystemRepair => await ScheduleFileSystemRepairAsync(job, cancellationToken),
+            RepairCatalogue.RestartExplorer => await RestartExplorerAsync(job, cancellationToken),
+            RepairCatalogue.RebuildIconCache => await RebuildIconCacheAsync(job, cancellationToken),
+            RepairCatalogue.ResetStoreCache => await ResetStoreCacheAsync(job, cancellationToken),
+            RepairCatalogue.ResetNetworkStack => await ResetNetworkStackAsync(job, cancellationToken),
             _ => throw new InvalidOperationException($"No implementation for {operation.Id}."),
         };
 
@@ -118,6 +143,20 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
         };
     }
 
+    /// <summary>
+    /// Restart in two minutes. Exit code 1190 (ERROR_SHUTDOWN_IS_SCHEDULED) means a restart is already on its way, from an
+    /// earlier click or from Windows Update itself: that is the outcome the customer asked for, not a failure.
+    /// </summary>
+    private static async Task<RepairResult> ScheduleRestartAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        const int ShutdownAlreadyScheduled = 1190;
+        var result = await RunToolAsync(job, ToolRunner.System32("shutdown.exe"),
+            ["/r", "/t", "120", "/c", "Shiva Assist: restarting in 2 minutes to finish Windows updates."], "Restart scheduled in 2 minutes", cancellationToken);
+        return result.Completed || !result.Detail.Contains("exit code " + ShutdownAlreadyScheduled.ToString(CultureInfo.InvariantCulture) + ":", StringComparison.Ordinal)
+            ? result
+            : result with { Completed = true, Detail = "A restart was already scheduled. Windows restarts within a few minutes; save your work." };
+    }
+
     /// <summary>Runs one Microsoft tool; exit code 0 means done.</summary>
     private static async Task<RepairResult> RunToolAsync(RepairJob job, string executable, string[] arguments, string done, CancellationToken cancellationToken)
     {
@@ -141,6 +180,609 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
     }
 
     /// <summary>ipconfig /release then /renew: the router hands out a fresh address.</summary>
+    /// <summary>
+    /// Stops the Print Spooler, removes only queued job files (*.SPL, *.SHD, *.TMP) from the system spool folder,
+    /// sets a disabled spooler back to automatic start and starts it again. Verified by repeating the print check.
+    /// </summary>
+    private static async Task<RepairResult> ResetPrintSpoolerAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $svc = Get-Service -Name Spooler -ErrorAction Stop
+            $previous = "$($svc.StartType)"
+            if ($svc.StartType -eq 'Disabled') { Set-Service -Name Spooler -StartupType Automatic }
+            Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
+            try { (Get-Service -Name Spooler).WaitForStatus('Stopped', [TimeSpan]::FromSeconds(20)) } catch { }
+            $queue = Join-Path $env:SystemRoot 'System32\spool\PRINTERS'
+            $removed = 0
+            Get-ChildItem -LiteralPath $queue -File -Force -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in '.SPL', '.SHD', '.TMP' -and -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) } |
+                ForEach-Object {
+                    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
+                    if (-not (Test-Path -LiteralPath $_.FullName)) { $removed++ }
+                }
+            Start-Service -Name Spooler -ErrorAction SilentlyContinue
+            try { (Get-Service -Name Spooler).WaitForStatus('Running', [TimeSpan]::FromSeconds(20)) } catch { }
+            $running = (Get-Service -Name Spooler).Status -eq 'Running'
+            [pscustomobject]@{ previous = $previous; removed = $removed; running = $running } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var running = PowerShell.Bool(json, "running");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = running,
+            Detail = string.Create(CultureInfo.InvariantCulture,
+                $"Print Spooler {(running ? "running again" : "did not start")}; removed {PowerShell.Long(json, "removed")} queued job file(s); start type was {PowerShell.Str(json, "previous")}"),
+        };
+    }
+
+    /// <summary>
+    /// Re-enables W32Time (manual start, as Windows ships it) when disabled, starts it and forces a resync. Only when
+    /// Windows has no time source at all is the standard Microsoft server configured. Verified by measuring again.
+    /// </summary>
+    private static async Task<RepairResult> SyncClockAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $w32tm = "$env:SystemRoot\System32\w32tm.exe"
+            $svc = Get-Service -Name W32Time -ErrorAction Stop
+            $previous = "$($svc.StartType)"
+            if ($previous -eq 'Disabled') { Set-Service -Name W32Time -StartupType Manual }
+            if ($svc.Status -ne 'Running') { Start-Service -Name W32Time -ErrorAction Stop }
+            $out = & $w32tm /resync /force 2>&1
+            $ok = $LASTEXITCODE -eq 0
+            $configured = $false
+            if (-not $ok) {
+                & $w32tm /config /manualpeerlist:time.windows.com,0x9 /syncfromflags:manual /update 2>&1 | Out-Null
+                $configured = $true
+                Start-Sleep -Seconds 2
+                $out = & $w32tm /resync /force 2>&1
+                $ok = $LASTEXITCODE -eq 0
+            }
+            [pscustomobject]@{ ok = $ok; previous = $previous; configured = $configured } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var ok = PowerShell.Bool(json, "ok");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = string.Create(CultureInfo.InvariantCulture,
+                $"w32tm /resync {(ok ? "succeeded" : "failed")}; service start type was {PowerShell.Str(json, "previous")}{(PowerShell.Bool(json, "configured") ? "; time source set to time.windows.com" : string.Empty)}"),
+        };
+    }
+
+    /// <summary>
+    /// Switches fixed, built-in Windows services back on (start type as Windows ships it) and (re)starts them in the
+    /// given order. The service names come from the catalogue switch above, never from the job file.
+    /// </summary>
+    private static async Task<RepairResult> RepairServicesAsync(RepairJob job, string[] services, string startType, CancellationToken cancellationToken)
+    {
+        var list = string.Join(",", services.Select(name => "'" + name + "'"));
+        var json = await PowerShell.QueryAsync($$"""
+            $previous = @()
+            foreach ($name in @({{list}})) {
+                $svc = Get-Service -Name $name -ErrorAction Stop
+                $previous += "$($name)=$($svc.StartType)"
+                if ("$($svc.StartType)" -eq 'Disabled') {
+                    if ('{{startType}}' -eq 'AutomaticDelayed') { & "$env:SystemRoot\System32\sc.exe" config $name start= delayed-auto | Out-Null }
+                    else { Set-Service -Name $name -StartupType Automatic }
+                }
+            }
+            foreach ($name in @({{list}})) {
+                $svc = Get-Service -Name $name
+                if ($svc.Status -eq 'Running') { Restart-Service -Name $name -Force -ErrorAction SilentlyContinue } else { Start-Service -Name $name -ErrorAction SilentlyContinue }
+                try { (Get-Service -Name $name).WaitForStatus('Running', [TimeSpan]::FromSeconds(20)) } catch { }
+            }
+            $running = @(foreach ($name in @({{list}})) { (Get-Service -Name $name).Status -eq 'Running' }) -notcontains $false
+            [pscustomobject]@{ running = $running; previous = ($previous -join '; ') } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var running = PowerShell.Bool(json, "running");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = running,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"{string.Join(", ", services)} {(running ? "running" : "did not start")}; previous start types: {PowerShell.Str(json, "previous")}"),
+        };
+    }
+
+    /// <summary>Start only a confirmed stopped automatic WLAN service; do not change its configuration.</summary>
+    private static async Task<RepairResult> StartWifiServiceAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $wifi = @(Get-NetAdapter -Physical -ErrorAction Stop | Where-Object {
+                [int]$_.NdisPhysicalMedium -in 1,9 -and $_.Status -in 'Up','Disconnected'
+            }).Count -gt 0
+            $svc = Get-Service -Name WlanSvc -ErrorAction Stop
+            if ($wifi -and $svc.StartType -eq 'Automatic' -and $svc.Status -eq 'Stopped') {
+                Start-Service -Name WlanSvc -ErrorAction Stop
+                (Get-Service -Name WlanSvc).WaitForStatus('Running', [TimeSpan]::FromSeconds(20))
+            }
+            $running = $wifi -and (Get-Service -Name WlanSvc).Status -eq 'Running'
+            [pscustomobject]@{ running = $running } | ConvertTo-Json -Compress
+            """, cancellationToken);
+        var running = PowerShell.Bool(json, "running");
+        return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = running,
+            Detail = running ? "WlanSvc running" : "Wi-Fi service not running; no eligible start or start failed" };
+    }
+
+    /// <summary>Re-enable disabled Windows Firewall profiles only after confirming no third-party firewall is active.</summary>
+    private static async Task<RepairResult> EnableFirewallAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $allowed = @('Domain', 'Private', 'Public')
+            try {
+                $thirdParty = @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduct -ErrorAction Stop | Where-Object {
+                    $name = "$($_.displayName)".Trim()
+                    $name.Length -gt 0 -and $name -notin 'Windows Firewall','Windows Defender Firewall' -and ([int]$_.productState -band 0x1000) -ne 0
+                })
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Could not verify whether another firewall is active; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($thirdParty.Count -gt 0) {
+                [pscustomobject]@{ ok = $false; detail = 'Another firewall is active; Windows Firewall was not changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $svc = Get-Service -Name mpssvc -ErrorAction SilentlyContinue
+            if ($null -eq $svc -or $svc.Status -ne 'Running') {
+                [pscustomobject]@{ ok = $false; detail = 'Windows Defender Firewall service (mpssvc) is not running; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $before = @(Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetFirewallProfile -ErrorAction Stop | Where-Object { $_.Name -in $allowed })
+            $off = @($before | Where-Object { [int]$_.Enabled -ne 1 } | ForEach-Object { "$($_.Name)" })
+            foreach ($profile in $off) {
+                Set-NetFirewallProfile -Name $profile -Enabled True -ErrorAction Stop
+            }
+            $after = @(Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetFirewallProfile -ErrorAction Stop | Where-Object { $_.Name -in $allowed })
+            $stillOff = @($after | Where-Object { [int]$_.Enabled -ne 1 } | ForEach-Object { "$($_.Name)" })
+            $ok = $after.Count -gt 0 -and $stillOff.Count -eq 0
+            $detail = if ($ok) {
+                if ($off.Count -gt 0) { 'Enabled Windows Firewall profiles: ' + ($off -join ', ') } else { 'Windows Firewall already enabled on all profiles' }
+            } else {
+                'Windows Firewall still off for: ' + ($stillOff -join ', ')
+            }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Re-enable Microsoft Defender real-time protection only when no third-party antivirus is active.</summary>
+    private static async Task<RepairResult> EnableDefenderAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            try {
+                $thirdParty = @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | Where-Object {
+                    $name = "$($_.displayName)".Trim()
+                    $name.Length -gt 0 -and $name -notmatch 'Defender' -and ([int]$_.productState -band 0x1000) -ne 0
+                })
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Could not verify whether another antivirus is active; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($thirdParty.Count -gt 0) {
+                [pscustomobject]@{ ok = $false; detail = 'Another antivirus is active; Microsoft Defender was not changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            try {
+                Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction Stop
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Windows Tamper Protection or policy prevented automatic change; switch Real-time protection on in Windows Security' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $s = Get-CimInstance -Namespace root/Microsoft/Windows/Defender -ClassName MSFT_MpComputerStatus -ErrorAction SilentlyContinue
+            $ok = $null -ne $s -and [bool]$s.AntivirusEnabled -and [bool]$s.RealTimeProtectionEnabled
+            $detail = if ($ok) { 'Microsoft Defender real-time protection is on' } else { 'Real-time protection stayed off (check Tamper Protection in Windows Security)' }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Runs built-in Microsoft Defender Quick Scan. Exit 2 means a threat was found and requires Windows Security review.</summary>
+    private static async Task<RepairResult> RunDefenderQuickScanAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var (exit, output, error) = await ToolRunner.RunAsync(DefenderCommandLine(), ["-Scan", "-ScanType", "1"], cancellationToken);
+        var detail = exit switch
+        {
+            0 => "Microsoft Defender quick scan finished; no threats found",
+            2 => "Microsoft Defender found a threat; open Windows Security to review and remove it",
+            _ => string.Create(CultureInfo.InvariantCulture, $"Microsoft Defender quick scan failed (exit {exit}): {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
+        };
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = exit == 0,
+            Detail = detail,
+        };
+    }
+
+    /// <summary>Start stopped bthserv only when Bluetooth hardware is present and the service is not disabled.</summary>
+    private static async Task<RepairResult> StartBluetoothServiceAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $present = $false
+            try {
+                $present = @(Get-PnpDevice -Class Bluetooth -ErrorAction Stop | Where-Object { $_.Present -eq $true -and $_.Status -eq 'OK' }).Count -gt 0
+            } catch {
+                [pscustomobject]@{ ok = $false; detail = 'Bluetooth hardware could not be confirmed; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if (-not $present) {
+                [pscustomobject]@{ ok = $false; detail = 'No active Bluetooth adapter found; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $svc = Get-Service -Name bthserv -ErrorAction SilentlyContinue
+            if ($null -eq $svc) {
+                [pscustomobject]@{ ok = $false; detail = 'Bluetooth Support Service (bthserv) not found' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($svc.StartType -eq 'Disabled') {
+                [pscustomobject]@{ ok = $false; detail = 'Bluetooth service is disabled; not changed automatically' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            if ($svc.Status -ne 'Running') {
+                Start-Service -Name bthserv -ErrorAction Stop
+                (Get-Service -Name bthserv).WaitForStatus('Running', [TimeSpan]::FromSeconds(20))
+            }
+            $running = (Get-Service -Name bthserv).Status -eq 'Running'
+            [pscustomobject]@{ ok = $running; detail = if ($running) { 'bthserv running' } else { 'bthserv did not start' } } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Resume paused printer queues and clear WorkOffline without deleting waiting print jobs.</summary>
+    private static async Task<RepairResult> ResumePrinterQueuesAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $svc = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+            if ($null -eq $svc -or $svc.Status -ne 'Running') {
+                [pscustomobject]@{ ok = $false; detail = 'Print Spooler is not running; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $touched = @()
+            foreach ($p in @(Get-CimInstance Win32_Printer -ErrorAction Stop)) {
+                $isPaused = ([int]$p.PrinterState -band 1) -ne 0
+                $isOffline = [bool]$p.WorkOffline
+                if ($isPaused) {
+                    Invoke-CimMethod -InputObject $p -MethodName Resume -ErrorAction Stop | Out-Null
+                    $touched += "$($p.Name) (resumed)"
+                }
+                if ($isOffline) {
+                    Set-CimInstance -InputObject $p -Property @{ WorkOffline = $false } -ErrorAction Stop
+                    $touched += "$($p.Name) (online)"
+                }
+            }
+            $stillBlocked = @(Get-CimInstance Win32_Printer -ErrorAction Stop | Where-Object { ([int]$_.PrinterState -band 1) -ne 0 -or [bool]$_.WorkOffline })
+            $ok = $stillBlocked.Count -eq 0
+            $detail = if ($ok) {
+                if ($touched.Count -gt 0) { 'Updated printers: ' + ($touched -join '; ') } else { 'No paused or offline printers found' }
+            } else {
+                'Still paused or offline: ' + (($stillBlocked | ForEach-Object { $_.Name }) -join ', ')
+            }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Restart active physical Wi-Fi/Ethernet adapters without touching disabled, virtual or VPN adapters.</summary>
+    private static async Task<RepairResult> ResetNetworkAdaptersAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $adapters = @(Get-NetAdapter -Physical -ErrorAction Stop | Where-Object { $_.Status -in 'Up','Disconnected' })
+            if ($adapters.Count -eq 0) {
+                [pscustomobject]@{ ok = $false; detail = 'No active physical network adapter found; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $restarted = @()
+            foreach ($a in $adapters) {
+                Restart-NetAdapter -Name $a.Name -Confirm:$false -ErrorAction Stop
+                $restarted += $a.Name
+            }
+            $deadline = (Get-Date).AddSeconds(12)
+            $up = $false
+            while ((Get-Date) -lt $deadline) {
+                $up = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }).Count -gt 0
+                if ($up) { break }
+                Start-Sleep -Milliseconds 500
+            }
+            $detail = if ($up) { 'Restarted adapter(s): ' + ($restarted -join ', ') } else { 'Adapter(s) restarted but did not reconnect yet: ' + ($restarted -join ', ') }
+            [pscustomobject]@{ ok = $up; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Turns off HKCU manual WinINET proxy (ProxyEnable=0) while keeping ProxyServer intact for free Undo.</summary>
+    private static RepairResult ResetProxy(RepairJob job)
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(ProxySource.RegistryPath, writable: true);
+        if (key is null)
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "Internet Settings registry key could not be opened" };
+        }
+
+        var enabled = key.GetValue("ProxyEnable") is int value && value != 0;
+        if (!enabled)
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = true, Detail = "Manual Windows proxy was already off" };
+        }
+
+        key.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
+        var nowOff = key.GetValue("ProxyEnable") is int after && after == 0;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = nowOff,
+            Detail = nowOff ? "Manual Windows proxy turned off (previous proxy setting preserved for Undo)" : "ProxyEnable could not be verified as off",
+            Rollback = nowOff ? ["ProxyEnable=1"] : [],
+        };
+    }
+
+    /// <summary>Restores ProxyEnable=1 from the saved rollback record.</summary>
+    private static RepairResult RestoreProxy(RepairJob job)
+    {
+        if (!job.Items.Contains("ProxyEnable=1", StringComparer.Ordinal))
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "No valid proxy rollback record was supplied" };
+        }
+
+        using var key = Registry.CurrentUser.OpenSubKey(ProxySource.RegistryPath, writable: true);
+        if (key is null)
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "Internet Settings registry key could not be opened" };
+        }
+
+        key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
+        var nowOn = key.GetValue("ProxyEnable") is int after && after == 1;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = nowOn,
+            Detail = nowOn ? "Previous manual Windows proxy restored" : "ProxyEnable could not be verified as restored",
+        };
+    }
+
+    /// <summary>Enables Windows System Protection on the system drive unless disabled by administrator policy.</summary>
+    private static async Task<RepairResult> EnableSystemProtectionAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $pol = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore' -Name DisableSR -ErrorAction SilentlyContinue
+            if ($null -ne $pol -and [int]$pol.DisableSR -ne 0) {
+                [pscustomobject]@{ ok = $false; detail = 'System Protection is disabled by administrator policy; nothing was changed' } | ConvertTo-Json -Compress
+                exit 0
+            }
+            $drive = $env:SystemDrive + '\'
+            Enable-ComputerRestore -Drive $drive -ErrorAction Stop
+            $sr = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' -ErrorAction SilentlyContinue
+            $ok = $null -ne $sr -and [int]$sr.RPSessionInterval -gt 0
+            $detail = if ($ok) { 'System Protection enabled on ' + $drive } else { 'System Protection could not be verified as enabled' }
+            [pscustomobject]@{ ok = $ok; detail = $detail } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = PowerShell.Bool(json, "ok"),
+            Detail = PowerShell.Str(json, "detail"),
+        };
+    }
+
+    /// <summary>Schedules built-in Windows NTFS check on next restart via chkntfs /c without forcing a reboot.</summary>
+    private static async Task<RepairResult> ScheduleFileSystemRepairAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var drive = Environment.GetEnvironmentVariable("SystemDrive");
+        if (string.IsNullOrWhiteSpace(drive) || drive.Length != 2 || drive[1] != ':')
+        {
+            drive = "C:";
+        }
+
+        var chkntfs = ToolRunner.System32("chkntfs.exe");
+        var (exit, output, error) = await ToolRunner.RunAsync(chkntfs, ["/c", drive], cancellationToken);
+        var ok = exit == 0;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = ok
+                ? $"Scheduled Windows disk check on {drive} for the next restart"
+                : string.Create(CultureInfo.InvariantCulture, $"chkntfs failed (exit {exit}): {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
+        };
+    }
+
+    /// <summary>Deletes DirectX/GPU shader cache files older than 7 days from fixed LocalAppData folders (skips links and in-use files).</summary>
+    private static RepairResult CleanShaderCache(RepairJob job)
+    {
+        var cutoff = DateTime.UtcNow - TempAge;
+        var deleted = 0;
+        var skipped = 0;
+        long bytes = 0;
+        var folders = ShaderCaches.Folders();
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System };
+        foreach (var folder in folders)
+        {
+            foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
+            {
+                if (file.LastWriteTimeUtc > cutoff || file.CreationTimeUtc > cutoff)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var length = file.Length;
+                    file.Delete();
+                    deleted++;
+                    bytes += length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    skipped++;
+                }
+            }
+        }
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = true,
+            BytesFreed = bytes,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"Cleaned {folders.Count} shader cache folder(s): {deleted} files deleted, {skipped} skipped"),
+        };
+    }
+
+    /// <summary>Restarts Windows Explorer cleanly to unfreeze the taskbar or Start menu without closing user documents.</summary>
+    private static async Task<RepairResult> RestartExplorerAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 800
+            if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+                Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe') -ErrorAction Stop
+            }
+            $deadline = (Get-Date).AddSeconds(10)
+            $running = $false
+            while ((Get-Date) -lt $deadline) {
+                $running = @(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -gt 0
+                if ($running) { break }
+                Start-Sleep -Milliseconds 300
+            }
+            [pscustomobject]@{ ok = $running } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        var ok = PowerShell.Bool(json, "ok");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = ok ? "Windows Explorer restarted cleanly" : "Windows Explorer did not restart within 10 seconds",
+        };
+    }
+
+    /// <summary>Rebuilds Windows' per-user icon/thumbnail cache files under LocalAppData\Microsoft\Windows\Explorer.</summary>
+    private static async Task<RepairResult> RebuildIconCacheAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var json = await PowerShell.QueryAsync("""
+            $dir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Explorer'
+            $removed = 0
+            Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 900
+            if (Test-Path -LiteralPath $dir) {
+                $item = Get-Item -LiteralPath $dir -Force -ErrorAction SilentlyContinue
+                if ($null -ne $item -and -not ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                    foreach ($f in @(Get-ChildItem -LiteralPath $dir -Filter 'iconcache_*.db' -File -Force -ErrorAction SilentlyContinue) + @(Get-ChildItem -LiteralPath $dir -Filter 'thumbcache_*.db' -File -Force -ErrorAction SilentlyContinue)) {
+                        if (-not ($f.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                            try { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop; $removed++ } catch { }
+                        }
+                    }
+                }
+            }
+            if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+                Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe') -ErrorAction Stop
+            }
+            $deadline = (Get-Date).AddSeconds(10)
+            $running = $false
+            while ((Get-Date) -lt $deadline) {
+                $running = @(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -gt 0
+                if ($running) { break }
+                Start-Sleep -Milliseconds 300
+            }
+            [pscustomobject]@{ ok = $running; removed = $removed } | ConvertTo-Json -Compress
+            """, cancellationToken);
+
+        var ok = PowerShell.Bool(json, "ok");
+        var removed = PowerShell.Long(json, "removed");
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = ok
+                ? string.Create(CultureInfo.InvariantCulture, $"Cleared {removed} icon/thumbnail cache file(s) and restarted Explorer")
+                : string.Create(CultureInfo.InvariantCulture, $"Cleared {removed} cache file(s), but Explorer did not restart cleanly"),
+        };
+    }
+
+    /// <summary>Runs built-in Microsoft Store cache reset (wsreset.exe) with a bounded timeout.</summary>
+    private static async Task<RepairResult> ResetStoreCacheAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var wsreset = ToolRunner.System32("wsreset.exe");
+        if (!File.Exists(wsreset))
+        {
+            return new RepairResult { JobId = job.JobId, OperationId = job.OperationId, Completed = false, Detail = "wsreset.exe was not found on this Windows edition" };
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(60));
+        var (exit, output, error) = await ToolRunner.RunAsync(wsreset, [], timeout.Token);
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = exit == 0,
+            Detail = exit == 0
+                ? "Microsoft Store cache cleared"
+                : string.Create(CultureInfo.InvariantCulture, $"wsreset exited with code {exit}: {Shorten(string.IsNullOrWhiteSpace(error) ? output : error)}"),
+        };
+    }
+
+    /// <summary>netsh winsock reset + netsh int ip reset (Microsoft's documented network reset). Takes effect after a restart.</summary>
+    private static async Task<RepairResult> ResetNetworkStackAsync(RepairJob job, CancellationToken cancellationToken)
+    {
+        var netsh = ToolRunner.System32("netsh.exe");
+        var (winsockExit, winsockOutput, _) = await ToolRunner.RunAsync(netsh, ["winsock", "reset"], cancellationToken);
+        var (ipExit, ipOutput, _) = await ToolRunner.RunAsync(netsh, ["int", "ip", "reset"], cancellationToken);
+        var ok = winsockExit == 0 && ipExit == 0;
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = ok,
+            Detail = string.Create(CultureInfo.InvariantCulture,
+                $"netsh winsock reset: exit {winsockExit}; netsh int ip reset: exit {ipExit}; restart needed. {Shorten(winsockOutput + " " + ipOutput)}"),
+        };
+    }
+
     private static async Task<RepairResult> RenewAddressAsync(RepairJob job, CancellationToken cancellationToken)
     {
         var ipconfig = ToolRunner.System32("ipconfig.exe");
@@ -223,6 +865,44 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
     }
 
     /// <summary>Deletes files older than 7 days in the user's temp folder. Never follows links, skips locked files.</summary>
+    /// <summary>
+    /// Deletes files inside the fixed browser cache folders only (see <see cref="BrowserCaches"/>). Files in use
+    /// (an open browser) are skipped; folders themselves stay so the browser keeps working.
+    /// </summary>
+    private static RepairResult CleanBrowserCache(RepairJob job)
+    {
+        int deleted = 0, skipped = 0;
+        long bytes = 0;
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System };
+        var folders = BrowserCaches.Folders();
+        foreach (var folder in folders)
+        {
+            foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
+            {
+                try
+                {
+                    var length = file.Length;
+                    file.Delete();
+                    deleted++;
+                    bytes += length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    skipped++;
+                }
+            }
+        }
+
+        return new RepairResult
+        {
+            JobId = job.JobId,
+            OperationId = job.OperationId,
+            Completed = true,
+            Detail = string.Create(CultureInfo.InvariantCulture, $"Browser cache: deleted {deleted} files in {folders.Count} cache folders; skipped {skipped} in use"),
+            BytesFreed = bytes,
+        };
+    }
+
     private static RepairResult CleanTempFiles(RepairJob job)
     {
         var folder = job.Items.Count == 1 ? job.Items[0] : throw new ArgumentException("Exactly one temp folder expected.");
@@ -327,6 +1007,13 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
     /// </summary>
     private RepairResult DisableStartupPrograms(RepairJob job)
     {
+        var enabled = StartupSource.ReadEntries(includeDisabled: false).Entries.Select(e => e.Reference).ToHashSet(StringComparer.Ordinal);
+        if (job.Items.Count == 0 || job.Items.Distinct(StringComparer.Ordinal).Count() != job.Items.Count
+            || job.Items.Any(reference => !enabled.Contains(reference)))
+        {
+            throw new InvalidOperationException("The selected startup entry changed. Refresh the startup list before trying again.");
+        }
+
         var rollback = new List<string>();
         int disabled = 0;
         foreach (var reference in job.Items)
@@ -349,11 +1036,22 @@ public sealed class WindowsRepairExecutor(bool isElevated) : IRepairExecutor
             disabled++;
         }
 
+        var verified = false;
+        try
+        {
+            var remaining = StartupSource.ReadEntries(includeDisabled: false).Entries.Select(e => e.Reference).ToHashSet(StringComparer.Ordinal);
+            verified = job.Items.All(reference => !remaining.Contains(reference));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Keep the recorded rollback even if a subsequent registry read fails.
+        }
         return new RepairResult
         {
             JobId = job.JobId,
             OperationId = job.OperationId,
             Completed = disabled > 0,
+            Verdict = verified ? RepairVerdict.Fixed : RepairVerdict.Inconclusive,
             Detail = string.Create(CultureInfo.InvariantCulture, $"Switched off {disabled} startup program(s)"),
             Rollback = rollback,
         };

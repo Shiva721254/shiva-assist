@@ -49,6 +49,9 @@ public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog, Repa
 
     public bool HasRepairs => Repairs.Count > 0;
 
+    /// <summary>Shown on Warning/Critical findings that have no automatic catalogue repair.</summary>
+    public bool ShowRemoteHelp => Finding.Severity is Severity.Critical or Severity.Warning && !HasRepairs;
+
     public string? Outcome => repairs?.Outcome(Finding.Id);
 
     public bool HasOutcome => Outcome is not null;
@@ -58,6 +61,20 @@ public sealed class FindingItem(Finding finding, Func<TextCatalog> catalog, Repa
     public Brush Accent => Palette.For(Finding.Severity);
 
     public Brush Soft => Palette.Background(Finding.Severity);
+
+    /// <summary>Segoe Fluent icon per severity, so the card reads at a glance without relying on colour alone.</summary>
+    public string SeverityGlyph => Finding.Severity switch
+    {
+        Severity.Critical or Severity.Warning => WarningGlyph,
+        Severity.Information => InfoGlyph,
+        Severity.Unknown => UnknownGlyph,
+        _ => OkGlyph,
+    };
+
+    private const string WarningGlyph = "\uE7BA";
+    private const string InfoGlyph = "\uE946";
+    private const string UnknownGlyph = "\uE897";
+    private const string OkGlyph = "\uE73E";
 
     public void Refresh() => RefreshAll();
 }
@@ -112,6 +129,24 @@ public sealed class RepairButton(RepairOperation operation, FindingItem item, Re
     public string Label => Operation.Name.Render(catalog());
 
     public string Tooltip => Operation.Description.Render(catalog());
+
+    public string TierLabel => Operation.RestartRequired
+        ? new Message("Needs restart").Render(catalog())
+        : Operation.NeedsSelection
+            ? new Message("Your choice").Render(catalog())
+            : new Message("Automatic").Render(catalog());
+
+    public Brush TierBackground => Operation.RestartRequired
+        ? Palette.Background(Severity.Warning)
+        : Operation.NeedsSelection
+            ? Palette.Background(Severity.Information)
+            : Palette.Background(Severity.Healthy);
+
+    public Brush TierForeground => Operation.RestartRequired
+        ? Palette.For(Severity.Warning)
+        : Operation.NeedsSelection
+            ? Palette.For(Severity.Information)
+            : Palette.For(Severity.Healthy);
 
     public RelayCommand Command => new(async _ => await context.RunAsync(this), _ => !context.Busy);
 }

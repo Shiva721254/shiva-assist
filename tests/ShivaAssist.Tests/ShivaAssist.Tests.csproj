@@ -16,5 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ShivaAssist.Core\ShivaAssist.Core.csproj" />
+    <Compile Include="../../src/ShivaAssist.Setup/InstallerPolicy.cs" Link="Setup/InstallerPolicy.cs" />
+    <Compile Include="../../src/ShivaAssist.Setup/InstallerDownloads.cs" Link="Setup/InstallerDownloads.cs" />
   </ItemGroup>
 </Project>

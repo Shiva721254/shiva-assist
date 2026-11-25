@@ -10,12 +10,23 @@ public sealed class StorageSource : ISnapshotSource<StorageSnapshot>
     private const string Script = """
         $disks = Get-CimInstance -Namespace root/Microsoft/Windows/Storage -ClassName MSFT_PhysicalDisk |
             ForEach-Object {
+                # SMART / NVMe counters; needs administrator rights and is not reported by every disk (-1 = not reported).
+                $r = $null
+                try { $r = $_ | Get-StorageReliabilityCounter -ErrorAction Stop } catch { }
+                $errors = -1
+                if ($r -and ($null -ne $r.ReadErrorsUncorrected -or $null -ne $r.WriteErrorsUncorrected)) {
+                    $errors = [long]$r.ReadErrorsUncorrected + [long]$r.WriteErrorsUncorrected
+                }
                 [pscustomobject]@{
                     model = "$($_.FriendlyName)".Trim()
                     media = [int]$_.MediaType
                     bus = [int]$_.BusType
                     size = [long]$_.Size
                     health = [int]$_.HealthStatus
+                    wear = if ($r -and $null -ne $r.Wear) { [int]$r.Wear } else { -1 }
+                    temp = if ($r -and $r.Temperature -gt 0) { [int]$r.Temperature } else { -1 }
+                    hours = if ($r -and $null -ne $r.PowerOnHours) { [long]$r.PowerOnHours } else { -1 }
+                    errors = $errors
                 }
             }
         [pscustomobject]@{ disks = @($disks) } | ConvertTo-Json -Compress -Depth 3
@@ -43,7 +54,8 @@ public sealed class StorageSource : ISnapshotSource<StorageSnapshot>
                 Long(d, "media") switch { 3 => "HDD", 4 => "SSD", 5 => "SCM", _ => "disk" },
                 Long(d, "bus") switch { 7 => "USB", 11 => "SATA", 17 => "NVMe", 8 => "RAID", 10 => "SAS", _ => "other" },
                 Long(d, "size"),
-                Long(d, "health") switch { 0 => DiskHealth.Healthy, 1 => DiskHealth.Warning, 2 => DiskHealth.Unhealthy, _ => DiskHealth.Unknown }))];
+                Long(d, "health") switch { 0 => DiskHealth.Healthy, 1 => DiskHealth.Warning, 2 => DiskHealth.Unhealthy, _ => DiskHealth.Unknown },
+                new DiskReliability(Optional(d, "wear") is { } w ? (int)w : null, Optional(d, "temp") is { } t ? (int)t : null, Optional(d, "hours"), Optional(d, "errors"))))];
         }
         catch (PlatformNotSupportedException)
         {
@@ -53,6 +65,9 @@ public sealed class StorageSource : ISnapshotSource<StorageSnapshot>
 
         return new StorageSnapshot(volumes, disks);
     }
+
+    /// <summary>-1 (or a missing property) means the disk did not report this counter.</summary>
+    private static long? Optional(System.Text.Json.JsonElement element, string name) => Long(element, name) is var value && value >= 0 ? value : null;
 }
 
 /// <summary>Battery capacities from root\wmi (laptops only).</summary>

@@ -134,7 +134,7 @@ public sealed class UpdateCheck(ISnapshotSource<UpdateSnapshot> source) : Snapsh
 
         if (snapshot.LastUpdateInstalled is not { } last)
         {
-            return [restart, Finding.Unknown("UPDATE-RECENT-001", Module, Category, "The date of the last installed update is not known", UnknownReason.Unsupported, "Windows reported no installed updates with a date")];
+            return [restart, Failed(snapshot), Finding.Unknown("UPDATE-RECENT-001", Module, Category, "The date of the last installed update is not known", UnknownReason.Unsupported, "Windows reported no installed updates with a date")];
         }
 
         var age = DateOnly.FromDateTime(context.Now.UtcDateTime).DayNumber - last.DayNumber;
@@ -156,7 +156,35 @@ public sealed class UpdateCheck(ISnapshotSource<UpdateSnapshot> source) : Snapsh
             _ => new Finding { Id = "UPDATE-RECENT-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Windows updates were installed recently", Evidence = [evidence] },
         };
 
-        return [restart, recent];
+        return [restart, Failed(snapshot), recent];
+    }
+
+    /// <summary>
+    /// Updates that keep failing to install (top-20 problem "Windows Update is stuck"). Two or more failures for an
+    /// update that never installed afterwards point to damaged update components: UPDATE.COMPONENTS.RESET.
+    /// </summary>
+    private Finding Failed(UpdateSnapshot snapshot)
+    {
+        var failing = snapshot.StillFailing ?? [];
+        var evidence = failing.Count == 0
+            ? [new Evidence("WindowsUpdateClient events", "No failed installs without a later successful install in the last 30 days")]
+            : failing.Select(title => new Evidence("WindowsUpdateClient event 20", title)).ToArray();
+        if (failing.Count > 0 && snapshot.FailedAttempts >= 2)
+        {
+            return new Finding
+            {
+                Id = "UPDATE-FAILED-001",
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Warning,
+                Title = new Message("{count} Windows updates keep failing to install", ("count", failing.Count)),
+                SuspectedCause = "Damaged Windows Update files or a stuck download cache make the same update fail again and again.",
+                Recommendation = new("Reset Windows Update so it downloads the updates again."),
+                Evidence = evidence,
+            };
+        }
+
+        return new Finding { Id = "UPDATE-FAILED-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "No Windows updates keep failing", Evidence = evidence };
     }
 }
 

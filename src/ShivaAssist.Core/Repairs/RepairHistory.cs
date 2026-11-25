@@ -32,7 +32,8 @@ public static class RepairHistory
         }
 
         results.Reverse(); // newest first
-        return results;
+        // A durable Pending entry may be followed by the final result for the same cleanup job.
+        return results.DistinctBy(result => result.JobId).ToArray();
     }
 
     public static bool CanUndo(RepairResult result, IReadOnlyList<RepairResult> history)

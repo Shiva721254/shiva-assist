@@ -18,7 +18,7 @@ public sealed class RepairTests
     public void FullDriveOffersTheThreeCleanups()
     {
         var ids = RepairCatalogue.For(Space(3 * Gb)).Select(o => o.Id).ToList();
-        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
+        Assert.Equal([RepairCatalogue.EmptyRecycleBin, RepairCatalogue.CleanTempFiles, RepairCatalogue.CleanBrowserCache, RepairCatalogue.CleanUpdateCache, RepairCatalogue.CleanComponentStore], ids);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class RepairTests
     public void ReportListsCatalogueOperationsAndTheyValidate()
     {
         var finding = ScanRunner.WithRepairs(Space(3 * Gb));
-        Assert.Equal(4, finding.Recommendation!.Operations.Count);
+        Assert.Equal(5, finding.Recommendation!.Operations.Count);
         Assert.Empty(FindingValidator.Validate(finding));
         Assert.NotEmpty(FindingValidator.Validate(finding with { Recommendation = finding.Recommendation with { Operations = ["FORMAT.C.DRIVE"] } }));
     }
@@ -52,20 +52,73 @@ public sealed class RepairTests
         var pass = LayerResult.Passed;
         var fail = LayerResult.Failed;
         var skip = LayerResult.NotTested;
-        Assert.Equal([RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
-        Assert.Equal([RepairCatalogue.RenewAddress], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
-        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.FlushDns], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.FlushDns, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(pass, pass, fail, pass)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.ResetNetworkAdapter, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(fail, skip, skip, skip)).Select(o => o.Id));
+        Assert.Equal([RepairCatalogue.RenewAddress, RepairCatalogue.ResetNetworkAdapter, RepairCatalogue.FlushDns, RepairCatalogue.ResetNetworkStack], RepairCatalogue.For(Network(pass, fail, fail, fail)).Select(o => o.Id));
         Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, fail, portal: true)));
         Assert.Empty(RepairCatalogue.For(Network(pass, pass, pass, pass)));
     }
 
     [Fact]
-    public void OutdatedDefenderOffersAnUpdateButDisabledDefenderDoesNot()
+    public void OutdatedDefenderOffersAnUpdateAndDisabledDefenderOffersEnableOnlyWithoutThirdParty()
     {
-        Finding Av(DefenderStatus status) => Ctx.Single(
-            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([], [new("Domain", true), new("Private", true), new("Public", true)], status), Ctx.User), "SECURITY-AV-001");
+        Finding Av(DefenderStatus status, AntivirusProduct[]? sc = null) => Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new(sc ?? [], [new("Domain", true), new("Private", true), new("Public", true)], status), Ctx.User),
+            SecurityCheck.AntivirusId);
         Assert.Equal([RepairCatalogue.UpdateDefender], RepairCatalogue.For(Av(new DefenderStatus(true, true, 20))).Select(o => o.Id));
-        Assert.Empty(RepairCatalogue.For(Av(new DefenderStatus(true, false, 1))));
+        Assert.Equal([RepairCatalogue.EnableDefender], RepairCatalogue.For(Av(new DefenderStatus(true, false, 1))).Select(o => o.Id));
+        Assert.Empty(RepairCatalogue.For(Av(new DefenderStatus(true, false, 1), [new("Bitdefender Antivirus", true, true)])));
+        Assert.Empty(RepairCatalogue.For(Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new(null, [new("Domain", true), new("Private", true), new("Public", true)], new DefenderStatus(true, false, 1)), Ctx.User),
+            SecurityCheck.AntivirusId)));
+
+        var staleFindings = new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(
+            new([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", true)], new DefenderStatus(true, true, 1, 45)), Ctx.User);
+        var staleScan = Ctx.Single(staleFindings, SecurityCheck.ScanId);
+        Assert.Equal(Severity.Information, staleScan.Severity);
+        Assert.Equal([RepairCatalogue.DefenderQuickScan], RepairCatalogue.For(staleScan).Select(o => o.Id));
+
+        var recentFindings = new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(
+            new([new("Microsoft Defender Antivirus", true, true)], [new("Domain", true), new("Private", true), new("Public", true)], new DefenderStatus(true, true, 1, 2)), Ctx.User);
+        var recentScan = Ctx.Single(recentFindings, SecurityCheck.ScanId);
+        Assert.Equal(Severity.Healthy, recentScan.Severity);
+        Assert.Empty(RepairCatalogue.For(recentScan));
+    }
+
+    [Fact]
+    public void FirewallRepairIsOfferedOnlyWhenNoThirdPartyFirewallIsActive()
+    {
+        Finding Fw(FirewallProfile[] profiles, FirewallProduct[]? thirdParty) => Ctx.Single(
+            new SecurityCheck(new Fixed<SecuritySnapshot>(null!)).Evaluate(new([new("Microsoft Defender Antivirus", true, true)], profiles, null, thirdParty), Ctx.User),
+            SecurityCheck.FirewallId);
+
+        FirewallProfile[] publicOff = [new("Domain", true), new("Private", true), new("Public", false)];
+        FirewallProfile[] allOn = [new("Domain", true), new("Private", true), new("Public", true)];
+
+        // Confirmed no third-party firewall -> safe Fix-it-all eligible repair offered
+        var repairable = Fw(publicOff, []);
+        var op = Assert.Single(RepairCatalogue.For(repairable));
+        Assert.Equal(RepairCatalogue.EnableFirewall, op.Id);
+        Assert.Equal(RiskClass.Low, op.Risk);
+        Assert.True(op.RequiresAdmin);
+        Assert.False(op.NeedsSelection || op.RestartRequired || op.VerifyLater || op.IsUndo);
+
+        // Disabled third-party firewall -> still eligible
+        Assert.Equal([RepairCatalogue.EnableFirewall], RepairCatalogue.For(Fw(publicOff, [new("Old Firewall", false)])).Select(o => o.Id));
+
+        // Active third-party firewall -> Healthy and no repair offered
+        Assert.Empty(RepairCatalogue.For(Fw(publicOff, [new("Bitdefender Firewall", true)])));
+
+        // Unconfirmed third-party firewall status (null) -> fails closed, no automatic repair offered
+        Assert.Empty(RepairCatalogue.For(Fw(publicOff, null)));
+
+        // Already healthy -> no repair offered
+        var healthy = Fw(allOn, []);
+        Assert.Empty(RepairCatalogue.For(healthy));
+
+        // Independent post-check verdict transitions Warning -> Healthy = Fixed
+        var done = new RepairResult { JobId = "fw1", OperationId = RepairCatalogue.EnableFirewall, Completed = true };
+        Assert.Equal(RepairVerdict.Fixed, RepairVerification.Judge(repairable, healthy, done));
     }
 
     [Fact]

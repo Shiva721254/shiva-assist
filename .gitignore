@@ -4,4 +4,6 @@ obj/
 .vs/
 TestResults/
 publish/
+fixture-publish/
 reports/
+installer-output/

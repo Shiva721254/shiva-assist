@@ -8,6 +8,12 @@ namespace ShivaAssist.Core.Modules;
 /// <summary>Antivirus and firewall status as Windows Security reports it.</summary>
 public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : SnapshotCheck<SecuritySnapshot>(source)
 {
+    public const string AntivirusId = "SECURITY-AV-001";
+    public const string FirewallId = "SECURITY-FIREWALL-001";
+    public const string ScanId = "SECURITY-SCAN-001";
+    public const string NoThirdPartyAntivirusObservation = "No active third-party antivirus registered";
+    public const string NoThirdPartyFirewallObservation = "No active third-party firewall registered";
+
     public override string Module => "security";
 
     public override Message Name => "Check of antivirus and firewall";
@@ -23,10 +29,27 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
     public static (bool Enabled, bool UpToDate) DecodeProductState(int productState) =>
         ((productState & 0x1000) != 0, (productState & 0x10) == 0);
 
+    public static bool IsDefenderName(string name) =>
+        name.Contains("Defender", StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsWindowsFirewallName(string name) =>
+        string.Equals(name, "Windows Firewall", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(name, "Windows Defender Firewall", StringComparison.OrdinalIgnoreCase);
+
     public override IReadOnlyList<Finding> Evaluate(SecuritySnapshot snapshot, ScanContext context)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        return [Antivirus(snapshot.Antivirus, snapshot.Defender), Firewall(snapshot.Firewall)];
+        var findings = new List<Finding>
+        {
+            Antivirus(snapshot.Antivirus, snapshot.Defender),
+            Firewall(snapshot.Firewall, snapshot.ThirdPartyFirewalls),
+        };
+        if (DefenderQuickScan(snapshot.Antivirus, snapshot.Defender) is { } scanFinding)
+        {
+            findings.Add(scanFinding);
+        }
+
+        return findings;
     }
 
     private Finding Antivirus(IReadOnlyList<AntivirusProduct>? products, DefenderStatus? defender)
@@ -36,18 +59,24 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
         if (products is null || products.Count == 0)
         {
             return defender is null
-                ? Finding.Unknown("SECURITY-AV-001", Module, Category, "Antivirus status could not be read", UnknownReason.Unsupported, products is null ? "Windows Security Center is not available" : "No antivirus registered with Windows Security Center")
-                : FromDefender(defender);
+                ? Finding.Unknown(AntivirusId, Module, Category, "Antivirus status could not be read", UnknownReason.Unsupported, products is null ? "Windows Security Center is not available" : "No antivirus registered with Windows Security Center")
+                : FromDefender(defender, securityCenterConfirmedEmpty: products is not null);
         }
 
         var evidence = products.Select(p => new Evidence("SecurityCenter2", $"{p.Name}: {(p.Enabled ? "on" : "off")}, definitions {(p.UpToDate ? "up to date" : "out of date")}")).ToList();
         var active = products.Where(p => p.Enabled).ToList();
+        var activeThirdParty = active.Any(p => !IsDefenderName(p.Name));
 
         if (active.Count == 0)
         {
+            if (!activeThirdParty && (defender is not null || products.Any(p => IsDefenderName(p.Name))))
+            {
+                evidence.Add(new Evidence("SecurityCenter2", NoThirdPartyAntivirusObservation));
+            }
+
             return new Finding
             {
-                Id = "SECURITY-AV-001",
+                Id = AntivirusId,
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Critical,
@@ -61,7 +90,7 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
         {
             return new Finding
             {
-                Id = "SECURITY-AV-001",
+                Id = AntivirusId,
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Warning,
@@ -71,53 +100,135 @@ public sealed class SecurityCheck(ISnapshotSource<SecuritySnapshot> source) : Sn
             };
         }
 
-        return new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Antivirus protection is on and up to date", Evidence = evidence };
+        return new Finding { Id = AntivirusId, Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Antivirus protection is on and up to date", Evidence = evidence };
     }
 
-    private Finding FromDefender(DefenderStatus defender)
+    private Finding FromDefender(DefenderStatus defender, bool securityCenterConfirmedEmpty)
     {
-        var evidence = new Evidence("MSFT_MpComputerStatus", $"Microsoft Defender: antivirus {(defender.AntivirusEnabled ? "on" : "off")}, real-time protection {(defender.RealTimeProtection ? "on" : "off")}, definitions {N(defender.SignatureAgeDays)} days old");
+        var evidence = new List<Evidence>
+        {
+            new("MSFT_MpComputerStatus", $"Microsoft Defender: antivirus {(defender.AntivirusEnabled ? "on" : "off")}, real-time protection {(defender.RealTimeProtection ? "on" : "off")}, definitions {N(defender.SignatureAgeDays)} days old"),
+        };
         if (!defender.AntivirusEnabled || !defender.RealTimeProtection)
         {
+            if (securityCenterConfirmedEmpty)
+            {
+                evidence.Add(new Evidence("SecurityCenter2", NoThirdPartyAntivirusObservation));
+            }
+
             return new Finding
             {
-                Id = "SECURITY-AV-001",
+                Id = AntivirusId,
                 Module = Module,
                 Category = Category,
                 Severity = Severity.Critical,
                 Title = defender.AntivirusEnabled ? "Real-time virus protection is switched off" : "No antivirus protection is switched on",
-                Evidence = [evidence],
+                Evidence = evidence,
                 Recommendation = new("Turn on real-time protection: Start → Windows Security → Virus & threat protection → Manage settings."),
             };
         }
 
         return defender.SignatureAgeDays > 7
-            ? new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Warning, Title = "Microsoft Defender is on, but its virus definitions are out of date", Evidence = [evidence], Recommendation = new("Check for updates in Windows Security → Virus & threat protection updates.") }
-            : new Finding { Id = "SECURITY-AV-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Microsoft Defender protection is on and up to date", Evidence = [evidence] };
+            ? new Finding { Id = AntivirusId, Module = Module, Category = Category, Severity = Severity.Warning, Title = "Microsoft Defender is on, but its virus definitions are out of date", Evidence = evidence, Recommendation = new("Check for updates in Windows Security → Virus & threat protection updates.") }
+            : new Finding { Id = AntivirusId, Module = Module, Category = Category, Severity = Severity.Healthy, Title = "Microsoft Defender protection is on and up to date", Evidence = evidence };
     }
 
-    private Finding Firewall(IReadOnlyList<FirewallProfile>? profiles)
+    private Finding? DefenderQuickScan(IReadOnlyList<AntivirusProduct>? products, DefenderStatus? defender)
+    {
+        if (defender is null || !defender.AntivirusEnabled || !defender.RealTimeProtection || defender.QuickScanAgeDays is not { } age)
+        {
+            return null;
+        }
+
+        if (products is not null && products.Any(p => p.Enabled && !IsDefenderName(p.Name)))
+        {
+            return null; // Another active antivirus owns scanning.
+        }
+
+        var obs = age < 0 ? "Microsoft Defender quick scan: no recent scan recorded" : $"Microsoft Defender quick scan: {N(age)} day(s) ago";
+        var evidence = new Evidence("MSFT_MpComputerStatus", obs);
+
+        if (age < 0 || age > 30)
+        {
+            return new Finding
+            {
+                Id = ScanId,
+                Module = Module,
+                Category = Category,
+                Severity = Severity.Information,
+                Title = age < 0
+                    ? new Message("Microsoft Defender has not run a quick scan yet")
+                    : new Message("Microsoft Defender last ran a quick scan {days} days ago", ("days", age)),
+                Recommendation = new("Run a Microsoft Defender quick scan to check common malware locations."),
+                Evidence = [evidence],
+            };
+        }
+
+        return new Finding
+        {
+            Id = ScanId,
+            Module = Module,
+            Category = Category,
+            Severity = Severity.Healthy,
+            Title = "Microsoft Defender ran a quick scan recently",
+            Evidence = [evidence],
+        };
+    }
+
+    private Finding Firewall(IReadOnlyList<FirewallProfile>? profiles, IReadOnlyList<FirewallProduct>? thirdPartyFirewalls)
     {
         if (profiles is null || profiles.Count == 0)
         {
-            return Finding.Unknown("SECURITY-FIREWALL-001", Module, Category, "Firewall status could not be read", UnknownReason.Unsupported, "No firewall profiles reported");
+            return Finding.Unknown(FirewallId, Module, Category, "Firewall status could not be read", UnknownReason.Unsupported, "No firewall profiles reported");
         }
 
         var evidence = profiles.Select(p => new Evidence("MSFT_NetFirewallProfile", $"{p.Name}: {(p.Enabled ? "on" : "off")}")).ToList();
-        var off = profiles.Where(p => !p.Enabled).Select(p => p.Name).ToList();
-        return off.Count > 0
-            ? new Finding
+        var activeThirdParty = thirdPartyFirewalls?
+            .Where(f => f.Enabled && !string.IsNullOrWhiteSpace(f.Name) && !IsWindowsFirewallName(f.Name))
+            .ToList() ?? [];
+
+        if (thirdPartyFirewalls is not null)
+        {
+            if (activeThirdParty.Count > 0)
             {
-                Id = "SECURITY-FIREWALL-001",
+                evidence.AddRange(activeThirdParty.Select(f => new Evidence("SecurityCenter2", $"{f.Name}: on")));
+            }
+            else
+            {
+                evidence.Add(new Evidence("SecurityCenter2", NoThirdPartyFirewallObservation));
+            }
+        }
+
+        var off = profiles.Where(p => !p.Enabled).Select(p => p.Name).ToList();
+        if (off.Count == 0)
+        {
+            return new Finding { Id = FirewallId, Module = Module, Category = Category, Severity = Severity.Healthy, Title = "The Windows firewall is on for every network type", Evidence = evidence };
+        }
+
+        if (activeThirdParty.Count > 0)
+        {
+            return new Finding
+            {
+                Id = FirewallId,
                 Module = Module,
                 Category = Category,
-                Severity = Severity.Warning,
-                Title = new Message("The Windows firewall is switched off for: {profiles}", ("profiles", string.Join(", ", off))),
+                Severity = Severity.Healthy,
+                Title = new Message("Another firewall is active: {names}", ("names", string.Join(", ", activeThirdParty.Select(f => f.Name)))),
                 Evidence = evidence,
-                SuspectedCause = "It may have been switched off by hand or by another security program.",
-                Recommendation = new("Turn the firewall on: Start → Windows Security → Firewall & network protection."),
-            }
-            : new Finding { Id = "SECURITY-FIREWALL-001", Module = Module, Category = Category, Severity = Severity.Healthy, Title = "The Windows firewall is on for every network type", Evidence = evidence };
+            };
+        }
+
+        return new Finding
+        {
+            Id = FirewallId,
+            Module = Module,
+            Category = Category,
+            Severity = Severity.Warning,
+            Title = new Message("The Windows firewall is switched off for: {profiles}", ("profiles", string.Join(", ", off))),
+            Evidence = evidence,
+            SuspectedCause = "It may have been switched off by hand or by another security program.",
+            Recommendation = new("Turn the firewall on: Start → Windows Security → Firewall & network protection."),
+        };
     }
 }
 

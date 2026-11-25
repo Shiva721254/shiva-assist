@@ -62,13 +62,81 @@ public static class RepairCatalogue
     public const string CleanUpdateCache = "DISK.UPDATECACHE.CLEAN";
     public const string FlushDns = "NET.DNS.FLUSH";
     public const string RenewAddress = "NET.ADDRESS.RENEW";
+    public const string ResetNetworkAdapter = "NET.ADAPTER.RESET";
+    public const string ResetProxy = "NET.PROXY.RESET";
+    public const string RestoreProxy = "NET.PROXY.RESTORE";
     public const string UpdateDefender = "SECURITY.DEFENDER.UPDATE";
+    public const string EnableDefender = "SECURITY.DEFENDER.ENABLE";
+    public const string DefenderQuickScan = "SECURITY.DEFENDER.QUICKSCAN";
+    public const string EnableFirewall = "SECURITY.FIREWALL.ENABLE";
     public const string RestartNow = "UPDATE.RESTART.NOW";
     public const string ResetUpdateComponents = "UPDATE.COMPONENTS.RESET";
     public const string RestoreStartupPrograms = "STARTUP.PROGRAMS.RESTORE";
+    public const string UpdateSoftware = "SOFTWARE.PACKAGE.UPDATE";
+    public const string UninstallSoftware = "SOFTWARE.PROGRAM.UNINSTALL";
+    public const string CleanSoftwareLeftovers = "SOFTWARE.LEFTOVERS.CLEAN";
+    public const string RestoreSoftwareLeftovers = "SOFTWARE.LEFTOVERS.RESTORE";
+    public const string ResetPrintSpooler = "PRINT.SPOOLER.RESET";
+    public const string ResumePrinterQueues = "PRINT.QUEUE.RESUME";
+    public const string SyncClock = "TIME.SYNC.REPAIR";
+    public const string CleanBrowserCache = "DISK.BROWSERCACHE.CLEAN";
+    public const string CleanShaderCache = "DISK.SHADERCACHE.CLEAN";
+    public const string RepairAudioService = "AUDIO.SERVICE.REPAIR";
+    public const string RepairSearchService = "SEARCH.SERVICE.REPAIR";
+    public const string RepairWifiService = "NET.WIFI.START";
+    public const string RepairBluetoothService = "DEVICE.BLUETOOTH.REPAIR";
+    public const string EnableSystemProtection = "RECOVERY.PROTECTION.ENABLE";
+    public const string ScheduleFileSystemRepair = "STORAGE.CHKDSK.SCHEDULE";
+    public const string RestartExplorer = "SHELL.EXPLORER.RESTART";
+    public const string RebuildIconCache = "SHELL.ICONCACHE.REBUILD";
+    public const string ResetStoreCache = "APPS.STORE.RESET";
+    public const string ResetNetworkStack = "NET.STACK.RESET";
 
     public static IReadOnlyList<RepairOperation> All { get; } =
     [
+        new()
+        {
+            Id = UninstallSoftware,
+            Name = "Uninstall selected program",
+            Description = "Runs the program's registered uninstaller after creating a restore point. Save your work first. Follow the uninstaller's prompts. A restart may be required. Reinstalling the program may be needed to reverse its removal. Leftover cleanup requires separate approval.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            Minutes = (1, 30),
+            VerifiesFinding = "SOFTWARE-UNINSTALL-001",
+            NeedsSelection = true,
+        },
+        new()
+        {
+            Id = CleanSoftwareLeftovers,
+            Name = "Clean selected leftovers",
+            Description = "Moves only selected, unchanged installation-folder leftovers to recovery storage and removes selected empty folders. Personal files, settings, shared folders and registry keys are excluded. Recovery copies still use disk space. Undo is available in History.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SOFTWARE-LEFTOVERS-001",
+            NeedsSelection = true,
+        },
+        new()
+        {
+            Id = RestoreSoftwareLeftovers,
+            Name = "Restore cleaned leftovers",
+            Description = "Restores the leftover files and empty folders from this cleanup's recovery storage. Existing files are never overwritten. This does not reinstall the program.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            IsUndo = true,
+            Minutes = (1, 5),
+            VerifiesFinding = "SOFTWARE-LEFTOVERS-001",
+        },
+        new()
+        {
+            Id = UpdateSoftware,
+            Name = "Update selected program",
+            Description = "Updates one selected program through Windows Package Manager. Save your work and close that program first. Its installer may ask for permission or licence acceptance.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 20),
+            VerifiesFinding = "SOFTWARE-UPDATE-001",
+            NeedsSelection = true,
+        },
         new()
         {
             Id = EmptyRecycleBin,
@@ -148,13 +216,71 @@ public static class RepairCatalogue
         },
         new()
         {
+            Id = ResetNetworkAdapter,
+            Name = "Restart the network adapter",
+            Description = "Briefly disables and re-enables active physical Wi-Fi or Ethernet adapters to clear a stuck connection without restarting Windows. Virtual and VPN adapters are not touched.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 2),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
+        new()
+        {
+            Id = ResetProxy,
+            Name = "Turn off the broken Windows proxy",
+            Description = "Switches off the manual Windows proxy that is not responding. Your previous proxy setting is saved so you can undo this in History.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = ProxyCheck.FindingId,
+        },
+        new()
+        {
+            Id = RestoreProxy,
+            Name = "Restore previous Windows proxy",
+            Description = "Restores the manual Windows proxy setting that Shiva Assist turned off.",
+            Risk = RiskClass.Low,
+            IsUndo = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ProxyCheck.FindingId,
+        },
+        new()
+        {
             Id = UpdateDefender,
             Name = "Update Microsoft Defender",
             Description = "Downloads the latest virus definitions for Microsoft Defender from Microsoft.",
             Risk = RiskClass.Low,
             RequiresAdmin = true,
             Minutes = (1, 5),
-            VerifiesFinding = "SECURITY-AV-001",
+            VerifiesFinding = SecurityCheck.AntivirusId,
+        },
+        new()
+        {
+            Id = EnableDefender,
+            Name = "Switch Microsoft Defender protection back on",
+            Description = "Switches Microsoft Defender real-time virus protection back on, only when no other antivirus is active. If Windows Tamper Protection is on, Windows requires switching it on in Windows Security.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = SecurityCheck.AntivirusId,
+        },
+        new()
+        {
+            Id = DefenderQuickScan,
+            Name = "Run a Microsoft Defender quick scan",
+            Description = "Runs Windows' built-in Microsoft Defender quick scan on common malware locations. If a threat is found, Windows Security handles removal.",
+            Risk = RiskClass.Low,
+            Minutes = (2, 10),
+            VerifiesFinding = SecurityCheck.ScanId,
+        },
+        new()
+        {
+            Id = EnableFirewall,
+            Name = "Switch the Windows firewall back on",
+            Description = "Turns the Windows Defender Firewall back on for any network profile that is switched off, only when no other firewall is active. Existing firewall rules are preserved.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = SecurityCheck.FirewallId,
         },
         new()
         {
@@ -188,12 +314,163 @@ public static class RepairCatalogue
             VerifiesFinding = "PERF-STARTUP-001",
             IsUndo = true,
         },
+        new()
+        {
+            Id = ResetPrintSpooler,
+            Name = "Restart printing and clear stuck print jobs",
+            Description = "Restarts the Windows print service (Print Spooler) and removes print jobs that are stuck in the queue. Your documents are not affected: print them again afterwards. If the print service was switched off, it is set to start automatically again.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 2),
+            VerifiesFinding = PrintCheck.FindingId,
+        },
+        new()
+        {
+            Id = ResumePrinterQueues,
+            Name = "Resume paused or offline printers",
+            Description = "Resumes paused printer queues and switches off Windows' 'Use Printer Offline' mode without deleting waiting print jobs.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = PrintCheck.QueueFindingId,
+        },
+        new()
+        {
+            Id = SyncClock,
+            Name = "Set the clock right",
+            Description = "Switches automatic time synchronisation back on and sets the clock to the exact time from Microsoft's internet time server (time.windows.com).",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ClockCheck.FindingId,
+        },
+        new()
+        {
+            Id = CleanBrowserCache,
+            Name = "Clear the browser cache",
+            Description = "Deletes the stored copies of web pages that Edge, Chrome and Firefox keep. Passwords, cookies, history and bookmarks are not touched. Pages may load a little slower the first time afterwards.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 3),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = CleanShaderCache,
+            Name = "Clear old graphics shader cache",
+            Description = "Deletes temporary DirectX and graphics shader cache files older than 7 days. Files in use are skipped; Windows and apps recreate them automatically.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 2),
+            VerifiesFinding = "STORAGE-SPACE-001",
+        },
+        new()
+        {
+            Id = RepairAudioService,
+            Name = "Switch the sound service back on",
+            Description = "Switches the Windows Audio services back to automatic start and restarts them. Sound usually works again straight away; programs that were playing may need to be restarted.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.AudioId,
+        },
+        new()
+        {
+            Id = RepairSearchService,
+            Name = "Switch Windows Search back on",
+            Description = "Sets the Windows Search service back to automatic (delayed) start, as Windows ships it, and starts it. Windows then updates its search index in the background.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.SearchId,
+        },
+        new()
+        {
+            Id = RepairWifiService,
+            Name = "Start the Windows Wi-Fi service",
+            Description = "Starts the stopped Windows Wi-Fi service without changing network settings or startup type.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = ServicesCheck.WifiId,
+        },
+        new()
+        {
+            Id = RepairBluetoothService,
+            Name = "Start the Windows Bluetooth service",
+            Description = "Starts the stopped Windows Bluetooth Support Service without changing its startup type or paired devices.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = BluetoothCheck.FindingId,
+        },
+        new()
+        {
+            Id = EnableSystemProtection,
+            Name = "Switch Windows System Protection on",
+            Description = "Turns on Windows System Protection on the Windows drive so restore points can be created before updates and repairs.",
+            Risk = RiskClass.Low,
+            RequiresAdmin = true,
+            Minutes = (1, 1),
+            VerifiesFinding = RecoveryCheck.ProtectionId,
+        },
+        new()
+        {
+            Id = ScheduleFileSystemRepair,
+            Name = "Schedule a Windows disk check on next restart",
+            Description = "Schedules Windows' built-in NTFS file system check (chkntfs /c) to repair the Windows drive automatically the next time you restart. A restore point is made first. Your PC is not restarted automatically.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            RestartRequired = true,
+            VerifyLater = true,
+            Minutes = (2, 15),
+            VerifiesFinding = FileSystemCheck.FindingId,
+        },
+        new()
+        {
+            Id = RestartExplorer,
+            Name = "Restart Windows taskbar and File Explorer",
+            Description = "Briefly restarts Windows Explorer to unfreeze a stuck taskbar, Start menu or File Explorer window. Your open documents stay open.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "SHELL-EXPLORER-001",
+        },
+        new()
+        {
+            Id = RebuildIconCache,
+            Name = "Rebuild desktop and taskbar icon cache",
+            Description = "Clears Windows' cached icon and thumbnail files and restarts File Explorer so blank or broken desktop and taskbar icons redraw cleanly.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 1),
+            VerifiesFinding = "SHELL-ICONCACHE-001",
+        },
+        new()
+        {
+            Id = ResetStoreCache,
+            Name = "Reset Microsoft Store cache",
+            Description = "Clears the Microsoft Store download cache using Windows' built-in wsreset tool, helping when Store apps will not download or update.",
+            Risk = RiskClass.Low,
+            Minutes = (1, 2),
+            VerifiesFinding = "APPS-STORE-001",
+        },
+        new()
+        {
+            Id = ResetNetworkStack,
+            Name = "Reset the network settings of Windows",
+            Description = "Resets the Windows network components (Winsock and TCP/IP) to their default settings, which fixes most damage left by VPNs, security software or malware. A restore point is made first. Fixed IP addresses and VPN adapters may need to be set up again. A restart is needed afterwards.",
+            Risk = RiskClass.Medium,
+            RequiresAdmin = true,
+            RestartRequired = true,
+            VerifyLater = true,
+            Minutes = (2, 5),
+            VerifiesFinding = "NETWORK-CONNECT-001",
+        },
     ];
 
     /// <summary>The operation that reverses another one, when the original recorded what it changed.</summary>
     public static RepairOperation? UndoFor(string operationId) => operationId switch
     {
         DisableStartupPrograms => Find(RestoreStartupPrograms),
+        CleanSoftwareLeftovers => Find(RestoreSoftwareLeftovers),
+        ResetProxy => Find(RestoreProxy),
         _ => null,
     };
 
@@ -212,12 +489,26 @@ public static class RepairCatalogue
 
         return finding.Id switch
         {
-            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
+            "STORAGE-SPACE-001" when finding.Severity != Severity.Information => [Find(EmptyRecycleBin)!, Find(CleanTempFiles)!, Find(CleanBrowserCache)!, Find(CleanUpdateCache)!, Find(CleanComponentStore)!],
             "NETWORK-CONNECT-001" => NetworkRepairs(finding),
-            "SECURITY-AV-001" when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
+            ProxyCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetProxy)!],
+            SecurityCheck.AntivirusId when finding.Severity == Severity.Warning && Observed(finding, "antivirus on, real-time protection on") => [Find(UpdateDefender)!],
+            SecurityCheck.AntivirusId when finding.Severity == Severity.Critical && Observed(finding, SecurityCheck.NoThirdPartyAntivirusObservation) => [Find(EnableDefender)!],
+            SecurityCheck.ScanId when finding.Severity is Severity.Information or Severity.Warning => [Find(DefenderQuickScan)!],
+            SecurityCheck.FirewallId when finding.Severity == Severity.Warning && Observed(finding, SecurityCheck.NoThirdPartyFirewallObservation) => [Find(EnableFirewall)!],
             "UPDATE-RESTART-001" when finding.Severity == Severity.Warning => [Find(RestartNow)!],
             "UPDATE-RECENT-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
+            "UPDATE-FAILED-001" when finding.Severity == Severity.Warning => [Find(ResetUpdateComponents)!],
             "PERF-STARTUP-001" => [Find(DisableStartupPrograms)!],
+            PrintCheck.FindingId when finding.Severity == Severity.Warning => [Find(ResetPrintSpooler)!],
+            PrintCheck.QueueFindingId when finding.Severity == Severity.Warning => [Find(ResumePrinterQueues)!],
+            ClockCheck.FindingId when finding.Severity == Severity.Warning => [Find(SyncClock)!],
+            ServicesCheck.AudioId when finding.Severity == Severity.Warning => [Find(RepairAudioService)!],
+            ServicesCheck.WifiId when finding.Severity == Severity.Warning => [Find(RepairWifiService)!],
+            BluetoothCheck.FindingId when finding.Severity == Severity.Warning => [Find(RepairBluetoothService)!],
+            RecoveryCheck.ProtectionId when finding.Severity == Severity.Warning => [Find(EnableSystemProtection)!],
+            FileSystemCheck.FindingId when finding.Severity == Severity.Warning => [Find(ScheduleFileSystemRepair)!],
+            ServicesCheck.SearchId when finding.Severity == Severity.Warning => [Find(RepairSearchService)!],
             "WIN-INTEGRITY-001" when finding.Evidence.Any(e => e.Observation == DismOutput.RepairableSummary) => [Find(RepairSystemFiles)!],
             _ => [],
         };
@@ -235,11 +526,18 @@ public static class RepairCatalogue
         if (Observed(finding, "IP address failed") || Observed(finding, "gateway failed"))
         {
             operations.Add(Find(RenewAddress)!);
+            operations.Add(Find(ResetNetworkAdapter)!);
         }
 
         if (Observed(finding, "DNS failed"))
         {
             operations.Add(Find(FlushDns)!);
+        }
+
+        // The heavier reset (restart needed) comes last, for when the quick repairs did not help.
+        if (operations.Count > 0)
+        {
+            operations.Add(Find(ResetNetworkStack)!);
         }
 
         return operations;
